@@ -1,0 +1,20 @@
+# ===================================
+# LiteLLM 配置文件
+# ===================================
+
+model_list:
+  - model_name: "deepseek/deepseek-chat"
+    litellm_params:
+      model: "deepseek/deepseek-chat"
+      api_key: "os.environ/DEEPSEEK_API_KEY"
+    model_info:
+      mode: chat
+
+  - model_name: "gemini/gemini-2.5-flash"
+    litellm_params:
+      model: "gemini/gemini-2.5-flash"
+      api_key: "os.environ/GEMINI_API_KEY"
+    model_info:
+      mode: chat
+
+model: deepseek/deepseek-chat
