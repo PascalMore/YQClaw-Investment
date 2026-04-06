@@ -1,0 +1,380 @@
+# -*- coding: utf-8 -*-
+"""
+===================================
+市场数据适配层 - Market Data Adapter
+===================================
+
+Phase 3 更新：
+1. 从 reports 目录读取复盘报告（A 股/美股）
+2. 复用 daily_stock_analysis 的 DataFetcherManager 获取实时指数
+3. 复用 search_service 进行新闻搜索
+4. Crypto 数据（CoinGecko API）
+
+复用 daily_stock_analysis：
+- DataFetcherManager: get_main_indices(region="cn/us/hk")
+- reports 目录: 读取已生成的复盘报告
+"""
+
+import os
+import sys
+from datetime import datetime, date, timedelta
+from typing import Dict, List, Optional, Any
+
+# ============================================
+# 路径设置
+# ============================================
+
+def _get_project_root() -> str:
+    """获取 daily-market-analysis 项目根目录"""
+    current = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(os.path.dirname(current))
+
+def _get_dsa_root() -> str:
+    """获取 daily_stock_analysis 项目根目录"""
+    root = _get_project_root()
+    return os.path.join(os.path.dirname(root), 'daily_stock_analysis')
+
+def _setup_import_paths():
+    """
+    设置导入路径，确保 daily_stock_analysis 的包优先被导入
+    
+    重要：dsa_path 必须放在 market_analysis 路径之前，
+    否则会错误导入 market_analysis venv 中的旧版本包（如 chardet）
+    """
+    dsa_path = _get_dsa_root()
+    dsa_src_path = os.path.join(dsa_path, 'src')
+    
+    # 先添加 daily_stock_analysis（优先级高）
+    if dsa_src_path not in sys.path:
+        sys.path.insert(0, dsa_src_path)
+    if dsa_path not in sys.path:
+        sys.path.insert(0, dsa_path)
+
+_setup_import_paths()
+
+
+# ============================================
+# 市场数据适配器
+# ============================================
+
+class MarketDataAdapter:
+    """
+    市场数据适配器
+    
+    复用 daily_stock_analysis 的数据层：
+    - DataFetcherManager.get_main_indices() 获取实时指数
+    - reports 目录读取复盘报告
+    """
+    
+    def __init__(self, config=None):
+        self.config = config
+        self._reports_root = os.path.join(_get_dsa_root(), 'reports')
+        self._fetcher = None
+    
+    @property
+    def fetcher(self):
+        """获取 DataFetcherManager 实例"""
+        if self._fetcher is None:
+            from data_provider.base import DataFetcherManager
+            self._fetcher = DataFetcherManager()
+        return self._fetcher
+    
+    # SearchService removed - using direct Tavily API
+    
+    # ========================================
+    # 核心：获取各市场实时指数数据
+    # ========================================
+    
+    def get_cn_index_data(self) -> List[Dict]:
+        """获取 A 股主要指数（上证/深证/创业板/科创50）"""
+        try:
+            indices = self.fetcher.get_main_indices(region="cn")
+            return indices if indices else []
+        except Exception as e:
+            print(f"[Adapter] 获取 A 股指数失败：{e}")
+            return []
+    
+    def get_hk_index_data(self) -> List[Dict]:
+        """获取港股主要指数（恒生/恒生科技）"""
+        try:
+            indices = self.fetcher.get_main_indices(region="hk")
+            return indices if indices else []
+        except Exception as e:
+            print(f"[Adapter] 获取港股指数失败：{e}")
+            return []
+    
+    def get_us_index_data(self) -> List[Dict]:
+        """获取美股主要指数（SPX/NDX/DJI）"""
+        try:
+            indices = self.fetcher.get_main_indices(region="us")
+            return indices if indices else []
+        except Exception as e:
+            print(f"[Adapter] 获取美股指数失败：{e}")
+            return []
+    
+    # ========================================
+    # 核心：读取 reports 目录已有报告
+    # ========================================
+    
+    def _get_latest_report_path(self) -> Optional[str]:
+        """获取最新复盘报告路径"""
+        if not os.path.exists(self._reports_root):
+            return None
+        
+        today = date.today()
+        for days_ago in range(3):
+            check_date = today - timedelta(days=days_ago)
+            report_name = f"market_review_{check_date.strftime('%Y%m%d')}.md"
+            report_path = os.path.join(self._reports_root, report_name)
+            if os.path.exists(report_path):
+                return report_path
+        return None
+    
+    def _parse_report_sections(self, content: str) -> Dict[str, str]:
+        """解析复盘报告，提取 A 股和美股部分"""
+        sections = {}
+        
+        if "以下为美股大盘复盘" in content:
+            parts = content.split("以下为美股大盘复盘")
+            cn_part = parts[0]
+            us_part = parts[1] if len(parts) > 1 else ""
+            
+            if "# A股大盘复盘" in cn_part:
+                cn_section = cn_part.split("# A股大盘复盘")[1]
+            else:
+                cn_section = cn_part
+            
+            if "# 美股大盘复盘" in us_part:
+                us_section = us_part.split("# 美股大盘复盘")[1]
+            else:
+                us_section = us_part
+            
+            sections['cn'] = cn_section.strip()
+            sections['us'] = us_section.strip()
+        elif "# 美股大盘复盘" in content:
+            sections['us'] = content.split("# 美股大盘复盘")[1].strip()
+        elif "# A股大盘复盘" in content:
+            sections['cn'] = content.split("# A股大盘复盘")[1].strip()
+        else:
+            sections['raw'] = content
+        
+        return sections
+    
+    # ========================================
+    # 复盘报告获取
+    # ========================================
+    
+    def get_cn_market_review(self) -> Optional[str]:
+        """获取 A 股大盘复盘（从 reports 目录读取）"""
+        report_path = self._get_latest_report_path()
+        if not report_path:
+            return None
+        
+        try:
+            with open(report_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            sections = self._parse_report_sections(content)
+            return sections.get('cn') or sections.get('raw')
+        except Exception as e:
+            print(f"[Adapter] 读取 A 股复盘失败：{e}")
+            return None
+    
+    def get_us_market_review(self) -> Optional[str]:
+        """获取美股大盘复盘（从 reports 目录读取）"""
+        report_path = self._get_latest_report_path()
+        if not report_path:
+            return None
+        
+        try:
+            with open(report_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            sections = self._parse_report_sections(content)
+            return sections.get('us')
+        except Exception as e:
+            print(f"[Adapter] 读取美股复盘失败：{e}")
+            return None
+    
+    # ========================================
+    # 新闻搜索
+    # ========================================
+    
+    # ========================================
+    # 新闻搜索（simple_news）
+    # ========================================
+    
+    def _load_env(self):
+        """加载环境变量"""
+        import os
+        env_file = '/home/pascal/.openclaw/workspace/skills/investment/research/daily-stock-analysis/.env'
+        if os.path.exists(env_file):
+            with open(env_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        os.environ[k] = v
+    
+    def _load_env(self):
+        """加载环境变量"""
+        import os
+        env_file = '/home/pascal/.openclaw/workspace/skills/investment/research/daily-stock-analysis/.env'
+        if os.path.exists(env_file):
+            with open(env_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        os.environ[k] = v
+    
+    def get_global_news(self, limit: int = 3) -> List[Dict[str, str]]:
+        """获取全球宏观热点新闻"""
+        self._load_env()
+        try:
+            from .simple_news import search_news
+            results = search_news("全球宏观 经济 政策 美联储", limit)
+            return results
+        except Exception as e:
+            print(f"[Adapter] 全球新闻获取失败：{e}")
+            return []
+    
+    def get_market_news(self, market: str, limit: int = 5) -> List[Dict[str, str]]:
+        """获取特定市场新闻"""
+        self._load_env()
+        query_map = {
+            "cn": "A股 市场 行情 板块",
+            "hk": "港股 恒生 股市",
+            "us": "美股 纳斯达克 标普",
+            "crypto": "比特币 加密货币",
+            "commodity": "黄金 原油 大宗商品",
+        }
+        try:
+            from .simple_news import search_news
+            results = search_news(query_map.get(market, "市场 新闻"), limit)
+            return results
+        except Exception as e:
+            print(f"[Adapter] {market} 新闻获取失败：{e}")
+            return []
+    
+    # ========================================
+    # Crypto 数据
+    # ========================================
+    
+    def get_crypto_data(self) -> List[Dict[str, Any]]:
+        """获取主流数字货币数据（使用 CoinGecko API）"""
+        try:
+            import requests
+            
+            # CoinGecko API - 免费无需 API key
+            url = "https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": "bitcoin,ethereum,solana",
+                "vs_currencies": "usd",
+                "include_24hr_change": "true"
+            }
+            
+            resp = requests.get(url, params=params, timeout=10)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                crypto_data = []
+                name_map = {
+                    "bitcoin": "比特币 BTC",
+                    "ethereum": "以太坊 ETH",
+                    "solana": "Solana SOL"
+                }
+                
+                for coin_id, name in name_map.items():
+                    if coin_id in data:
+                        crypto_data.append({
+                            "symbol": coin_id[:3].upper(),
+                            "name": name,
+                            "price": data[coin_id].get('usd', 0),
+                            "change_pct": data[coin_id].get('usd_24h_change', 0),
+                            "volume": 0,
+                        })
+                
+                return crypto_data
+            else:
+                print(f"[Adapter] CoinGecko API 错误：{resp.status_code}")
+                return []
+        except Exception as e:
+            print(f"[Adapter] Crypto 数据获取失败：{e}")
+            return []
+    
+    def get_crypto_market_review(self) -> str:
+        """生成数字货币市场复盘"""
+        data = self.get_crypto_data()
+        
+        if not data:
+            return "### 主流加密货币表现\n\n数字货币数据获取失败。"
+        
+        lines = ["### 主流加密货币表现", ""]
+        
+        for coin in data:
+            change_emoji = "🟢" if coin['change_pct'] > 0 else "🔴" if coin['change_pct'] < 0 else "⚪"
+            price = coin['price']
+            if price >= 1000:
+                price_str = f"${price:,.0f}"
+            elif price >= 1:
+                price_str = f"${price:,.2f}"
+            else:
+                price_str = f"${price:,.4f}"
+            
+            lines.append(f"- **{coin['name']}**：{change_emoji} {price_str} ({coin['change_pct']:+.2f}%)")
+        
+        lines.append("")
+        lines.append("### 一句话判断")
+        
+        if data:
+            btc = data[0]
+            if btc['change_pct'] > 5:
+                verdict = "BTC 强势突破，市场 FOMO 情绪升温"
+            elif btc['change_pct'] > 2:
+                verdict = "BTC 震荡偏强，市场情绪乐观"
+            elif btc['change_pct'] > 0:
+                verdict = "BTC 小幅上涨，观望情绪浓厚"
+            elif btc['change_pct'] < -5:
+                verdict = "BTC 大幅回调，注意风险控制"
+            elif btc['change_pct'] < -2:
+                verdict = "BTC 震荡偏弱，市场情绪谨慎"
+            else:
+                verdict = "BTC 横盘整理，等待方向选择"
+            lines.append(f"- {verdict}")
+        
+        return "\n".join(lines)
+    
+    # ========================================
+    # 预留接口
+    # ========================================
+    
+    def get_hk_market_review(self) -> str:
+        """港股复盘 - 待实现"""
+        return "### 港股市场概况\n\n港股复盘待接入。"
+    
+    def get_commodity_market_review(self) -> str:
+        """大宗商品复盘 - 待实现"""
+        return "### 大宗商品市场\n\n数据待接入。"
+    
+    def get_bond_market_review(self) -> str:
+        """债券复盘 - 待实现"""
+        return "### 债券市场\n\n数据待接入。"
+    
+    def get_financial_calendar(self, days: int = 30) -> List[Dict[str, Any]]:
+        """金融日历 - 待实现"""
+        return []
+
+
+# ============================================
+# 单例访问器
+# ============================================
+
+_global_adapter: Optional[MarketDataAdapter] = None
+
+def get_market_adapter(config=None) -> MarketDataAdapter:
+    """获取全局市场数据适配器实例"""
+    global _global_adapter
+    if _global_adapter is None:
+        _global_adapter = MarketDataAdapter(config=config)
+    return _global_adapter
