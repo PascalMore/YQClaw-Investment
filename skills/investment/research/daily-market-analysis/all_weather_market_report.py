@@ -286,9 +286,12 @@ class AllWeatherMarketReport:
     def _generate_hot_news(self) -> str:
         global_news = self.data_adapter.get_global_news(limit=3)
         cn_news = self.data_adapter.get_market_news("cn", limit=3)
+        hk_news = self.data_adapter.get_market_news("hk", limit=3)
         us_news = self.data_adapter.get_market_news("us", limit=3)
+        crypto_news = self.data_adapter.get_market_news("crypto", limit=3)
+        commodity_news = self.data_adapter.get_market_news("commodity", limit=3)
         
-        lines = ["## 二、热点资讯 Top 3", ""]
+        lines = ["## 二、热点资讯 Top 3 (过去24小时)", ""]
         
         lines.append("### 🌍 全球宏观影响力")
         if global_news:
@@ -298,32 +301,63 @@ class AllWeatherMarketReport:
                 lines.append(f"{i}. **{title}**")
                 lines.append(f"   → 来源：{source}")
         else:
-            lines.append("1. 【待接入】—")
-            lines.append("2. 【待接入】—")
-            lines.append("3. 【待接入】—")
+            lines.append("1. 【待接入】")
+            lines.append("2. 【待接入】")
+            lines.append("3. 【待接入】")
         
         lines.append("")
-        lines.append("### 🇨🇳 A 股 Top 3")
+        lines.append("### 🇨🇳 A 股市场")
         if cn_news:
             for i, news in enumerate(cn_news[:3], 1):
                 lines.append(f"{i}. {news.get('title', '—')}")
         else:
-            lines.append("1. 【待接入】—")
-            lines.append("2. 【待接入】—")
-            lines.append("3. 【待接入】—")
+            lines.append("1. 【待接入】")
+            lines.append("2. 【待接入】")
+            lines.append("3. 【待接入】")
         
         lines.append("")
-        lines.append("### 🇺🇸 美股 Top 3")
+        lines.append("### 🇭🇰 港股市场")
+        if hk_news:
+            for i, news in enumerate(hk_news[:3], 1):
+                lines.append(f"{i}. {news.get('title', '—')}")
+        else:
+            lines.append("1. 【待接入】")
+            lines.append("2. 【待接入】")
+            lines.append("3. 【待接入】")
+        
+        lines.append("")
+        lines.append("### 🇺🇸 美股市场")
         if us_news:
             for i, news in enumerate(us_news[:3], 1):
                 lines.append(f"{i}. {news.get('title', '—')}")
         else:
-            lines.append("1. 【待接入】—")
-            lines.append("2. 【待接入】—")
-            lines.append("3. 【待接入】—")
+            lines.append("1. 【待接入】")
+            lines.append("2. 【待接入】")
+            lines.append("3. 【待接入】")
+        
+        lines.append("")
+        lines.append("### ₿ 数字货币")
+        if crypto_news:
+            for i, news in enumerate(crypto_news[:3], 1):
+                lines.append(f"{i}. {news.get('title', '—')}")
+        else:
+            lines.append("1. 【待接入】")
+            lines.append("2. 【待接入】")
+            lines.append("3. 【待接入】")
+        
+        lines.append("")
+        lines.append("### 🥇 大宗商品")
+        if commodity_news:
+            for i, news in enumerate(commodity_news[:3], 1):
+                lines.append(f"{i}. {news.get('title', '—')}")
+        else:
+            lines.append("1. 【待接入】")
+            lines.append("2. 【待接入】")
+            lines.append("3. 【待接入】")
         
         return "\n".join(lines)
-    
+
+
     def _generate_market_reviews(self) -> str:
         sections = ["## 三、各市场复盘", ""]
         

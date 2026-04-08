@@ -229,245 +229,33 @@ class MarketDataAdapter:
                         os.environ[k] = v
     
     def get_global_news(self, limit: int = 3) -> List[Dict[str, str]]:
-        """获取全球宏观热点新闻 - 使用 MiniMax Search"""
-        return self.get_international_news("global", limit)
+        """获取全球宏观热点新闻"""
+        self._load_env()
+        try:
+            from .simple_news import search_news
+            results = search_news("全球宏观 经济 政策 美联储", limit)
+            return results
+        except Exception as e:
+            print(f"[Adapter] 全球新闻获取失败：{e}")
+            return []
     
-
-
-    def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国际热点新闻 - 使用 MiniMax Search
-        
-        Args:
-            category: "global" | "crypto" | "us"
-            limit: 返回条数
-        """
-        # 清除代理环境变量
-        for k in list(os.environ.keys()):
-            if "proxy" in k.lower():
-                del os.environ[k]
-        
-        # 加载 .env 配置
-        try:
-            from dotenv import load_dotenv
-            env_path = '/home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env'
-            if os.path.exists(env_path):
-                load_dotenv(env_path)
-        except Exception as e:
-            print(f"[Adapter] dotenv 加载失败: {e}")
-        
-        category_keywords = {
-            "global": "Federal Reserve interest rate cut inflation economy news April 2026",
-            "crypto": "Bitcoin price Ethereum ETF crypto market news today April 2026",
-            "us": "S&P 500 Nasdaq Dow Jones stock market news today April 2026"
-        }
-        
-        keyword = category_keywords.get(category, category_keywords["global"])
-        
-        # 直接调用 MiniMax API
-        minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
-        if not minimax_key:
-            minimax_key = os.environ.get("MINIMAX_API_KEY", "")
-        
-        if minimax_key:
-            try:
-                import requests
-                headers = {
-                    'Authorization': f'Bearer {minimax_key}',
-                    'Content-Type': 'application/json',
-                    'MM-API-Source': 'Minimax-MCP',
-                }
-                payload = {"q": keyword}
-                resp = requests.post(
-                    'https://api.minimaxi.com/v1/coding_plan/search',
-                    headers=headers, json=payload, timeout=15
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    results = []
-                    seen_titles = set()
-                    for item in data.get('organic', [])[:limit]:
-                        title = item.get('title', '').strip()
-                        if title and title not in seen_titles:
-                            seen_titles.add(title)
-                            results.append({
-                                "title": title,
-                                "content": item.get('snippet', title),
-                                "source": "MiniMax",
-                                "datetime": "",
-                                "url": item.get('url', '')
-                            })
-                    if results:
-                        print(f"[Adapter] {category} 国际新闻 (MiniMax): {len(results)} 条")
-                        return results
-            except Exception as e:
-                print(f"[Adapter] MiniMax 失败: {e}")
-        
-        print(f"[Adapter] {category} 国际新闻: 获取失败")
-        return []
-
-
-
-    def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国际热点新闻 - 使用 MiniMax Search"""
-        # 清除代理
-        for k in list(os.environ.keys()):
-            if "proxy" in k.lower():
-                del os.environ[k]
-        
-        # 加载 .env
-        try:
-            from dotenv import load_dotenv
-            env_path = '/home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env'
-            if os.path.exists(env_path):
-                load_dotenv(env_path)
-        except:
-            pass
-        
-        keywords = {
-            "global": "Federal Reserve interest rate economy news April 2026",
-            "crypto": "Bitcoin Ethereum crypto market news April 2026",
-            "us": "S&P 500 Nasdaq Dow stock market news April 2026"
-        }
-        
-        keyword = keywords.get(category, keywords["global"])
-        minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
-        
-        if minimax_key:
-            try:
-                import requests
-                headers = {'Authorization': f'Bearer {minimax_key}', 'Content-Type': 'application/json', 'MM-API-Source': 'Minimax-MCP'}
-                resp = requests.post('https://api.minimaxi.com/v1/coding_plan/search', headers=headers, json={"q": keyword}, timeout=15)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    results = []
-                    seen = set()
-                    for item in data.get('organic', [])[:limit]:
-                        title = item.get('title', '').strip()
-                        if title and title not in seen:
-                            seen.add(title)
-                            results.append({"title": title, "content": item.get('snippet', title), "source": "MiniMax", "datetime": "", "url": item.get('url', '')})
-                    if results:
-                        print(f"[Adapter] {category} 国际新闻 (MiniMax): {len(results)} 条")
-                        return results
-            except Exception as e:
-                print(f"[Adapter] MiniMax 失败: {e}")
-        
-        print(f"[Adapter] {category} 国际新闻: 获取失败")
-        return []
-
     def get_market_news(self, market: str, limit: int = 5) -> List[Dict[str, str]]:
-        """获取特定市场新闻 - 根据市场类型选择新闻源
-        
-        国际市场 (us/crypto/global): MiniMax Search
-        国内市场 (cn/hk/commodity): MiniMax > 华尔街见闻 > CCTV
-        """
-        international_markets = ["us", "crypto", "global"]
-        domestic_markets = ["cn", "hk", "commodity"]
-        
-        if market in international_markets:
-            return self.get_international_news(market, limit)
-        elif market in domestic_markets:
-            return self.get_domestic_news(market, limit)
-        else:
-            return self.get_domestic_news("cn", limit)
-
-    def get_domestic_news(self, market: str = "cn", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国内热点新闻 - 降级链: MiniMax > 华尔街见闻 > CCTV
-        """
-        # 市场热点关键字
-        keywords = {
-            "cn": "A股 热点板块 概念股 涨停 龙头股 资金流入 今日行情 2026年4月",
-            "hk": "港股 恒生指数 恒生科技 科技股 南向资金 腾讯 阿里 今日行情 2026年4月",
-            "commodity": "黄金价格 原油走势 大宗商品 期货 铜 农产品 今日行情 2026年4月"
+        """获取特定市场新闻"""
+        self._load_env()
+        query_map = {
+            "cn": "A股 市场 行情 板块",
+            "hk": "港股 恒生 股市",
+            "us": "美股 纳斯达克 标普",
+            "crypto": "比特币 加密货币",
+            "commodity": "黄金 原油 大宗商品",
         }
-        
-        keyword = keywords.get(market, keywords["cn"])
-        results = []
-        seen_titles = set()
-        
-        # 源1: MiniMax Search (市场热点)
-        minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
-        if not minimax_key:
-            minimax_key = os.environ.get("MINIMAX_API_KEY", "")
-        
-        if minimax_key:
-            try:
-                import requests
-                headers = {
-                    'Authorization': f'Bearer {minimax_key}',
-                    'Content-Type': 'application/json',
-                    'MM-API-Source': 'Minimax-MCP',
-                }
-                payload = {"q": keyword}
-                resp = requests.post(
-                    'https://api.minimaxi.com/v1/coding_plan/search',
-                    headers=headers, json=payload, timeout=15
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for item in data.get('organic', [])[:limit]:
-                        title = item.get('title', '').strip()
-                        if title and len(title) > 5 and title not in seen_titles:
-                            seen_titles.add(title)
-                            results.append({
-                                "title": title,
-                                "content": item.get('snippet', title),
-                                "source": "MiniMax",
-                                "datetime": "",
-                                "url": item.get('url', '')
-                            })
-            except Exception as e:
-                print(f"[Adapter] MiniMax 失败: {e}")
-        
-        if len(results) >= limit:
-            results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
-            print(f"[Adapter] {market} 国内新闻 (MiniMax): {len(results)} 条")
-            return results[:limit]
-        
-        # 源2: 华尔街见闻
         try:
-            import akshare as ak
-            df = ak.stock_news_main_cx()
-            if df is not None and not df.empty:
-                for _, row in df.head(limit * 2).iterrows():
-                    title = str(row.get('summary', row.get('title', ''))).strip()
-                    if title and 'None' not in title and len(title) > 10 and title not in seen_titles:
-                        seen_titles.add(title)
-                        results.append({
-                            "title": title,
-                            "content": title,
-                            "source": f"华尔街见闻-{row.get('tag', '市场')}",
-                            "datetime": '',
-                            "url": row.get('url', '')
-                        })
+            from .simple_news import search_news
+            results = search_news(query_map.get(market, "市场 新闻"), limit)
+            return results
         except Exception as e:
-            print(f"[Adapter] 华尔街见闻失败: {e}")
-        
-        if len(results) >= limit:
-            results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
-            return results[:limit]
-        
-        # 源3: CCTV新闻
-        try:
-            import akshare as ak
-            df = ak.news_cctv()
-            if df is not None and not df.empty:
-                for _, row in df.head(limit).iterrows():
-                    title = str(row.get('title', '')).strip()
-                    if title and 'None' not in title and title not in seen_titles:
-                        seen_titles.add(title)
-                        results.append({
-                            "title": title,
-                            "content": str(row.get('content', title))[:200],
-                            "source": "CCTV",
-                            "datetime": str(row.get('date', '')),
-                            "url": ''
-                        })
-        except Exception as e:
-            print(f"[Adapter] CCTV新闻失败: {e}")
-        
-        results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
-        return results[:limit]
+            print(f"[Adapter] {market} 新闻获取失败：{e}")
+            return []
     
     # ========================================
     # Crypto 数据
@@ -514,6 +302,103 @@ class MarketDataAdapter:
         except Exception as e:
             print(f"[Adapter] Crypto 数据获取失败：{e}")
             return []
+    
+    def _fetch_hk_indices_direct(self):
+        """直接使用 yfinance 获取港股指数"""
+        result = []
+        try:
+            import yfinance as yf
+            # 恒生指数
+            try:
+                hk = yf.Ticker("^HSI")
+                hist = hk.history(period="1d")
+                if not hist.empty:
+                    close = float(hist['Close'].iloc[-1])
+                    prev_close = float(hist['Open'].iloc[-1]) if len(hist) > 1 else close
+                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                    result.append({
+                        'name': '恒生指数',
+                        'code': 'HSI',
+                        'current': close,
+                        'change_pct': change_pct,
+                        'volume': 0,
+                    })
+            except Exception as e:
+                print(f"[Adapter] 恒生指数获取失败：{e}")
+            
+            # 恒生科技指数
+            try:
+                hk_tech = yf.Ticker("^HSTECH")
+                hist = hk_tech.history(period="1d")
+                if not hist.empty:
+                    close = float(hist['Close'].iloc[-1])
+                    prev_close = float(hist['Open'].iloc[-1]) if len(hist) > 1 else close
+                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                    result.append({
+                        'name': '恒生科技',
+                        'code': 'HSTECH',
+                        'current': close,
+                        'change_pct': change_pct,
+                        'volume': 0,
+                    })
+            except Exception as e:
+                print(f"[Adapter] 恒生科技获取失败：{e}")
+                
+        except Exception as e:
+            print(f"[Adapter] 港股数据获取失败：{e}")
+        return result
+    
+    def _fetch_us_indices_direct(self):
+        """直接使用 yfinance 获取美股指数"""
+        try:
+            import yfinance as yf
+            result = []
+            # 标普500
+            try:
+                spx = yf.Ticker("^GSPC")
+                hist = spx.history(period="1d")
+                if not hist.empty:
+                    close = float(hist['Close'].iloc[-1])
+                    if len(hist) > 1:
+                        prev_close = float(hist['Open'].iloc[-1])
+                    else:
+                        prev_close = close
+                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                    result.append({
+                        'name': '标普500',
+                        'code': 'SPX',
+                        'current': close,
+                        'change_pct': change_pct,
+                        'volume': 0,
+                    })
+            except Exception as e:
+                print(f"[Adapter] 标普500获取失败：{e}")
+            
+            # 纳斯达克
+            try:
+                nasdaq = yf.Ticker("^IXIC")
+                hist = nasdaq.history(period="1d")
+                if not hist.empty:
+                    close = float(hist['Close'].iloc[-1])
+                    if len(hist) > 1:
+                        prev_close = float(hist['Open'].iloc[-1])
+                    else:
+                        prev_close = close
+                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                    result.append({
+                        'name': '纳斯达克综合',
+                        'code': 'NDX',
+                        'current': close,
+                        'change_pct': change_pct,
+                        'volume': 0,
+                    })
+            except Exception as e:
+                print(f"[Adapter] 纳斯达克获取失败：{e}")
+            
+            return result
+        except Exception as e:
+            print(f"[Adapter] 美股数据获取失败：{e}")
+        return []
     
     def get_crypto_market_review(self) -> str:
         """生成数字货币市场复盘"""

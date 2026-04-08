@@ -3,12 +3,14 @@
     "email": 1775400720,
     "calendar": null,
     "weather": null,
-    "daily_market_report": 1775400720,
-    "daily_stock_analysis": 1775412149
+    "daily_market_report": 1775457660,
+    "daily_stock_analysis": 1775464779
   },
   "issues": {
     "email_sending": "SMTP credentials not configured",
     "litellm_api": "DeepSeek connection refused, fell back to template mode",
-    "feishu_doc": "No module named 'lark_oapi'"
-  }
+    "feishu_doc": "No module named 'lark_oapi'",
+    "daily_stock_analysis": "✅ 已自动运行（07:37）"
+  },
+  "report_time": "07:01 AM - before market open"
 }
