@@ -1,4 +1,3 @@
-# Market Data Adapter - 适配层模块
-from .market_data_adapter import MarketDataAdapter, get_market_adapter
+from .market_data_adapter import get_market_adapter, MarketDataAdapter
 
-__all__ = ['MarketDataAdapter', 'get_market_adapter']
+__all__ = ['get_market_adapter', 'MarketDataAdapter']

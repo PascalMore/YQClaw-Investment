@@ -12,15 +12,25 @@ Usage:
 """
 
 import argparse
+import base64
 import json
+import os
+import smtplib
 import sys
-from pathlib import Path
 from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.header import Header
+from pathlib import Path
 
-# 导入模块
-from data_fetcher import MarketDataFetcher
-from news_aggregator import NewsAggregator
-from report_formatter import ReportGenerator
+# 添加父目录到路径
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)
+sys.path.insert(0, SCRIPT_DIR)
+sys.path.insert(0, PARENT_DIR)
+
+# 导入新的报告生成器
+from all_weather_market_report import AllWeatherMarketReport, generate_html_report
 
 
 def load_config():
@@ -30,7 +40,7 @@ def load_config():
         print("⚠️ 配置文件不存在，使用默认配置")
         return get_default_config()
     
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, "r", encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -65,12 +75,8 @@ def get_default_config():
     }
 
 
-def send_email(report: str, config: dict):
+def send_email(report: str, config: dict, report_date: str, is_html=False):
     """发送邮件报告"""
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    
     email_config = config.get("push", {}).get("email", {})
     
     if not email_config.get("enabled"):
@@ -80,12 +86,20 @@ def send_email(report: str, config: dict):
     try:
         # 创建邮件
         msg = MIMEMultipart()
-        msg['From'] = email_config['username']
+        # 发件人：如果有 sender_name 则使用，否则只用邮箱
+        sender_name = email_config.get('sender_name', '')
+        if sender_name:
+            msg['From'] = f"=?UTF-8?B?{base64.b64encode(sender_name.encode('utf-8')).decode()}?= <{email_config['username']}>"
+        else:
+            msg['From'] = email_config['username']
         msg['To'] = ", ".join(email_config['recipients'])
-        msg['Subject'] = f"📈 每日市场研究报告 - {datetime.now().strftime('%Y-%m-%d')}"
+        msg['Subject'] = f"📈 每日全球市场报告 - {report_date}"
         
         # 添加报告内容
-        msg.attach(MIMEText(report, 'plain', 'utf-8'))
+        if is_html:
+            msg.attach(MIMEText(report, 'html', 'utf-8'))
+        else:
+            msg.attach(MIMEText(report, 'plain', 'utf-8'))
         
         # 发送邮件
         server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
@@ -119,42 +133,40 @@ def main():
     # 加载配置
     config = load_config()
     
-    # 1. 获取市场数据
-    print("\n📊 步骤 1/3: 获取市场数据...")
-    fetcher = MarketDataFetcher()
-    market_data = fetcher.get_all_market_data()
+    # 生成 Markdown 报告（保存用）
+    print("\n📝 生成 Markdown 报告...")
+    report_generator = AllWeatherMarketReport(config)
+    md_report = report_generator.generate()
     
-    # 2. 获取新闻
-    print("\n📰 步骤 2/3: 获取新闻资讯...")
-    tavily_key = config.get("data_sources", {}).get("tavily", {}).get("api_key", "")
-    aggregator = NewsAggregator(tavily_api_key=tavily_key)
-    news = aggregator.get_all_news()
-    
-    # 3. 生成报告
-    print("\n📝 步骤 3/3: 生成报告...")
-    generator = ReportGenerator()
-    report = generator.generate_full_report(market_data, news)
-    
-    # 保存报告
+    # 保存 Markdown 报告
     output_dir = Path(__file__).parent.parent / "reports"
     output_dir.mkdir(exist_ok=True)
     output_path = output_dir / f"daily_report_{args.date}.md"
-    generator.save_report(report, output_path)
+    
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(md_report)
+    
+    print(f"✅ Markdown 报告已保存：{output_path}")
+    
+    # 生成 HTML 报告（邮件用）
+    print("\n📝 生成 HTML 报告...")
+    html_report = generate_html_report()
     
     # 邮件推送
     if args.output in ["email", "both"]:
-        print("\n📧 发送邮件...")
-        send_email(report, config)
+        print("\n📧 发送 HTML 邮件...")
+        send_email(html_report, config, args.date, is_html=True)
     
     print("\n" + "=" * 60)
     print("✅ 报告生成完成！")
     print(f"📁 保存位置：{output_path}")
+    print(f"📊 报告长度：{len(md_report)} 字符")
     print("=" * 60)
     
     # 打印预览
     if args.debug:
-        print("\n📋 报告预览:")
-        print(report[:1000])
+        print("\n📋 报告预览 (前 1500 字符):")
+        print(report[:1500])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,51 @@
+{
+  "data_sources": {
+    "akshare": {
+      "enabled": true,
+      "description": "A 股/港股/大宗商品数据（免费）"
+    },
+    "yfinance": {
+      "enabled": true,
+      "description": "美股/全球指数数据（免费）"
+    },
+    "binance": {
+      "enabled": true,
+      "description": "数字货币数据（免费）"
+    },
+    "tavily": {
+      "enabled": true,
+      "api_key": "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",
+      "description": "AI 新闻搜索（免费 1000 次/月）"
+    },
+    "tradingeconomics": {
+      "enabled": false,
+      "api_key": "",
+      "description": "全球经济日历（免费基础版）"
+    }
+  },
+  "push": {
+    "email": {
+      "enabled": true,
+      "smtp_server": "smtp.qq.com",
+      "smtp_port": 587,
+      "username": "532484187@qq.com",
+      "password": "vyzfsxtfuqufcaed",
+      "sender_name": "YQClaw 智能投资助手",
+      "recipients": ["532484187@qq.com"],
+      "description": "邮件推送配置"
+    }
+  },
+  "schedule": {
+    "timezone": "Asia/Shanghai",
+    "time": "08:00",
+    "trading_days_only": true
+  },
+  "watchlist": {
+    "stocks": ["600519", "00700", "AAPL", "NVDA"],
+    "crypto": ["BTC", "ETH", "BNB", "SOL"]
+  },
+  "ai": {
+    "provider": "minimax",
+    "model": "MiniMax-M2.7"
+  }
+}
