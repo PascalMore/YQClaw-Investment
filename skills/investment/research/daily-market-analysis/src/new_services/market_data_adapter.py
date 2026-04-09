@@ -95,21 +95,123 @@ class MarketDataAdapter:
             return []
     
     def get_hk_index_data(self) -> List[Dict]:
-        """获取港股主要指数（恒生/恒生科技）"""
-        try:
-            indices = self.fetcher.get_main_indices(region="hk")
-            return indices if indices else []
-        except Exception as e:
-            print(f"[Adapter] 获取港股指数失败：{e}")
-            return []
+        """获取港股主要指数（恒生/恒生科技）
+        
+        注意: fetcher.get_main_indices(region='hk') 返回错误数据（A股），
+        因此直接使用 yfinance 获取港股指数
+        """
+        return self._fetch_hk_indices_direct()
     
     def get_us_index_data(self) -> List[Dict]:
         """获取美股主要指数（SPX/NDX/DJI）"""
         try:
             indices = self.fetcher.get_main_indices(region="us")
-            return indices if indices else []
+            if indices:
+                return indices
         except Exception as e:
-            print(f"[Adapter] 获取美股指数失败：{e}")
+            print(f"[Adapter] fetcher 美股指数失败：{e}")
+        # Fallback: 直接使用 yfinance
+        return self._fetch_us_indices_direct()
+    
+    def _fetch_hk_indices_direct(self):
+        """直接获取港股指数（恒生/恒生科技）
+        
+        恒生指数: yfinance ^HSI
+        恒生科技: akshare stock_hk_index_daily_sina (yfinance ^HSTECH 已下市)
+        """
+        result = []
+        
+        # 恒生指数 - yfinance
+        try:
+            import yfinance as yf
+            hk = yf.Ticker("^HSI")
+            hist = hk.history(period="1d")
+            if not hist.empty:
+                close = float(hist['Close'].iloc[-1])
+                prev_close = float(hist['Open'].iloc[-1]) if len(hist) > 1 else close
+                change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                result.append({
+                    'name': '恒生指数',
+                    'code': 'HSI',
+                    'current': close,
+                    'change_pct': change_pct,
+                    'volume': 0,
+                })
+        except Exception as e:
+            print(f"[Adapter] 恒生指数获取失败：{e}")
+        
+        # 恒生科技指数 - akshare (yfinance ^HSTECH 已下市)
+        try:
+            import akshare as ak
+            df = ak.stock_hk_index_daily_sina(symbol='HSTECH')
+            if not df.empty:
+                latest = df.iloc[-1]
+                prev = df.iloc[-2] if len(df) > 1 else latest
+                close = float(latest['close'])
+                prev_close = float(prev['close'])
+                change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                result.append({
+                    'name': '恒生科技',
+                    'code': 'HSTECH',
+                    'current': close,
+                    'change_pct': change_pct,
+                    'volume': 0,
+                })
+        except Exception as e:
+            print(f"[Adapter] 恒生科技获取失败：{e}")
+        
+        return result
+    
+    def _fetch_us_indices_direct(self):
+        """直接使用 yfinance 获取美股指数"""
+        try:
+            import yfinance as yf
+            result = []
+            # 标普500
+            try:
+                spx = yf.Ticker("^GSPC")
+                hist = spx.history(period="1d")
+                if not hist.empty:
+                    close = float(hist['Close'].iloc[-1])
+                    if len(hist) > 1:
+                        prev_close = float(hist['Open'].iloc[-1])
+                    else:
+                        prev_close = close
+                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                    result.append({
+                        'name': '标普500',
+                        'code': 'SPX',
+                        'current': close,
+                        'change_pct': change_pct,
+                        'volume': 0,
+                    })
+            except Exception as e:
+                print(f"[Adapter] 标普500获取失败：{e}")
+            
+            # 纳斯达克
+            try:
+                nasdaq = yf.Ticker("^IXIC")
+                hist = nasdaq.history(period="1d")
+                if not hist.empty:
+                    close = float(hist['Close'].iloc[-1])
+                    if len(hist) > 1:
+                        prev_close = float(hist['Open'].iloc[-1])
+                    else:
+                        prev_close = close
+                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                    result.append({
+                        'name': '纳斯达克综合',
+                        'code': 'NDX',
+                        'current': close,
+                        'change_pct': change_pct,
+                        'volume': 0,
+                    })
+            except Exception as e:
+                print(f"[Adapter] 纳斯达克获取失败：{e}")
+            
+            return result
+        except Exception as e:
+            print(f"[Adapter] 美股数据获取失败：{e}")
             return []
     
     # ========================================
