@@ -453,8 +453,8 @@ class ReportGenerator:
         "标普500": {"market": "美股", "code": "^GSPC", "source": "us"},
         "纳斯达克": {"market": "美股", "code": "^IXIC", "source": "us"},
         # 大宗商品
-        "黄金": {"market": "大宗", "source": "comm", "data_key": "黄金"},
-        "WTI原油": {"market": "大宗", "source": "comm", "data_key": "原油"},
+        "黄金 AU2606": {"market": "大宗", "source": "comm", "data_key": "黄金"},
+        "原油 SC2605": {"market": "大宗", "source": "comm", "data_key": "原油"},
         # 债券
         "中国债券": {"market": "债市", "source": "bond", "data_key": "中国债券"},
         "美国债券": {"market": "债市", "source": "bond", "data_key": "美国债券"},
@@ -502,10 +502,10 @@ class ReportGenerator:
             return f"${value:.6f}"
         # 大宗商品
         elif source == "comm":
-            if index_name == "黄金":
+            if index_name.startswith("黄金"):
                 return f"{value:.2f} 元/克"
-            elif index_name == "WTI原油":
-                return f"${value:.2f}/桶"
+            elif index_name.startswith("原油"):
+                return f"{value:.2f} 元/桶"
             return f"{value:.2f}"
         # 债券收益率
         elif source == "bond":

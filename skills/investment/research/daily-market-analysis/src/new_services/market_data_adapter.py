@@ -745,10 +745,11 @@ class MarketDataAdapter:
                 gold_code = gold_rows.iloc[0]['mapping_ts_code'] if not gold_rows.empty else None
                 oil_code  = oil_rows.iloc[0]['mapping_ts_code']  if not oil_rows.empty else None
 
-                # 黄金期货日线（取最近2天）
+                # 黄金期货日线（查完整历史，取最后2条）
                 if gold_code:
-                    df_g = pro.fut_daily(ts_code=gold_code, start_date=today[:4]+'0101', end_date=today)
+                    df_g = pro.fut_daily(ts_code=gold_code)
                     if df_g is not None and not df_g.empty and len(df_g) >= 2:
+                        df_g = df_g.sort_values('trade_date').tail(2)
                         curr = df_g.iloc[-1]
                         prev = df_g.iloc[-2]
                         curr_price = float(curr['close'])
@@ -757,7 +758,7 @@ class MarketDataAdapter:
                         # 黄金价格单位是 元/克；amount = 成交金额（元）
                         result.append({
                             'name': '黄金',
-                            'code': 'GOLD',
+                            'code': gold_code,   # 如 AU2606.SHF
                             'market': '大宗',
                             'price': curr_price,
                             'change_pct': pct,
@@ -768,8 +769,9 @@ class MarketDataAdapter:
 
                 # 原油期货日线
                 if oil_code:
-                    df_o = pro.fut_daily(ts_code=oil_code, start_date=today[:4]+'0101', end_date=today)
+                    df_o = pro.fut_daily(ts_code=oil_code)
                     if df_o is not None and not df_o.empty and len(df_o) >= 2:
+                        df_o = df_o.sort_values('trade_date').tail(2)
                         curr = df_o.iloc[-1]
                         prev = df_o.iloc[-2]
                         curr_price = float(curr['close'])
@@ -778,7 +780,7 @@ class MarketDataAdapter:
                         # 原油价格单位是 元/桶（内盘）；amount = 成交金额（元）
                         result.append({
                             'name': '原油',
-                            'code': 'OIL',
+                            'code': oil_code,   # 如 SC2605.INE
                             'market': '大宗',
                             'price': curr_price,
                             'change_pct': pct,
@@ -788,13 +790,15 @@ class MarketDataAdapter:
                         })
 
                 if result:
-                    print(f"[Adapter] 大宗商品 (Tushare): 黄金={sum(1 for x in result if x['code']=='GOLD')} 原油={sum(1 for x in result if x['code']=='OIL')}")
+                    gold_count = sum(1 for x in result if 'AU' in x.get('code', ''))
+                    oil_count = sum(1 for x in result if 'SC' in x.get('code', ''))
+                    print(f"[Adapter] 大宗商品 (Tushare): 黄金={gold_count} 原油={oil_count}")
 
             except Exception as e:
                 print(f"[Adapter] Tushare 大宗数据失败: {e}")
 
         # ── 2. akshare 备用（黄金现货）─────────────────────────
-        if not any(r['code'] == 'GOLD' for r in result):
+        if not any(r['name'] == '黄金' for r in result):
             try:
                 import akshare as ak
                 df = ak.spot_golden_benchmark_sge()
@@ -813,7 +817,7 @@ class MarketDataAdapter:
                 print(f"[Adapter] 黄金(SGE)失败: {e}")
 
         # ── 3. yfinance WTI 备用（已确认会 rate limit 但不报错的静默跳过）──
-        if not any(r['code'] == 'OIL' for r in result):
+        if not any(r['name'] == '原油' for r in result):
             try:
                 import yfinance as yf
                 t = yf.Ticker('CL=F')
