@@ -576,46 +576,79 @@ class MarketDataAdapter:
     # ========================================
     
     def get_crypto_data(self) -> List[Dict[str, Any]]:
-        """获取主流数字货币数据（使用 CoinGecko API）"""
+        """获取主流数字货币数据
+        
+        优先级：Yahoo Finance > CoinGecko API
+        Yahoo Finance 用于获取 BTC/ETH/SOL（可靠）
+        CoinGecko 作为备用（可能被限流）
+        """
+        # 先尝试 Yahoo Finance（更稳定）
+        try:
+            import yfinance as yf
+            tickers = {
+                'BTC-USD': ('比特币 BTC', 'BIT'),
+                'ETH-USD': ('以太坊 ETH', 'ETH'),
+                'SOL-USD': ('Solana SOL', 'SOL'),
+            }
+            crypto_data = []
+            for symbol, (name, short_sym) in tickers.items():
+                try:
+                    t = yf.Ticker(symbol)
+                    hist = t.history(period='2d')
+                    if not hist.empty and len(hist) >= 2:
+                        curr = float(hist['Close'].iloc[-1])
+                        prev = float(hist['Close'].iloc[-2])
+                        change_pct = ((curr - prev) / prev * 100) if prev > 0 else 0
+                        crypto_data.append({
+                            'symbol': short_sym,
+                            'name': name,
+                            'price': curr,
+                            'change_pct': change_pct,
+                            'volume': 0,
+                        })
+                except Exception as e:
+                    print(f"[Adapter] {symbol} 获取失败：{e}")
+            if crypto_data:
+                print(f"[Adapter] Crypto 数据 (Yahoo): {len(crypto_data)} 个币种")
+                return crypto_data
+        except Exception as e:
+            print(f"[Adapter] Yahoo Finance 失败：{e}")
+        
+        # Fallback: CoinGecko API
         try:
             import requests
-            
-            # CoinGecko API - 免费无需 API key
             url = "https://api.coingecko.com/api/v3/simple/price"
             params = {
                 "ids": "bitcoin,ethereum,solana",
                 "vs_currencies": "usd",
                 "include_24hr_change": "true"
             }
-            
-            resp = requests.get(url, params=params, timeout=10)
-            
+            resp = requests.get(url, params=params, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 crypto_data = []
                 name_map = {
-                    "bitcoin": "比特币 BTC",
-                    "ethereum": "以太坊 ETH",
-                    "solana": "Solana SOL"
+                    "bitcoin": ("比特币 BTC", "BIT"),
+                    "ethereum": ("以太坊 ETH", "ETH"),
+                    "solana": ("Solana SOL", "SOL")
                 }
-                
-                for coin_id, name in name_map.items():
+                for coin_id, (name, sym) in name_map.items():
                     if coin_id in data:
                         crypto_data.append({
-                            "symbol": coin_id[:3].upper(),
+                            "symbol": sym,
                             "name": name,
                             "price": data[coin_id].get('usd', 0),
                             "change_pct": data[coin_id].get('usd_24h_change', 0),
                             "volume": 0,
                         })
-                
+                print(f"[Adapter] Crypto 数据 (CoinGecko): {len(crypto_data)} 个币种")
                 return crypto_data
             else:
                 print(f"[Adapter] CoinGecko API 错误：{resp.status_code}")
-                return []
         except Exception as e:
-            print(f"[Adapter] Crypto 数据获取失败：{e}")
-            return []
+            print(f"[Adapter] CoinGecko 失败：{e}")
+        
+        return []
     
     def get_crypto_market_review(self) -> str:
         """生成数字货币市场复盘"""
