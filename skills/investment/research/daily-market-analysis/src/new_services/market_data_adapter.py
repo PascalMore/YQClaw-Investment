@@ -656,6 +656,52 @@ class MarketDataAdapter:
         """港股复盘 - 待实现"""
         return "### 港股市场概况\n\n港股复盘待接入。"
     
+    def get_commodity_market_review(self) -> str:
+        """生成大宗商品市场复盘（黄金、原油）"""
+        data = self.get_commodity_data()
+
+        if not data:
+            return "### 大宗商品市场概况\n\n黄金、原油数据获取失败。"
+
+        lines = ["### 大宗商品市场概况", ""]
+
+        for item in data:
+            change_emoji = "🟢" if item['change_pct'] > 0 else "🔴" if item['change_pct'] < 0 else "⚪"
+            price = item['price']
+            unit = item.get('unit', '')
+            amount = item.get('amount', 0)
+            amount_str = f"{amount / 1e8:.2f}亿" if amount >= 1e8 else f"{amount / 1e4:.2f}万" if amount >= 1e4 else "-"
+
+            lines.append(
+                f"- **{item['name']}**：{change_emoji} {price:.2f}{unit} "
+                f"({item['change_pct']:+.2f}%) | 成交金额: {amount_str}"
+            )
+
+        lines.append("")
+        lines.append("### 一句话判断")
+
+        gold = next((x for x in data if x['code'] == 'GOLD'), None)
+        oil = next((x for x in data if x['code'] == 'OIL'), None)
+
+        if gold and oil:
+            if gold['change_pct'] > 0 and oil['change_pct'] > 0:
+                verdict = "黄金、原油同步上涨，避险与需求双重支撑"
+            elif gold['change_pct'] > 0 and oil['change_pct'] < 0:
+                verdict = "黄金上涨、原油下跌，避险情绪升温但需求预期降温"
+            elif gold['change_pct'] < 0 and oil['change_pct'] > 0:
+                verdict = "黄金下跌、原油上涨，避险降温但需求预期回升"
+            elif gold['change_pct'] < 0 and oil['change_pct'] < 0:
+                verdict = "黄金、原油同步下跌，避险需求减弱"
+            else:
+                verdict = "黄金、原油窄幅震荡，等待方向"
+            lines.append(f"- {verdict}")
+        elif gold:
+            lines.append(f"- 黄金 {gold['change_pct']:+.2f}%，{'强势' if gold['change_pct'] > 1 else '小幅' if gold['change_pct'] > 0 else '小幅下跌' if gold['change_pct'] < 0 else '横盘'}运行")
+        elif oil:
+            lines.append(f"- 原油 {oil['change_pct']:+.2f}%，{'强势' if oil['change_pct'] > 1 else '小幅' if oil['change_pct'] > 0 else '小幅下跌' if oil['change_pct'] < 0 else '横盘'}运行")
+
+        return "\n".join(lines)
+
     def get_commodity_data(self) -> List[Dict[str, Any]]:
         """获取大宗商品数据（黄金、原油）
         
@@ -821,7 +867,52 @@ class MarketDataAdapter:
             print(f"[Adapter] 债券数据获取失败: {e}")
 
         return result
-    
+
+    def get_bond_market_review(self) -> str:
+        """生成债券市场复盘（中债、美债）"""
+        data = self.get_bond_data()
+
+        if not data:
+            return "### 债券市场概况\n\n债券数据获取失败。"
+
+        lines = ["### 债券市场概况", ""]
+
+        for item in data:
+            rate_10y = item.get('rate_10y', 0)
+            rate_2y = item.get('rate_2y')
+            name = item['name']
+            spread = (rate_10y - rate_2y) if rate_2y is not None else None
+            spread_str = f"利差 {spread:.2f}%" if spread is not None else ""
+            lines.append(f"- **{name}**：10Y {rate_10y:.4f}% {spread_str}")
+
+        lines.append("")
+        lines.append("### 一句话判断")
+
+        cn = next((x for x in data if x['code'] == 'CNBOND'), None)
+        us = next((x for x in data if x['code'] == 'USBOND'), None)
+
+        if cn and us:
+            spread_cn = (cn['rate_10y'] - cn['rate_2y']) if cn.get('rate_2y') else None
+            spread_us = (us['rate_10y'] - us['rate_2y']) if us.get('rate_2y') else None
+
+            if cn['rate_10y'] > us['rate_10y']:
+                verdict = f"中债10Y({cn['rate_10y']:.2f}%) > 美债10Y({us['rate_10y']:.2f}%)，中美利差倒挂，人民币汇率承压"
+            else:
+                verdict = f"美债10Y({us['rate_10y']:.2f}%) > 中债10Y({cn['rate_10y']:.2f}%)，利差趋于正常，汇率压力缓解"
+            lines.append(f"- {verdict}")
+
+            if spread_us and spread_cn:
+                if spread_us > spread_cn:
+                    lines.append(f"- 美债曲线陡峭化程度更大（利差 {spread_us:.2f}% vs {spread_cn:.2f}%）")
+                else:
+                    lines.append(f"- 中债曲线陡峭化程度更大（利差 {spread_cn:.2f}% vs {spread_us:.2f}%）")
+        elif cn:
+            lines.append(f"- 中债10Y {cn['rate_10y']:.2f}% 运行")
+        elif us:
+            lines.append(f"- 美债10Y {us['rate_10y']:.2f}% 运行")
+
+        return "\n".join(lines)
+
     def get_financial_calendar(self, days: int = 30) -> List[Dict[str, Any]]:
         """金融日历 - 待实现"""
         return []

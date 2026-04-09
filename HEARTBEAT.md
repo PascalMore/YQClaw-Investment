@@ -2,8 +2,8 @@
 
 ## 定期检查
 
-### 每个交易日 08:30
-- [ ] 生成全球市场日报（daily-market-analysis）
+### 每个交易日 08:00
+- [ ] 生成全球市场日报（daily-market-analysis，已由 crontab 触发）
 - [ ] 邮件推送
 
 ### 每周五 17:00

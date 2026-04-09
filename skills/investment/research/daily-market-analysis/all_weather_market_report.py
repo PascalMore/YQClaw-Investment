@@ -192,11 +192,30 @@ class AllWeatherMarketReport:
         else:
             rows.append(f"| BTC | ⚪ — | — | {crypto_analysis} | 超配 10% | ETF净流入 |")
         
-        # 黄金/原油/债券占位
-        rows.append(f"| 黄金 | ⚪ — | — | 待接入 | 标配 5% | — |")
-        rows.append(f"| WTI原油 | ⚪ — | — | 待接入 | 低配 3% | — |")
-        rows.append(f"| 美债10Y | ⚪ — | — | 待接入 | 标配 3% | — |")
-        rows.append(f"| 中债10Y | ⚪ — | — | 待接入 | 超配 5% | — |")
+        # 黄金/原油
+        commodity_data = self._get_commodity_data()
+        bond_data = self._get_bond_data()
+        for item in commodity_data:
+            emoji = self._emoji(item.get('change_pct', 0))
+            price = item.get('price', 0)
+            change = item.get('change_pct', 0)
+            amount = item.get('amount', 0)
+            amount_str = f"{amount/1e8:.2f}亿" if amount >= 1e8 else f"{amount/1e4:.2f}万" if amount >= 1e4 else "-"
+            name = item.get('name', '')
+            unit = item.get('unit', '')
+            if name == '黄金':
+                rows.append(f"| 黄金 | {emoji} {price:.2f}{unit} | {change:+.2f}% | 成交金额 {amount_str} | 标配 5% | — |")
+            elif name == '原油':
+                rows.append(f"| WTI原油 | {emoji} {price:.2f}{unit} | {change:+.2f}% | 成交金额 {amount_str} | 低配 3% | — |")
+
+        # 债券
+        for item in bond_data:
+            name = item.get('name', '')
+            rate = item.get('rate_10y', 0)
+            if '美国' in name:
+                rows.append(f"| 美债10Y | ⚪ {rate:.4f}% | — | 参考利率 | 标配 3% | — |")
+            elif '中国' in name:
+                rows.append(f"| 中债10Y | ⚪ {rate:.4f}% | — | 参考利率 | 超配 5% | — |")
         
         table = f"""## 一、全球市场概览
 
@@ -282,7 +301,19 @@ class AllWeatherMarketReport:
             return self.data_adapter.get_crypto_data()
         except:
             return []
-    
+
+    def _get_commodity_data(self) -> List[Dict]:
+        try:
+            return self.data_adapter.get_commodity_data()
+        except:
+            return []
+
+    def _get_bond_data(self) -> List[Dict]:
+        try:
+            return self.data_adapter.get_bond_data()
+        except:
+            return []
+
     def _generate_hot_news(self) -> str:
         global_news = self.data_adapter.get_global_news(limit=3)
         cn_news = self.data_adapter.get_market_news("cn", limit=3)
