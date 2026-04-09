@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-09T07:05:30.473Z",
+  "entries": {
+    "memory:memory/2026-04-05.md:1:38": {
+      "key": "memory:memory/2026-04-05.md:1:38",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "## daily-market-analysis 需求确认 ### 时间规划 - **每天 08:30** 推送全球市场简报 ### 报告结构 1. **多市场概览** - A股、H股、美股、数字货币、大宗商品 2. **热点新闻** - 24h内全球金融Top3 + 各市场Top5 3. **各市场复盘**（格式参考 daily-stock-analysis）： - 市场总结 - 指数表现/风格分析 - 资金动向 - 热点解读 - 后市展望 - 风险提示 - 策略计划 4. **金融日历** - 未来1个月重要事件 5. **仓位建议** - 基于风险敞口 ### 数据源 - **优先**: Tushare（Pascal 有 2000积分 API Key） - **备用**: AkShare ### 报告格式 - Markdown，可含图表 - 邮件推送 ### 复用水源 - daily-stock-analysis 的分析框架和格式 - 数据服务层（stock_service.py） - 通知服务（邮件等） ## Pascal 的目录约定 - \"workspace\" = `/home/pascal/.openclaw/workspace` - skills 目录在 workspace 下: `workspace/skills/` - investment 项目在 `workspace/skills/investment/`",
+      "recallCount": 2,
+      "totalScore": 1.2088725313719104,
+      "maxScore": 0.6176178792373291,
+      "firstRecalledAt": "2026-04-08T23:33:52.408Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "a6605d664647",
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "daily-market-analysis",
+        "daily-stock-analysis",
+        "指数表现/风格分析",
+        "stock-service.py",
+        "home/pascal",
+        "openclaw/workspace",
+        "workspace/skills",
+        "workspace/skills/investment"
+      ]
+    },
+    "memory:memory/2026-04-06.md:170:195": {
+      "key": "memory:memory/2026-04-06.md:170:195",
+      "path": "memory/2026-04-06.md",
+      "startLine": 170,
+      "endLine": 195,
+      "source": "memory",
+      "snippet": "| 新闻\"待接入\" | simple_news 导入问题 | 🔴 待修 | | 黄金/原油/债券无数据 | 未接入数据源 | 🟡 待接入 | | 美股复盘有时失败 | daily_stock_analysis 美股接口问题 | 🟡 待修 | ### 关键文件 - `daily-market-analysis/all_weather_market_report.py` - 主报告生成器 - `daily-market-analysis/src/new_services/market_data_adapter.py` - 数据适配器 - `daily-market-analysis/src/new_services/simple_news.py` - 新闻获取（Tavily API） - `daily-market-analysis/reports/` - 报告输出目录 - `daily-stock-analysis/reports/market_review_YYYYMMDD.md` - 复盘报告源 ### cron 设置 ```bash 0 0 * * 1-5 /home/pascal/.openclaw/workspace/skills/investment/research/daily-market-analysis/run_report.sh ``` ### Pascal 的反馈 1. 市场分析要从复盘提炼 3-5 句话，不是\"详见复盘\" 2. A股增加沪深300，港股增加恒生科技 3. BTC/ETH/SOL 都要显示 4. 上证+沪深300、恒生+恒",
+      "recallCount": 2,
+      "totalScore": 0.9119029870723061,
+      "maxScore": 0.46936767673739643,
+      "firstRecalledAt": "2026-04-08T23:33:52.408Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "a6605d664647",
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "simple-news",
+        "黄金/原油/债券无数据",
+        "daily-stock-analysis",
+        "daily-market-analysis/reports",
+        "1-5",
+        "home/pascal",
+        "3-5",
+        "btc/eth/sol"
+      ]
+    },
+    "memory:memory/2026-04-07.md:34:68": {
+      "key": "memory:memory/2026-04-07.md:34:68",
+      "path": "memory/2026-04-07.md",
+      "startLine": 34,
+      "endLine": 68,
+      "source": "memory",
+      "snippet": "路径：`~/.config/systemd/user/daily-stock-analysis.service` - 执行：`/usr/bin/python3 main.py` - SCHEDULE_TIME=07:30 触发自选股分析 - 代理通过 .env 读取（动态获取WSL2网关IP方案被回退） ### Crontab（最终） ``` 0 8 * * 1-5 daily-market-analysis --output email # 08:00 全球市场报告 ``` 07:30 stock analysis 已从 crontab 移除，改由 systemd service 通过 SCHEDULE_TIME=07:30 执行 ## Daily Market Analysis 项目配置 ### config.json 路径 `~/.openclaw/workspace/skills/investment/research/daily-market-analysis/config.json` ### 关键配置 - 邮件推送：已启用（QQ SMTP） - AI provider：minimax - Tavily：已启用 - SCHEDULE_TIME=08:00 ## OpenClaw 配置 ### Agent 名称 从 `main` 改为 `YQClaw` 路径：`~/.openclaw/etc/openclaw.json` ## GitHub 提交 - daily_stock_analysis repo 已推送 main.py AI analyzer 修",
+      "recallCount": 1,
+      "totalScore": 0.4400392592980241,
+      "maxScore": 0.4400392592980241,
+      "firstRecalledAt": "2026-04-08T23:34:00.493Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "网关",
+        "usr/bin/python3",
+        "main.py",
+        "schedule-time",
+        "1-5",
+        "daily-market-analysis",
+        "config.json",
+        "openclaw/etc/openclaw.json"
+      ]
+    },
+    "memory:memory/2026-04-06.md:60:105": {
+      "key": "memory:memory/2026-04-06.md:60:105",
+      "path": "memory/2026-04-06.md",
+      "startLine": 60,
+      "endLine": 105,
+      "source": "memory",
+      "snippet": "上证指数: 3880.10 (↓1.00%) 深证成指: 13352.90 (↓0.99%) 创业板指: 3149.60 (↓0.73%) 科创50: 1256.21 (↓0.47%) 上涨 716 / 下跌 4746 涨停 38 / 跌停 46 成交额 16689亿 ``` ### 待完成 - [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 --- ## 夜间调试记录 (2026-04-06 01:20-02:08) ### litellm/MiniMax 兼容性问题 ✅ 根因确认 **问题描述：** litellm 调用 MiniMax API 失败，报 `invalid api key (2049)` **根本原因：** - litellm MiniMax provider 使用 OpenAI 兼容端点 `/v1/chat/completions` - MiniMax 实际使用 Anthropic 兼容端点 `/v1/messages` - 即使配置了正确的 `base_url: \"https://api.minimaxi.com/anthropic\"`，litellm 内部仍然拼接错误路径 **测试验证：** - ✅ 直接用 `requests.post` 调用 MiniMax `/v1/me",
+      "recallCount": 1,
+      "totalScore": 0.4150672914794588,
+      "maxScore": 0.4150672914794588,
+      "firstRecalledAt": "2026-04-08T23:34:00.493Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "openai",
+        "网络",
+        "3880.10",
+        "1.00",
+        "13352.90",
+        "0.99",
+        "3149.60",
+        "0.73"
+      ]
+    },
+    "memory:memory/2026-04-06.md:1:42": {
+      "key": "memory:memory/2026-04-06.md:1:42",
+      "path": "memory/2026-04-06.md",
+      "startLine": 1,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "# 2026-04-06 Daily Memory ## Session Summary ### Investment System Setup - Working on OpenClaw investment skills: `daily_stock_analysis` and `daily-market-analysis` - Configured `litellm_config.yaml` with MiniMax + Gemini models - Set up `.env` with API keys and LITELLM_CONFIG path ### Technical Issues 1. **Network proxy issue** - 系统环境有 `socks5h://127.0.0.1:20170` 代理，导致 litellm API 调用失败 (SSL handshake failed) 2. **Module import issue** - `daily-stock-analysis` 有 `analyzer_service` 缺失问题 3. **Template mode works** - 基础数据获取（akshare）和报告生成正常 ### What's Working - ✅ akshare 数据获取正常 - ✅ 报告模板生成正常 - ✅ 股票数据复盘功能正常（上证/深证/创业板/科创50） - ❌ AI 分析未启用（litellm 网络问题） ### Daily Stock Analysis 测试结果 ``` 上证指数: 388",
+      "recallCount": 1,
+      "totalScore": 0.6325709383426441,
+      "maxScore": 0.6325709383426441,
+      "firstRecalledAt": "2026-04-09T07:05:30.473Z",
+      "lastRecalledAt": "2026-04-09T07:05:30.473Z",
+      "queryHashes": [
+        "de2710a6a5fc"
+      ],
+      "recallDays": [
+        "2026-04-09"
+      ],
+      "conceptTags": [
+        "network",
+        "网络",
+        "daily-stock-analysis",
+        "daily-market-analysis",
+        "litellm-config.yaml",
+        "litellm-config",
+        "127.0.0.1",
+        "analyzer-service"
+      ]
+    },
+    "memory:memory/2026-04-06.md:33:70": {
+      "key": "memory:memory/2026-04-06.md:33:70",
+      "path": "memory/2026-04-06.md",
+      "startLine": 33,
+      "endLine": 70,
+      "source": "memory",
+      "snippet": "- [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 # 2026-04-06 Daily Memory ## Session Summary ### Investment System Setup - Working on OpenClaw investment skills: `daily_stock_analysis` and `daily-market-analysis` - Configured `litellm_config.yaml` with MiniMax + Gemini models - Set up `.env` with API keys and LITELLM_CONFIG path ### Technical Issues 1. **Network proxy issue** - 系统环境有 `socks5h://127.0.0.1:20170` 代理，导致 litellm API 调用失败 (SSL handshake failed) 2. **Module import issue** - `daily-stock-analysis` 有 `analyzer_service` 缺失问题 3. **Template mode works** - 基础数据获取（akshare）和报",
+      "recallCount": 1,
+      "totalScore": 0.551370544069498,
+      "maxScore": 0.551370544069498,
+      "firstRecalledAt": "2026-04-09T07:05:30.473Z",
+      "lastRecalledAt": "2026-04-09T07:05:30.473Z",
+      "queryHashes": [
+        "de2710a6a5fc"
+      ],
+      "recallDays": [
+        "2026-04-09"
+      ],
+      "conceptTags": [
+        "network",
+        "网络",
+        "analyzer-service",
+        "tools.md",
+        "daily-stock-analysis",
+        "daily-market-analysis",
+        "litellm-config.yaml",
+        "litellm-config"
+      ]
+    }
+  }
+}
