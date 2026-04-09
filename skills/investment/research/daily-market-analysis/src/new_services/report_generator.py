@@ -456,8 +456,8 @@ class ReportGenerator:
         "黄金 AU2606": {"market": "大宗", "source": "comm", "data_key": "黄金"},
         "原油 SC2605": {"market": "大宗", "source": "comm", "data_key": "原油"},
         # 债券
-        "中国债券": {"market": "债市", "source": "bond", "data_key": "中国债券"},
-        "美国债券": {"market": "债市", "source": "bond", "data_key": "美国债券"},
+        "中国国债(10Y)": {"market": "债市", "source": "bond", "data_key": "中国国债(10Y)"},
+        "美国国债(10Y)": {"market": "债市", "source": "bond", "data_key": "美国国债(10Y)"},
     }
     
     # 市场分析映射（从复盘报告提取的关键结论）
