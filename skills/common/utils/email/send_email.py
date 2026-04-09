@@ -58,7 +58,7 @@ def send_email(to_email, subject, content, attachment_path=None):
             msg = MIMEMultipart()
             msg.attach(MIMEText(content, 'plain', 'utf-8'))
 
-        msg['From'] = formataddr(["OpenClaw", SENDER_EMAIL])
+        msg['From'] = formataddr(["YQClaw智能投资助手", SENDER_EMAIL])
         msg['To'] = to_email
         msg['Subject'] = subject
 

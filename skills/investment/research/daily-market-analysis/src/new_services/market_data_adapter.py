@@ -103,39 +103,51 @@ class MarketDataAdapter:
         return self._fetch_hk_indices_direct()
     
     def get_us_index_data(self) -> List[Dict]:
-        """获取美股主要指数（SPX/NDX/DJI）"""
-        try:
-            indices = self.fetcher.get_main_indices(region="us")
-            if indices:
-                return indices
-        except Exception as e:
-            print(f"[Adapter] fetcher 美股指数失败：{e}")
-        # Fallback: 直接使用 yfinance
+        """获取美股主要指数（SPX/NDX/DJI）
+        
+        注意：跳过 fetcher 直接使用 yfinance，避免双重调用导致 rate limiting
+        """
+        # 直接使用 yfinance（跳过 fetcher 避免重复调用）
         return self._fetch_us_indices_direct()
     
     def _fetch_hk_indices_direct(self):
         """直接获取港股指数（恒生/恒生科技）
         
-        恒生指数: yfinance ^HSI
+        恒生指数: akshare stock_hk_index_daily_sina (akshare provides volume)
         恒生科技: akshare stock_hk_index_daily_sina (yfinance ^HSTECH 已下市)
         """
         result = []
         
-        # 恒生指数 - yfinance
+        # 恒生指数 - akshare (for volume data)
         try:
-            import yfinance as yf
-            hk = yf.Ticker("^HSI")
-            hist = hk.history(period="1d")
-            if not hist.empty:
-                close = float(hist['Close'].iloc[-1])
-                prev_close = float(hist['Open'].iloc[-1]) if len(hist) > 1 else close
+            import akshare as ak
+            df = ak.stock_hk_index_daily_sina(symbol='HSI')
+            if not df.empty and len(df) >= 2:
+                latest = df.iloc[-1]
+                prev = df.iloc[-2]
+                close = float(latest['close'])
+                prev_close = float(prev['close'])
                 change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                volume = float(latest.get('amount', 0))  # amount in HK$
                 result.append({
                     'name': '恒生指数',
                     'code': 'HSI',
                     'current': close,
                     'change_pct': change_pct,
-                    'volume': 0,
+                    'volume': volume,
+                })
+            elif not df.empty:
+                latest = df.iloc[-1]
+                close = float(latest['close'])
+                open_price = float(latest['open'])
+                change_pct = ((close - open_price) / open_price * 100) if open_price > 0 else 0
+                volume = float(latest.get('amount', 0))
+                result.append({
+                    'name': '恒生指数',
+                    'code': 'HSI',
+                    'current': close,
+                    'change_pct': change_pct,
+                    'volume': volume,
                 })
         except Exception as e:
             print(f"[Adapter] 恒生指数获取失败：{e}")
@@ -150,12 +162,14 @@ class MarketDataAdapter:
                 close = float(latest['close'])
                 prev_close = float(prev['close'])
                 change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                # volume from akshare is already in HK dollar amount
+                volume = float(latest.get('amount', 0))
                 result.append({
                     'name': '恒生科技',
                     'code': 'HSTECH',
                     'current': close,
                     'change_pct': change_pct,
-                    'volume': 0,
+                    'volume': volume,
                 })
         except Exception as e:
             print(f"[Adapter] 恒生科技获取失败：{e}")
@@ -163,56 +177,52 @@ class MarketDataAdapter:
         return result
     
     def _fetch_us_indices_direct(self):
-        """直接使用 yfinance 获取美股指数"""
-        try:
-            import yfinance as yf
-            result = []
-            # 标普500
-            try:
-                spx = yf.Ticker("^GSPC")
-                hist = spx.history(period="1d")
-                if not hist.empty:
-                    close = float(hist['Close'].iloc[-1])
-                    if len(hist) > 1:
-                        prev_close = float(hist['Open'].iloc[-1])
+        """直接使用 yfinance 获取美股指数（带重试）"""
+        import time
+        import yfinance as yf
+        
+        def fetch_with_retry(ticker_symbol, name, code, max_retries=3, initial_delay=2):
+            """带重试的获取函数"""
+            for attempt in range(max_retries):
+                try:
+                    ticker = yf.Ticker(ticker_symbol)
+                    hist = ticker.history(period="2d")
+                    if not hist.empty:
+                        close = float(hist['Close'].iloc[-1])
+                        if len(hist) > 1:
+                            prev_close = float(hist['Close'].iloc[-2])
+                        else:
+                            prev_close = close
+                        change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                        return {
+                            'name': name,
+                            'code': code,
+                            'current': close,
+                            'change_pct': change_pct,
+                            'volume': 0,
+                        }
+                except Exception as e:
+                    if 'rate' in str(e).lower() or '429' in str(e):
+                        print(f"[Adapter] {name} 获取失败(尝试 {attempt+1}/{max_retries}): 速率限制，等待 {initial_delay*(attempt+1)}s...")
+                        time.sleep(initial_delay * (attempt + 1))
                     else:
-                        prev_close = close
-                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
-                    result.append({
-                        'name': '标普500',
-                        'code': 'SPX',
-                        'current': close,
-                        'change_pct': change_pct,
-                        'volume': 0,
-                    })
-            except Exception as e:
-                print(f"[Adapter] 标普500获取失败：{e}")
-            
-            # 纳斯达克
-            try:
-                nasdaq = yf.Ticker("^IXIC")
-                hist = nasdaq.history(period="1d")
-                if not hist.empty:
-                    close = float(hist['Close'].iloc[-1])
-                    if len(hist) > 1:
-                        prev_close = float(hist['Open'].iloc[-1])
-                    else:
-                        prev_close = close
-                    change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
-                    result.append({
-                        'name': '纳斯达克综合',
-                        'code': 'NDX',
-                        'current': close,
-                        'change_pct': change_pct,
-                        'volume': 0,
-                    })
-            except Exception as e:
-                print(f"[Adapter] 纳斯达克获取失败：{e}")
-            
-            return result
-        except Exception as e:
-            print(f"[Adapter] 美股数据获取失败：{e}")
-            return []
+                        print(f"[Adapter] {name} 获取失败：{e}")
+                        break
+            return None
+        
+        result = []
+        
+        # 标普500
+        data = fetch_with_retry("^GSPC", "标普500", "SPX")
+        if data:
+            result.append(data)
+        
+        # 纳斯达克
+        data = fetch_with_retry("^IXIC", "纳斯达克综合", "NDX")
+        if data:
+            result.append(data)
+        
+        return result
     
     # ========================================
     # 核心：读取 reports 目录已有报告
@@ -578,15 +588,78 @@ class MarketDataAdapter:
     def get_crypto_data(self) -> List[Dict[str, Any]]:
         """获取主流数字货币数据
         
-        优先级：Yahoo Finance > CoinGecko API
-        Yahoo Finance 用于获取 BTC/ETH/SOL（可靠）
-        CoinGecko 作为备用（可能被限流）
+        优先级：Binance API > Yahoo Finance
+        Binance: BTC/ETH/SOL/BNB/PEPE
+        Yahoo Finance: 备用
         """
-        # 先尝试 Yahoo Finance（更稳定）
+        # 清除代理环境变量
+        for k in list(os.environ.keys()):
+            if "proxy" in k.lower():
+                del os.environ[k]
+        
+        # 加载 .env 获取代理配置（手动读取，不依赖 dotenv）
+        proxies = None
+        try:
+            env_path = '/home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env'
+            if os.path.exists(env_path):
+                with open(env_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            k, v = line.split('=', 1)
+                            os.environ[k] = v
+            if os.environ.get('USE_PROXY', '').lower() == 'true':
+                proxy_host = os.environ.get('PROXY_HOST', '127.0.0.1')
+                proxy_port = os.environ.get('PROXY_PORT', '7890')
+                proxies = {
+                    'http': f'http://{proxy_host}:{proxy_port}',
+                    'https': f'http://{proxy_host}:{proxy_port}',
+                }
+                print(f"[Adapter] 使用代理: {proxy_host}:{proxy_port}")
+        except Exception as e:
+            print(f"[Adapter] 代理配置加载失败: {e}")
+        
+        # Binance API
+        try:
+            import requests
+            symbols_config = [
+                ('BTCUSDT', '比特币 BTC', 'BTC'),
+                ('ETHUSDT', '以太坊 ETH', 'ETH'),
+                ('SOLUSDT', 'Solana SOL', 'SOL'),
+                ('BNBUSDT', 'BNB', 'BNB'),
+                ('PEPEUSDT', 'Pepe', 'PEPE'),
+            ]
+            crypto_data = []
+            for sym, name, short_sym in symbols_config:
+                try:
+                    resp = requests.get(
+                        f'https://api.binance.com/api/v3/ticker/24hr',
+                        params={'symbol': sym},
+                        proxies=proxies,
+                        timeout=10
+                    )
+                    if resp.status_code == 200:
+                        d = resp.json()
+                        crypto_data.append({
+                            'symbol': short_sym,
+                            'name': name,
+                            'price': float(d.get('lastPrice', 0)),
+                            'change_pct': float(d.get('priceChangePercent', 0)),
+                            'volume': float(d.get('quoteVolume', 0)),
+                        })
+                except Exception as e:
+                    print(f"[Adapter] Binance {sym} failed: {e}")
+            if crypto_data:
+                print(f"[Adapter] Crypto 数据 (Binance): {len(crypto_data)} 个币种")
+                return crypto_data
+        except Exception as e:
+            print(f"[Adapter] Binance 失败: {e}")
+        
+        # Fallback: Yahoo Finance
         try:
             import yfinance as yf
             tickers = {
-                'BTC-USD': ('比特币 BTC', 'BIT'),
+                'BTC-USD': ('比特币 BTC', 'BTC'),
                 'ETH-USD': ('以太坊 ETH', 'ETH'),
                 'SOL-USD': ('Solana SOL', 'SOL'),
             }
@@ -607,46 +680,12 @@ class MarketDataAdapter:
                             'volume': 0,
                         })
                 except Exception as e:
-                    print(f"[Adapter] {symbol} 获取失败：{e}")
+                    print(f"[Adapter] Yahoo {symbol} failed: {e}")
             if crypto_data:
                 print(f"[Adapter] Crypto 数据 (Yahoo): {len(crypto_data)} 个币种")
                 return crypto_data
         except Exception as e:
-            print(f"[Adapter] Yahoo Finance 失败：{e}")
-        
-        # Fallback: CoinGecko API
-        try:
-            import requests
-            url = "https://api.coingecko.com/api/v3/simple/price"
-            params = {
-                "ids": "bitcoin,ethereum,solana",
-                "vs_currencies": "usd",
-                "include_24hr_change": "true"
-            }
-            resp = requests.get(url, params=params, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                crypto_data = []
-                name_map = {
-                    "bitcoin": ("比特币 BTC", "BIT"),
-                    "ethereum": ("以太坊 ETH", "ETH"),
-                    "solana": ("Solana SOL", "SOL")
-                }
-                for coin_id, (name, sym) in name_map.items():
-                    if coin_id in data:
-                        crypto_data.append({
-                            "symbol": sym,
-                            "name": name,
-                            "price": data[coin_id].get('usd', 0),
-                            "change_pct": data[coin_id].get('usd_24h_change', 0),
-                            "volume": 0,
-                        })
-                print(f"[Adapter] Crypto 数据 (CoinGecko): {len(crypto_data)} 个币种")
-                return crypto_data
-            else:
-                print(f"[Adapter] CoinGecko API 错误：{resp.status_code}")
-        except Exception as e:
-            print(f"[Adapter] CoinGecko 失败：{e}")
+            print(f"[Adapter] Yahoo Finance 失败: {e}")
         
         return []
     
