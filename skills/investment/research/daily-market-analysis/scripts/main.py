@@ -53,14 +53,16 @@ def get_default_config():
             "binance": {"enabled": True},
             "tavily": {"enabled": False, "api_key": ""}
         },
-        "push": {
+                "push": {
             "email": {
-                "enabled": False,
-                "smtp_server": "",
+                "enabled": True,
+                "smtp_server": "smtp.qq.com",
                 "smtp_port": 587,
-                "username": "",
-                "password": "",
-                "recipients": []
+                "username": "532484187@qq.com",
+                "password": "vyzfsxtfuqufcaed",
+                "recipients": ["532484187@qq.com"],
+                "sender_name": "YQClaw智能投资助手",
+                "is_html": True
             }
         },
         "schedule": {
@@ -75,13 +77,17 @@ def get_default_config():
     }
 
 
-def send_email(report: str, config: dict, report_date: str, is_html=False):
+def send_email(report: str, config: dict, report_date: str, is_html=None):
     """发送邮件报告"""
     email_config = config.get("push", {}).get("email", {})
     
     if not email_config.get("enabled"):
         print("⚠️ 邮件推送未启用")
         return False
+    
+    # 使用配置的 is_html 值（如果未指定）
+    if is_html is None:
+        is_html = email_config.get('is_html', False)
     
     try:
         # 创建邮件
