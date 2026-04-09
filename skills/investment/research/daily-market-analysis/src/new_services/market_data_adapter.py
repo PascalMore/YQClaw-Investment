@@ -37,18 +37,32 @@ def _get_dsa_root() -> str:
 def _setup_import_paths():
     """
     设置导入路径，确保 daily_stock_analysis 的包优先被导入
-    
+
     重要：dsa_path 必须放在 market_analysis 路径之前，
     否则会错误导入 market_analysis venv 中的旧版本包（如 chardet）
+
+    核心问题：CWD 为 market_analysis 目录时，Python 会将 CWD/src/ 识别为命名空间包
+    并缓存到 sys.modules，导致 data_provider.base 中的 from src.data.stock_mapping 失败。
+    解决：直接在 sys.modules['src'].__path__ 中 prepend dsa_src_path，使命名空间包
+    在查找子包时优先搜索 daily_stock_analysis/src/。
     """
     dsa_path = _get_dsa_root()
     dsa_src_path = os.path.join(dsa_path, 'src')
-    
-    # 先添加 daily_stock_analysis（优先级高）
-    if dsa_src_path not in sys.path:
-        sys.path.insert(0, dsa_src_path)
+
     if dsa_path not in sys.path:
         sys.path.insert(0, dsa_path)
+
+    # 将 dsa_src_path prepend 到 src.__path__（命名空间包的搜索路径）
+    # 这样 'from src.data.stock_mapping' 会依次查找:
+    #   1. dsa_src_path/src/data/  (正确位置)
+    #   2. CWD_src_path/src/data/  (不存在，跳过)
+    if 'src' in sys.modules:
+        src_pkg = sys.modules['src']
+        if hasattr(src_pkg, '__path__') and not isinstance(src_pkg.__path__, list):
+            # _NamespacePath -> list
+            src_pkg.__path__ = [dsa_src_path] + list(src_pkg.__path__)
+        elif hasattr(src_pkg, '__path__'):
+            src_pkg.__path__ = [dsa_src_path] + list(src_pkg.__path__)
 
 _setup_import_paths()
 

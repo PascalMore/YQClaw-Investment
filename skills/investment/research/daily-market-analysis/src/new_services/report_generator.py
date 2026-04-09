@@ -454,7 +454,7 @@ class ReportGenerator:
         "纳斯达克": {"market": "美股", "code": "^IXIC", "source": "us"},
         # 大宗商品
         "黄金": {"market": "大宗", "source": "comm", "data_key": "黄金"},
-        "WTI原油": {"market": "大宗", "source": "comm", "data_key": "WTI原油"},
+        "WTI原油": {"market": "大宗", "source": "comm", "data_key": "原油"},
         # 债券
         "中国债券": {"market": "债市", "source": "bond", "data_key": "中国债券"},
         "美国债券": {"market": "债市", "source": "bond", "data_key": "美国债券"},
