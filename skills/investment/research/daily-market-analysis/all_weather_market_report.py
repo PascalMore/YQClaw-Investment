@@ -202,11 +202,17 @@ class AllWeatherMarketReport:
             amount = item.get('amount', 0)
             amount_str = f"{amount/1e8:.2f}亿" if amount >= 1e8 else f"{amount/1e4:.2f}万" if amount >= 1e4 else "-"
             name = item.get('name', '')
+            code = item.get('code', '')
             unit = item.get('unit', '')
+            # 大宗商品：名称加上期货代码（如 黄金 AU2606、原油 SC2605）
+            if code and not code.isalpha() and '.' in code:
+                display_name = f"{name} {code.split('.')[0]}"  # AU2606.SHF → AU2606
+            else:
+                display_name = name
             if name == '黄金':
-                rows.append(f"| 黄金 | {emoji} {price:.2f}{unit} | {change:+.2f}% | 成交金额 {amount_str} | 标配 5% | — |")
+                rows.append(f"| {display_name} | {emoji} {price:.2f}{unit} | {change:+.2f}% | 成交金额 {amount_str} | 标配 5% | — |")
             elif name == '原油':
-                rows.append(f"| WTI原油 | {emoji} {price:.2f}{unit} | {change:+.2f}% | 成交金额 {amount_str} | 低配 3% | — |")
+                rows.append(f"| {display_name} | {emoji} {price:.2f}{unit} | {change:+.2f}% | 成交金额 {amount_str} | 低配 3% | — |")
 
         # 债券
         for item in bond_data:
