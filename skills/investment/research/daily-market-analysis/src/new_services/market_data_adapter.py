@@ -694,7 +694,7 @@ class MarketDataAdapter:
                         curr_price = float(curr['close'])
                         prev_price = float(prev['close'])
                         pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
-                        # 黄金价格单位是 元/克
+                        # 黄金价格单位是 元/克；amount = 成交金额（元）
                         result.append({
                             'name': '黄金',
                             'code': 'GOLD',
@@ -702,6 +702,7 @@ class MarketDataAdapter:
                             'price': curr_price,
                             'change_pct': pct,
                             'unit': '元/克',
+                            'amount': float(curr.get('amount', 0)) if curr.get('amount') else 0,
                             'source': 'Tushare'
                         })
 
@@ -714,7 +715,7 @@ class MarketDataAdapter:
                         curr_price = float(curr['close'])
                         prev_price = float(prev['close'])
                         pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
-                        # 原油价格单位是 元/桶（内盘）
+                        # 原油价格单位是 元/桶（内盘）；amount = 成交金额（元）
                         result.append({
                             'name': '原油',
                             'code': 'OIL',
@@ -722,6 +723,7 @@ class MarketDataAdapter:
                             'price': curr_price,
                             'change_pct': pct,
                             'unit': '元/桶',
+                            'amount': float(curr.get('amount', 0)) if curr.get('amount') else 0,
                             'source': 'Tushare'
                         })
 
