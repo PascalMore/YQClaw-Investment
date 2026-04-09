@@ -157,7 +157,7 @@ def main():
     
     # 生成 HTML 报告（邮件用）
     print("\n📝 生成 HTML 报告...")
-    html_report = generate_html_report()
+    html_report = generate_html_report(md_report, config, args.date)
     
     # 邮件推送
     if args.output in ["email", "both"]:
