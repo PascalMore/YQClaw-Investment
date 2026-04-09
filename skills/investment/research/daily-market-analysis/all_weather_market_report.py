@@ -219,9 +219,9 @@ class AllWeatherMarketReport:
             name = item.get('name', '')
             rate = item.get('rate_10y', 0)
             if '美国' in name:
-                rows.append(f"| 美债10Y | ⚪ {rate:.4f}% | — | 参考利率 | 标配 3% | — |")
+                rows.append(f"| 美国国债(10Y) | ⚪ {rate:.4f}% | — | 参考利率 | 标配 3% | — |")
             elif '中国' in name:
-                rows.append(f"| 中债10Y | ⚪ {rate:.4f}% | — | 参考利率 | 超配 5% | — |")
+                rows.append(f"| 中国国债(10Y) | ⚪ {rate:.4f}% | — | 参考利率 | 超配 5% | — |")
         
         table = f"""## 一、全球市场概览
 

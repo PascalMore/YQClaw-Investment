@@ -863,7 +863,7 @@ class MarketDataAdapter:
 
                 if cn_10y_val is not None:
                     result.append({
-                        'name': '中国债券',
+                        'name': '中国国债(10Y)',
                         'code': 'CNBOND',
                         'market': '债市',
                         'rate_10y': cn_10y_val,
@@ -873,7 +873,7 @@ class MarketDataAdapter:
                     })
                 if us_10y_val is not None:
                     result.append({
-                        'name': '美国债券',
+                        'name': '美国国债(10Y)',
                         'code': 'USBOND',
                         'market': '债市',
                         'rate_10y': us_10y_val,
