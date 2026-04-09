@@ -177,15 +177,18 @@ class MarketDataAdapter:
         return result
     
     def _fetch_us_indices_direct(self):
-        """直接使用 yfinance 获取美股指数（带重试）"""
+        """直接使用 yfinance 获取美股指数（带重试，rate limit 时快速失败）"""
         import time
         import yfinance as yf
-        
-        def fetch_with_retry(ticker_symbol, name, code, max_retries=3, initial_delay=2):
-            """带重试的获取函数"""
+
+        def fetch_with_retry(ticker_symbol, name, code, max_retries=2):
+            """带重试的获取函数，rate limit 时最多重试1次"""
             for attempt in range(max_retries):
                 try:
                     ticker = yf.Ticker(ticker_symbol)
+                    # 带超时：避免挂住（通过 socket 超时实现）
+                    import socket
+                    socket.setdefaulttimeout(10)
                     hist = ticker.history(period="2d")
                     if not hist.empty:
                         close = float(hist['Close'].iloc[-1])
@@ -202,9 +205,14 @@ class MarketDataAdapter:
                             'volume': 0,
                         }
                 except Exception as e:
-                    if 'rate' in str(e).lower() or '429' in str(e):
-                        print(f"[Adapter] {name} 获取失败(尝试 {attempt+1}/{max_retries}): 速率限制，等待 {initial_delay*(attempt+1)}s...")
-                        time.sleep(initial_delay * (attempt + 1))
+                    err_str = str(e).lower()
+                    if 'rate' in err_str or '429' in err_str or 'timeout' in err_str:
+                        if attempt < max_retries - 1:
+                            wait = 2 * (attempt + 1)
+                            print(f"[Adapter] {name} rate limit/timeout，重试 ({attempt+1}/{max_retries})...")
+                            time.sleep(wait)
+                        else:
+                            print(f"[Adapter] {name} 获取失败(已达最大重试)，跳过")
                     else:
                         print(f"[Adapter] {name} 获取失败：{e}")
                         break
@@ -739,13 +747,107 @@ class MarketDataAdapter:
         """港股复盘 - 待实现"""
         return "### 港股市场概况\n\n港股复盘待接入。"
     
-    def get_commodity_market_review(self) -> str:
-        """大宗商品复盘 - 待实现"""
-        return "### 大宗商品市场\n\n数据待接入。"
-    
-    def get_bond_market_review(self) -> str:
-        """债券复盘 - 待实现"""
-        return "### 债券市场\n\n数据待接入。"
+    def get_commodity_data(self) -> List[Dict[str, Any]]:
+        """获取大宗商品数据（黄金、原油）"""
+        result = []
+
+        # 1. 黄金现货 - 上海金交所
+        try:
+            import akshare as ak
+            df = ak.spot_golden_benchmark_sge()
+            if not df.empty and len(df) >= 2:
+                latest = df.iloc[-1]
+                prev = df.iloc[-2]
+                # 晚盘价为最新价
+                curr_price = float(latest.get('晚盘价', latest.get('早盘价', 0)))
+                prev_price = float(prev.get('晚盘价', prev.get('早盘价', curr_price)))
+                change_pct = ((curr_price - prev_price) / prev_price * 100) if prev_price > 0 else 0
+                result.append({
+                    'name': '黄金',
+                    'code': 'GOLD',
+                    'market': '大宗',
+                    'price': curr_price,
+                    'change_pct': change_pct,
+                    'unit': '元/克',  # CNY/gram
+                    'source': 'SGE'
+                })
+        except Exception as e:
+            print(f"[Adapter] 黄金数据获取失败: {e}")
+
+        # 2. WTI 原油期货 - yfinance（直接拿一次，失败则跳过）
+        try:
+            import yfinance as yf
+            t = yf.Ticker('CL=F')
+            hist = t.history(period='3d')
+            if not hist.empty and len(hist) >= 2:
+                curr = float(hist['Close'].iloc[-1])
+                prev = float(hist['Close'].iloc[-2])
+                change_pct = ((curr - prev) / prev * 100) if prev > 0 else 0
+                result.append({
+                    'name': 'WTI原油',
+                    'code': 'WTI',
+                    'market': '大宗',
+                    'price': curr,
+                    'change_pct': change_pct,
+                    'unit': '美元/桶',
+                    'source': 'NYMEX'
+                })
+        except Exception as e:
+            if 'rate' not in str(e).lower() and '429' not in str(e):
+                print(f"[Adapter] WTI原油获取失败: {e}")
+            # rate limit 时静默跳过，不打印
+
+        return result
+
+    def get_bond_data(self) -> List[Dict[str, Any]]:
+        """获取债券收益率数据（中债、美债），自动回溯最新有效值"""
+        result = []
+        try:
+            import akshare as ak
+            df = ak.bond_zh_us_rate()
+            if not df.empty:
+                # 从最新行往前扫（df 升序排列，需反向迭代取最新值）
+                cn_10y_val, cn_2y_val, us_10y_val, us_2y_val = None, None, None, None
+                for _, row in df[::-1].iterrows():
+                    if cn_10y_val is None:
+                        v = row.get('中国国债收益率10年')
+                        if v is not None and str(v) != 'nan':
+                            cn_10y_val = float(v)
+                            cn_2y_v = row.get('中国国债收益率2年')
+                            cn_2y_val = float(cn_2y_v) if cn_2y_v and str(cn_2y_v) != 'nan' else None
+                    if us_10y_val is None:
+                        v = row.get('美国国债收益率10年')
+                        if v is not None and str(v) != 'nan':
+                            us_10y_val = float(v)
+                            us_2y_v = row.get('美国国债收益率2年')
+                            us_2y_val = float(us_2y_v) if us_2y_v and str(us_2y_v) != 'nan' else None
+                    if cn_10y_val and us_10y_val:
+                        break
+
+                if cn_10y_val is not None:
+                    result.append({
+                        'name': '中国债券',
+                        'code': 'CNBOND',
+                        'market': '债市',
+                        'rate_10y': cn_10y_val,
+                        'rate_2y': cn_2y_val,
+                        'unit': '%',
+                        'source': 'akshare'
+                    })
+                if us_10y_val is not None:
+                    result.append({
+                        'name': '美国债券',
+                        'code': 'USBOND',
+                        'market': '债市',
+                        'rate_10y': us_10y_val,
+                        'rate_2y': us_2y_val,
+                        'unit': '%',
+                        'source': 'akshare'
+                    })
+        except Exception as e:
+            print(f"[Adapter] 债券数据获取失败: {e}")
+
+        return result
     
     def get_financial_calendar(self, days: int = 30) -> List[Dict[str, Any]]:
         """金融日历 - 待实现"""

@@ -453,11 +453,11 @@ class ReportGenerator:
         "标普500": {"market": "美股", "code": "^GSPC", "source": "us"},
         "纳斯达克": {"market": "美股", "code": "^IXIC", "source": "us"},
         # 大宗商品
-        "黄金": {"market": "大宗", "symbol": "GC00Y", "source": "comm"},
-        "原油": {"market": "大宗", "symbol": "CL00Y", "source": "comm"},
+        "黄金": {"market": "大宗", "source": "comm", "data_key": "黄金"},
+        "WTI原油": {"market": "大宗", "source": "comm", "data_key": "WTI原油"},
         # 债券
-        "中国债券": {"market": "债市", "symbol": "CNB", "source": "bond"},
-        "美国债券": {"market": "债市", "symbol": "USB", "source": "bond"},
+        "中国债券": {"market": "债市", "source": "bond", "data_key": "中国债券"},
+        "美国债券": {"market": "债市", "source": "bond", "data_key": "美国债券"},
     }
     
     # 市场分析映射（从复盘报告提取的关键结论）
@@ -493,13 +493,23 @@ class ReportGenerator:
         else:
             return f"<span class='flat'>{pct:.2f}%</span>"
     
-    def _format_price(self, value: float, index_name: str) -> str:
+    def _format_price(self, value: float, index_name: str, source: str = None) -> str:
         """格式化价格"""
         # Crypto 小数位
         if index_name in ["BTC", "ETH", "SOL"]:
             return f"${value:,.2f}"
         elif index_name == "PEPE":
             return f"${value:.6f}"
+        # 大宗商品
+        elif source == "comm":
+            if index_name == "黄金":
+                return f"{value:.2f} 元/克"
+            elif index_name == "WTI原油":
+                return f"${value:.2f}/桶"
+            return f"{value:.2f}"
+        # 债券收益率
+        elif source == "bond":
+            return f"{value:.4f}%"
         # 指数
         elif value > 10000:
             return f"{value:,.2f}"
@@ -555,6 +565,16 @@ class ReportGenerator:
         time.sleep(0.5)
         
         self._cache['crypto'] = {d['symbol'].replace('USDT', ''): d for d in self.adapter.get_crypto_data()}
+        time.sleep(0.5)
+        
+        # 大宗商品（黄金、原油）
+        comm_data = {d['name']: d for d in self.adapter.get_commodity_data()}
+        self._cache['comm'] = comm_data
+        time.sleep(0.5)
+        
+        # 债券（中债、美债）
+        bond_data = {d['name']: d for d in self.adapter.get_bond_data()}
+        self._cache['bond'] = bond_data
         
         self._cache_time = now
         print(f"[ReportGenerator] 数据获取完成，缓存已更新")
@@ -568,6 +588,8 @@ class ReportGenerator:
         hk_data = self._cache.get('hk', {})
         us_data = self._cache.get('us', {})
         crypto_data = self._cache.get('crypto', {})
+        comm_data = self._cache.get('comm', {})
+        bond_data = self._cache.get('bond', {})
         
         # 按配置顺序生成行
         for index_name, config in self.INDEX_CONFIG.items():
@@ -610,27 +632,57 @@ class ReportGenerator:
                 if data:
                     current = data.get('price', 0)
                     change_pct = data.get('change_pct', 0)
+                    volume = data.get('volume', 0)  # get_crypto_data() 将 quoteVolume 映射为 volume
+                else:
+                    current, change_pct, volume = 0, 0, 0
+
+            elif source == "comm":
+                data = comm_data.get(config['data_key'])
+                if data:
+                    current = data.get('price', 0)
+                    change_pct = data.get('change_pct', 0)
                     volume = 0
                 else:
                     current, change_pct, volume = 0, 0, 0
-            
+
+            elif source == "bond":
+                data = bond_data.get(config['data_key'])
+                if data:
+                    current = data.get('rate_10y', 0)  # 10年期国债收益率
+                    change_pct = 0  # 债券收益率变化不常用
+                    volume = 0
+                else:
+                    current, change_pct, volume = 0, 0, 0
+
             else:
                 current, change_pct, volume = 0, 0, 0
             
-            # 格式化成交额（统一转换为亿元显示）
-            if volume >= 1e8:
-                volume_str = f"{volume/1e8:.2f}亿"
-            elif volume >= 1e4:
-                volume_str = f"{volume/1e4:.2f}万"
+            # 格式化成交额
+            # A股/港股：volume 单位是元（CNY），转换为亿
+            # Crypto：volume 是 quoteVolume，单位是 USDT，转换为亿USDT（统一用亿为单位）
+            if source == "binance":
+                if volume >= 1e8:
+                    volume_str = f"{volume/1e8:.2f}亿U"
+                elif volume >= 1e6:  # >= 100万USD
+                    volume_str = f"{volume/1e8:.2f}亿U"  # 统一显示为亿U
+                elif volume >= 1e4:
+                    volume_str = f"{volume/1e4:.2f}万U"
+                else:
+                    volume_str = "-"
             else:
-                volume_str = "-"
+                if volume >= 1e8:
+                    volume_str = f"{volume/1e8:.2f}亿"
+                elif volume >= 1e4:
+                    volume_str = f"{volume/1e4:.2f}万"
+                else:
+                    volume_str = "-"
             
             row = f"""
                         <tr>
                             <td class="sticky">{market}</td>
                             <td class="sticky">{index_name}</td>
-                            <td>{self._format_price(current, index_name)}</td>
-                            <td>{self._format_change_pct(change_pct)}</td>
+                            <td>{self._format_price(current, index_name, source)}</td>
+                            <td>{self._format_change_pct(change_pct) if source != "bond" else "-"}</td>
                             <td>{volume_str}</td>
                             <td class="analysis-col">{self._get_analysis(market)}</td>
                             <td>{self._get_position_badge(market)}</td>
