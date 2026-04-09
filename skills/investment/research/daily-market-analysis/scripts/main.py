@@ -31,7 +31,8 @@ sys.path.insert(0, SCRIPT_DIR)
 sys.path.insert(0, PARENT_DIR)
 
 # 导入新的报告生成器
-from all_weather_market_report import AllWeatherMarketReport, generate_html_report
+from all_weather_market_report import AllWeatherMarketReport
+from src.new_services.report_generator import ReportGenerator
 
 
 def load_config():
@@ -157,7 +158,8 @@ def main():
     
     # 生成 HTML 报告（邮件用）
     print("\n📝 生成 HTML 报告...")
-    html_report = generate_html_report(md_report, config, args.date)
+    html_gen = ReportGenerator()
+    html_report = html_gen.generate_html_report()
     
     # 邮件推送
     if args.output in ["email", "both"]:
