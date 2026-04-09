@@ -324,10 +324,15 @@ class MarketDataAdapter:
     # 新闻搜索（simple_news）
     # ========================================
     
+    def _get_project_env_path(self) -> str:
+        """获取本项目 .env 文件路径"""
+        current = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(current))
+        return os.path.join(project_root, '.env')
+
     def _load_env(self):
-        """加载环境变量"""
-        import os
-        env_file = '/home/pascal/.openclaw/workspace/skills/investment/research/daily-stock-analysis/.env'
+        """加载本项目 .env（代理 + API Keys）"""
+        env_file = self._get_project_env_path()
         if os.path.exists(env_file):
             with open(env_file) as f:
                 for line in f:
@@ -335,122 +340,27 @@ class MarketDataAdapter:
                     if line and not line.startswith('#') and '=' in line:
                         k, v = line.split('=', 1)
                         os.environ[k] = v
-    
-    def _load_env(self):
-        """加载环境变量"""
-        import os
-        env_file = '/home/pascal/.openclaw/workspace/skills/investment/research/daily-stock-analysis/.env'
-        if os.path.exists(env_file):
-            with open(env_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        k, v = line.split('=', 1)
-                        os.environ[k] = v
-    
+
     def get_global_news(self, limit: int = 3) -> List[Dict[str, str]]:
         """获取全球宏观热点新闻 - 使用 MiniMax Search"""
         return self.get_international_news("global", limit)
-    
-
-
-    def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国际热点新闻 - 使用 MiniMax Search
-        
-        Args:
-            category: "global" | "crypto" | "us"
-            limit: 返回条数
-        """
-        # 清除代理环境变量
-        for k in list(os.environ.keys()):
-            if "proxy" in k.lower():
-                del os.environ[k]
-        
-        # 加载 .env 配置
-        try:
-            from dotenv import load_dotenv
-            env_path = '/home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env'
-            if os.path.exists(env_path):
-                load_dotenv(env_path)
-        except Exception as e:
-            print(f"[Adapter] dotenv 加载失败: {e}")
-        
-        category_keywords = {
-            "global": "Federal Reserve interest rate cut inflation economy news April 2026",
-            "crypto": "Bitcoin price Ethereum ETF crypto market news today April 2026",
-            "us": "S&P 500 Nasdaq Dow Jones stock market news today April 2026"
-        }
-        
-        keyword = category_keywords.get(category, category_keywords["global"])
-        
-        # 直接调用 MiniMax API
-        minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
-        if not minimax_key:
-            minimax_key = os.environ.get("MINIMAX_API_KEY", "")
-        
-        if minimax_key:
-            try:
-                import requests
-                headers = {
-                    'Authorization': f'Bearer {minimax_key}',
-                    'Content-Type': 'application/json',
-                    'MM-API-Source': 'Minimax-MCP',
-                }
-                payload = {"q": keyword}
-                resp = requests.post(
-                    'https://api.minimaxi.com/v1/coding_plan/search',
-                    headers=headers, json=payload, timeout=15
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    results = []
-                    seen_titles = set()
-                    for item in data.get('organic', [])[:limit]:
-                        title = item.get('title', '').strip()
-                        if title and title not in seen_titles:
-                            seen_titles.add(title)
-                            results.append({
-                                "title": title,
-                                "content": item.get('snippet', title),
-                                "source": "MiniMax",
-                                "datetime": "",
-                                "url": item.get('url', '')
-                            })
-                    if results:
-                        print(f"[Adapter] {category} 国际新闻 (MiniMax): {len(results)} 条")
-                        return results
-            except Exception as e:
-                print(f"[Adapter] MiniMax 失败: {e}")
-        
-        print(f"[Adapter] {category} 国际新闻: 获取失败")
-        return []
-
-
 
     def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
         """获取国际热点新闻 - 使用 MiniMax Search"""
-        # 清除代理
         for k in list(os.environ.keys()):
             if "proxy" in k.lower():
                 del os.environ[k]
-        
-        # 加载 .env
-        try:
-            from dotenv import load_dotenv
-            env_path = '/home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env'
-            if os.path.exists(env_path):
-                load_dotenv(env_path)
-        except:
-            pass
+        self._load_env()
         
         keywords = {
             "global": "Federal Reserve interest rate economy news April 2026",
             "crypto": "Bitcoin Ethereum crypto market news April 2026",
             "us": "S&P 500 Nasdaq Dow stock market news April 2026"
         }
-        
         keyword = keywords.get(category, keywords["global"])
         minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
+        if not minimax_key:
+            minimax_key = os.environ.get("MINIMAX_API_KEY", "")
         
         if minimax_key:
             try:
@@ -471,7 +381,6 @@ class MarketDataAdapter:
                         return results
             except Exception as e:
                 print(f"[Adapter] MiniMax 失败: {e}")
-        
         print(f"[Adapter] {category} 国际新闻: 获取失败")
         return []
 
@@ -608,7 +517,7 @@ class MarketDataAdapter:
         # 加载 .env 获取代理配置（手动读取，不依赖 dotenv）
         proxies = None
         try:
-            env_path = '/home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env'
+            env_path = self._get_project_env_path()
             if os.path.exists(env_path):
                 with open(env_path) as f:
                     for line in f:
@@ -748,54 +657,116 @@ class MarketDataAdapter:
         return "### 港股市场概况\n\n港股复盘待接入。"
     
     def get_commodity_data(self) -> List[Dict[str, Any]]:
-        """获取大宗商品数据（黄金、原油）"""
+        """获取大宗商品数据（黄金、原油）
+        
+        数据优先级：
+        1. Tushare 期货主连数据（黄金=AU.SHF, 原油=SC.INE）
+        2. akshare 现货/期货数据（备用）
+        """
+        self._load_env()
         result = []
+        tushare_token = os.environ.get('TUSHARE_TOKEN', '')
 
-        # 1. 黄金现货 - 上海金交所
-        try:
-            import akshare as ak
-            df = ak.spot_golden_benchmark_sge()
-            if not df.empty and len(df) >= 2:
-                latest = df.iloc[-1]
-                prev = df.iloc[-2]
-                # 晚盘价为最新价
-                curr_price = float(latest.get('晚盘价', latest.get('早盘价', 0)))
-                prev_price = float(prev.get('晚盘价', prev.get('早盘价', curr_price)))
-                change_pct = ((curr_price - prev_price) / prev_price * 100) if prev_price > 0 else 0
-                result.append({
-                    'name': '黄金',
-                    'code': 'GOLD',
-                    'market': '大宗',
-                    'price': curr_price,
-                    'change_pct': change_pct,
-                    'unit': '元/克',  # CNY/gram
-                    'source': 'SGE'
-                })
-        except Exception as e:
-            print(f"[Adapter] 黄金数据获取失败: {e}")
+        # ── 1. Tushare 期货主连 ───────────────────────────────
+        if tushare_token:
+            try:
+                import tushare as ts
+                ts.set_token(tushare_token)
+                pro = ts.pro_api()
 
-        # 2. WTI 原油期货 - yfinance（直接拿一次，失败则跳过）
-        try:
-            import yfinance as yf
-            t = yf.Ticker('CL=F')
-            hist = t.history(period='3d')
-            if not hist.empty and len(hist) >= 2:
-                curr = float(hist['Close'].iloc[-1])
-                prev = float(hist['Close'].iloc[-2])
-                change_pct = ((curr - prev) / prev * 100) if prev > 0 else 0
-                result.append({
-                    'name': 'WTI原油',
-                    'code': 'WTI',
-                    'market': '大宗',
-                    'price': curr,
-                    'change_pct': change_pct,
-                    'unit': '美元/桶',
-                    'source': 'NYMEX'
-                })
-        except Exception as e:
-            if 'rate' not in str(e).lower() and '429' not in str(e):
-                print(f"[Adapter] WTI原油获取失败: {e}")
-            # rate limit 时静默跳过，不打印
+                # 获取当前主力合约
+                today = datetime.now().strftime('%Y%m%d')
+                mapping = pro.fut_mapping(trade_date=today)
+
+                # 黄金主力: AU.SHF → mapping_ts_code
+                gold_rows = mapping[mapping['ts_code'].str.startswith('AU') & ~mapping['ts_code'].str.contains('L')]
+                oil_rows  = mapping[mapping['ts_code'].str.startswith('SC') & ~mapping['ts_code'].str.contains('L|TAS')]
+
+                gold_code = gold_rows.iloc[0]['mapping_ts_code'] if not gold_rows.empty else None
+                oil_code  = oil_rows.iloc[0]['mapping_ts_code']  if not oil_rows.empty else None
+
+                # 黄金期货日线（取最近2天）
+                if gold_code:
+                    df_g = pro.fut_daily(ts_code=gold_code, start_date=today[:4]+'0101', end_date=today)
+                    if df_g is not None and not df_g.empty and len(df_g) >= 2:
+                        curr = df_g.iloc[-1]
+                        prev = df_g.iloc[-2]
+                        curr_price = float(curr['close'])
+                        prev_price = float(prev['close'])
+                        pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
+                        # 黄金价格单位是 元/克
+                        result.append({
+                            'name': '黄金',
+                            'code': 'GOLD',
+                            'market': '大宗',
+                            'price': curr_price,
+                            'change_pct': pct,
+                            'unit': '元/克',
+                            'source': 'Tushare'
+                        })
+
+                # 原油期货日线
+                if oil_code:
+                    df_o = pro.fut_daily(ts_code=oil_code, start_date=today[:4]+'0101', end_date=today)
+                    if df_o is not None and not df_o.empty and len(df_o) >= 2:
+                        curr = df_o.iloc[-1]
+                        prev = df_o.iloc[-2]
+                        curr_price = float(curr['close'])
+                        prev_price = float(prev['close'])
+                        pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
+                        # 原油价格单位是 元/桶（内盘）
+                        result.append({
+                            'name': '原油',
+                            'code': 'OIL',
+                            'market': '大宗',
+                            'price': curr_price,
+                            'change_pct': pct,
+                            'unit': '元/桶',
+                            'source': 'Tushare'
+                        })
+
+                if result:
+                    print(f"[Adapter] 大宗商品 (Tushare): 黄金={sum(1 for x in result if x['code']=='GOLD')} 原油={sum(1 for x in result if x['code']=='OIL')}")
+
+            except Exception as e:
+                print(f"[Adapter] Tushare 大宗数据失败: {e}")
+
+        # ── 2. akshare 备用（黄金现货）─────────────────────────
+        if not any(r['code'] == 'GOLD' for r in result):
+            try:
+                import akshare as ak
+                df = ak.spot_golden_benchmark_sge()
+                if not df.empty and len(df) >= 2:
+                    latest = df.iloc[-1]
+                    prev = df.iloc[-2]
+                    curr_price = float(latest.get('晚盘价', latest.get('早盘价', 0)))
+                    prev_price = float(prev.get('晚盘价', prev.get('早盘价', curr_price)))
+                    pct = ((curr_price - prev_price) / prev_price * 100) if prev_price > 0 else 0
+                    result.append({
+                        'name': '黄金', 'code': 'GOLD', 'market': '大宗',
+                        'price': curr_price, 'change_pct': pct,
+                        'unit': '元/克', 'source': 'SGE'
+                    })
+            except Exception as e:
+                print(f"[Adapter] 黄金(SGE)失败: {e}")
+
+        # ── 3. yfinance WTI 备用（已确认会 rate limit 但不报错的静默跳过）──
+        if not any(r['code'] == 'OIL' for r in result):
+            try:
+                import yfinance as yf
+                t = yf.Ticker('CL=F')
+                hist = t.history(period='3d', timeout=5)
+                if not hist.empty and len(hist) >= 2:
+                    curr = float(hist['Close'].iloc[-1])
+                    prev = float(hist['Close'].iloc[-2])
+                    pct = ((curr - prev) / prev * 100) if prev > 0 else 0
+                    result.append({
+                        'name': 'WTI原油', 'code': 'WTI', 'market': '大宗',
+                        'price': curr, 'change_pct': pct,
+                        'unit': '美元/桶', 'source': 'NYMEX'
+                    })
+            except Exception:
+                pass  # 静默跳过
 
         return result
 
