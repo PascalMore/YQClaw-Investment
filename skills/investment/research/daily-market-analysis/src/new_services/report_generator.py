@@ -641,7 +641,8 @@ class ReportGenerator:
                 if data:
                     current = data.get('price', 0)
                     change_pct = data.get('change_pct', 0)
-                    volume = 0
+                    # Tushare 期货主连返回 amount（成交金额，元），直接复用
+                    volume = data.get('amount', 0) or 0
                 else:
                     current, change_pct, volume = 0, 0, 0
 
