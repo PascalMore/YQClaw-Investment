@@ -745,9 +745,10 @@ class MarketDataAdapter:
                 gold_code = gold_rows.iloc[0]['mapping_ts_code'] if not gold_rows.empty else None
                 oil_code  = oil_rows.iloc[0]['mapping_ts_code']  if not oil_rows.empty else None
 
-                # 黄金期货日线（查完整历史，取最后2条）
+                # 黄金期货日线（查近两年数据，取最后2条）
                 if gold_code:
-                    df_g = pro.fut_daily(ts_code=gold_code)
+                    tomorrow = (datetime.strptime(today, '%Y%m%d') + timedelta(days=1)).strftime('%Y%m%d')
+                    df_g = pro.fut_daily(ts_code=gold_code, start_date='20240101', end_date=tomorrow)
                     if df_g is not None and not df_g.empty and len(df_g) >= 2:
                         df_g = df_g.sort_values('trade_date').tail(2)
                         curr = df_g.iloc[-1]
@@ -755,21 +756,22 @@ class MarketDataAdapter:
                         curr_price = float(curr['close'])
                         prev_price = float(prev['close'])
                         pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
-                        # 黄金价格单位是 元/克；amount = 成交金额（元）
+                        # Tushare fut_daily 的 amount 是 万元，×10000 转为元
                         result.append({
                             'name': '黄金',
-                            'code': gold_code,   # 如 AU2606.SHF
+                            'code': gold_code,
                             'market': '大宗',
                             'price': curr_price,
                             'change_pct': pct,
                             'unit': '元/克',
-                            'amount': float(curr.get('amount', 0)) if curr.get('amount') else 0,
+                            'amount': float(curr.get('amount', 0)) * 10000 if curr.get('amount') else 0,
                             'source': 'Tushare'
                         })
 
-                # 原油期货日线
+                # 原油期货日线（查近两年数据，取最后2条）
                 if oil_code:
-                    df_o = pro.fut_daily(ts_code=oil_code)
+                    tomorrow = (datetime.strptime(today, '%Y%m%d') + timedelta(days=1)).strftime('%Y%m%d')
+                    df_o = pro.fut_daily(ts_code=oil_code, start_date='20240101', end_date=tomorrow)
                     if df_o is not None and not df_o.empty and len(df_o) >= 2:
                         df_o = df_o.sort_values('trade_date').tail(2)
                         curr = df_o.iloc[-1]
@@ -777,15 +779,15 @@ class MarketDataAdapter:
                         curr_price = float(curr['close'])
                         prev_price = float(prev['close'])
                         pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
-                        # 原油价格单位是 元/桶（内盘）；amount = 成交金额（元）
+                        # Tushare fut_daily 的 amount 是 万元，×10000 转为元
                         result.append({
                             'name': '原油',
-                            'code': oil_code,   # 如 SC2605.INE
+                            'code': oil_code,
                             'market': '大宗',
                             'price': curr_price,
                             'change_pct': pct,
                             'unit': '元/桶',
-                            'amount': float(curr.get('amount', 0)) if curr.get('amount') else 0,
+                            'amount': float(curr.get('amount', 0)) * 10000 if curr.get('amount') else 0,
                             'source': 'Tushare'
                         })
 
