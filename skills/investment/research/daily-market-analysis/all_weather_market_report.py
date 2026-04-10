@@ -75,19 +75,40 @@ class AllWeatherMarketReport:
         key_points = []
         skip_keywords = ['#', '---', '**', '##', '```', '>>>']
         
+        # 先收集所有普通句子（优先）和段落，再补充少量关键 bullet
+        plain_sentences = []
+        bullet_candidates = []
+        
         for line in lines:
             if any(kw in line for kw in skip_keywords):
                 continue
-            if len(line) < 15 or len(line) > 250:
+            if len(line) < 15:
                 continue
+            # Bullet points: only keep reasonable length ones
             if line.startswith('- ') or line.startswith('1.') or line.startswith('2.') or line.startswith('3.'):
-                if len(line) > 50:
-                    key_points.append(line)
+                if 15 < len(line) <= 250:
+                    bullet_candidates.append(line)
+            # Plain sentences: keep all lengths (English analysis sentences are often long)
             else:
-                key_points.append(line)
+                plain_sentences.append(line)
             
-            if len(key_points) >= max_sentences:
+            if len(plain_sentences) >= max_sentences:
                 break
+        
+        # 优先用普通句子，不够才用 bullet 补充
+        if len(plain_sentences) >= max_sentences:
+            key_points = plain_sentences[:max_sentences]
+        elif len(plain_sentences) > 0:
+            key_points = plain_sentences + bullet_candidates[:max_sentences - len(plain_sentences)]
+        else:
+            key_points = bullet_candidates[:max_sentences]
+        
+        if len(key_points) < 3:
+            for line in lines[len(lines)//3:len(lines)*2//3]:
+                if line not in key_points and len(line) > 30 and not line.startswith('- '):
+                    key_points.append(line)
+                    if len(key_points) >= max_sentences:
+                        break
         
         if len(key_points) < 3:
             for line in lines[len(lines)//3:len(lines)*2//3]:
@@ -219,9 +240,13 @@ class AllWeatherMarketReport:
             name = item.get('name', '')
             rate = item.get('rate_10y', 0)
             if '美国' in name:
-                rows.append(f"| 美国国债(10Y) | ⚪ {rate:.4f}% | — | 参考利率 | 标配 3% | — |")
+                chg_bp = item.get('change_pct', 0)
+                chg_str = f"+{chg_bp:.0f}bp" if chg_bp > 0 else (f"{chg_bp:.0f}bp" if chg_bp < 0 else "0bp")
+                rows.append(f"| 美国国债(10Y) | ⚪ {rate:.2f}% | {chg_str} | 参考利率 | 标配 3% | — |")
             elif '中国' in name:
-                rows.append(f"| 中国国债(10Y) | ⚪ {rate:.4f}% | — | 参考利率 | 超配 5% | — |")
+                chg_bp = item.get('change_pct', 0)
+                chg_str = f"+{chg_bp:.0f}bp" if chg_bp > 0 else (f"{chg_bp:.0f}bp" if chg_bp < 0 else "0bp")
+                rows.append(f"| 中国国债(10Y) | ⚪ {rate:.2f}% | {chg_str} | 参考利率 | 超配 5% | — |")
         
         table = f"""## 一、全球市场概览
 

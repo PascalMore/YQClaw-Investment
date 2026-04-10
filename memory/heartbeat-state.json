@@ -3,14 +3,16 @@
     "email": 1775400720,
     "calendar": null,
     "weather": null,
-    "daily_market_report": 1775714340,
+    "daily_market_report": 1775733780,
     "daily_stock_analysis": 1775464779
   },
   "issues": {
     "email_sending": "SMTP credentials not configured",
     "litellm_api": "DeepSeek connection refused, fell back to MiniMax/Gemini",
     "feishu_doc": "No module named 'lark_oapi'",
-    "feishu_reconnected": "✅ 15:50 重启后已恢复"
+    "feishu_reconnected": "✅ 15:50 重启后已恢复",
+    "cron_jobs_broken": "Cron jobs nextRun=null，需要重新配置",
+    "daily_stock_analysis_fails": "进程启动后被 SIGKILL"
   },
-  "report_time": "08:03 PM - 18:00 stock analysis missed"
+  "report_time": "07:43 AM - early for 08:30 target"
 }
