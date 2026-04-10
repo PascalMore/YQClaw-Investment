@@ -34,6 +34,7 @@ if _src_dir not in sys.path:
     sys.path.insert(0, _src_dir)
 
 from new_services.market_data_adapter import MarketDataAdapter
+import litellm
 
 
 # ============================================
@@ -539,15 +540,15 @@ class ReportGenerator:
         if market in review_map:
             review = review_map[market][1]()
             if review:
-                result = self._summarize_for_html(review, max_chars=200)
+                result = self._llm_summarize_review(review, max_chars=85)
         elif market == "美股":
             review = self.adapter.get_us_market_review()
             if review:
-                result = self._summarize_for_html(review, max_chars=200)
+                result = self._llm_summarize_review(review, max_chars=85)
         elif market == "Crypto":
             review = self.adapter.get_crypto_market_review()
             if review:
-                result = self._summarize_for_html(review, max_chars=200)
+                result = self._llm_summarize_review(review, max_chars=85)
         
         # 缓存结果
         if not hasattr(self, '_analysis_cache'):
@@ -556,26 +557,41 @@ class ReportGenerator:
         
         return result
     
-    def _summarize_for_html(self, review_text: str, max_chars: int = 200) -> str:
-        """从复盘报告提取摘要（用于HTML邮件表格）"""
+    def _llm_summarize_review(self, review_text: str, max_chars: int = 85) -> str:
+        """用LLM将复盘报告总结为≤85字的核心分析（用于表格展示）"""
         if not review_text:
             return "暂无分析数据"
-        lines = [l.strip() for l in review_text.split('\n') if l.strip()]
-        skip_keywords = ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.']
-        sentences = []
-        for line in lines:
-            if any(kw in line for kw in skip_keywords):
-                continue
-            if len(line) < 15:
-                continue
-            sentences.append(line)
-            if len('；'.join(sentences)) > max_chars:
-                break
-        if not sentences:
+        
+        # 截断过长文本以节省token
+        text_to_summarize = review_text[:3000]
+        
+        try:
+            response = litellm.completion(
+                model="minimax/MiniMax-M2.7",
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"请将以下市场复盘内容总结为不超过{max_chars}个字的核心分析，"
+                        f"要求：1）简洁精炼；2）包含涨跌关键数据；3）给出核心结论。"
+                        f"用中文输出，直接输出总结内容，不要任何前缀。\n\n{text_to_summarize}"
+                    )
+                }],
+                max_tokens=100,
+                temperature=0.3,
+            )
+            summary = response.choices[0].message.content.strip()
+            # 确保不超过限制
+            if len(summary) > max_chars:
+                summary = summary[:max_chars]
+            return summary
+        except Exception as e:
+            print(f"[ReportGenerator] LLM总结失败: {e}")
+            # 降级：取第一段有效内容
+            lines = [l.strip() for l in review_text.split('\n') if l.strip() and len(l.strip()) > 15]
+            for line in lines:
+                if not any(kw in line for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.']):
+                    return line[:max_chars]
             return "暂无分析数据"
-        result = '；'.join(sentences)
-        result = result.replace('**', '').strip()
-        return result[:max_chars] + '...' if len(result) > max_chars else result
     
     def _get_reason(self, market: str, index_name: str) -> str:
         """获取理由"""
