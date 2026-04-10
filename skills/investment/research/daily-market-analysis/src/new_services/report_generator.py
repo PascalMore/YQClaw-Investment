@@ -562,8 +562,17 @@ class ReportGenerator:
         if not review_text:
             return "暂无分析数据"
         
+        # 确保加载正确的 API Key（从 daily_stock_analysis/.env）
+        self.adapter._load_env()
+        
         # 截断过长文本以节省token
         text_to_summarize = review_text[:3000]
+        
+        # 读取正确配置
+        minimax_key = os.environ.get('LLM_MINIMAX_API_KEYS', '').split(',')[0]
+        if not minimax_key:
+            minimax_key = os.environ.get('MINIMAX_API_KEY', '')
+        minimax_base = os.environ.get('LLM_MINIMAX_BASE_URL', 'https://api.minimaxi.com/v1')
         
         try:
             response = litellm.completion(
@@ -571,18 +580,28 @@ class ReportGenerator:
                 messages=[{
                     "role": "user",
                     "content": (
-                        f"请将以下市场复盘内容总结为不超过{max_chars}个字的核心分析，"
-                        f"要求：1）简洁精炼；2）包含涨跌关键数据；3）给出核心结论。"
-                        f"用中文输出，直接输出总结内容，不要任何前缀。\n\n{text_to_summarize}"
+                        f"请将以下市场复盘内容提炼为约{max_chars}字的完整核心句，要求："
+                        f"1）恰好一个完整句子（以句号或中文句号结尾）；"
+                        f"2）包含关键涨跌数据；3）给出核心结论。用中文输出，不要任何前缀。\n\n"
+                        f"{text_to_summarize}"
                     )
                 }],
-                max_tokens=100,
+                api_key=minimax_key,
+                api_base=minimax_base,
+                max_tokens=200,
                 temperature=0.3,
             )
             summary = response.choices[0].message.content.strip()
-            # 确保不超过限制
+            # 确保完整不截断；若超长则截到最后一个完整句结束符
             if len(summary) > max_chars:
-                summary = summary[:max_chars]
+                truncated = summary[:max_chars]
+                for sep in ['。', '. ']:
+                    idx = truncated.rfind(sep)
+                    if idx > max_chars * 0.5:
+                        summary = truncated[:idx + 1].strip()
+                        break
+                else:
+                    summary = truncated.rstrip('-,;:').strip()
             return summary
         except Exception as e:
             print(f"[ReportGenerator] LLM总结失败: {e}")
