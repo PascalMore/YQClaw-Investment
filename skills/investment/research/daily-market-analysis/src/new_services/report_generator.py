@@ -523,8 +523,59 @@ class ReportGenerator:
         return f"<span class='position-badge {level_class}'>{advice['text']}</span>"
     
     def _get_analysis(self, market: str) -> str:
-        """获取市场分析"""
-        return self.MARKET_ANALYSIS.get(market, "暂无分析数据")
+        """获取市场分析（从复盘报告动态提取）"""
+        # 优先使用动态获取的复盘摘要
+        cache_key = f'_analysis_cache_{market}'
+        if hasattr(self, '_analysis_cache') and market in self._analysis_cache:
+            return self._analysis_cache[market]
+        
+        review_map = {
+            "A股": ('cn', self.adapter.get_cn_market_review),
+            "H股": ('hk', self.adapter.get_hk_market_review),
+        }
+        
+        result = self.MARKET_ANALYSIS.get(market, "暂无分析数据")
+        
+        if market in review_map:
+            review = review_map[market][1]()
+            if review:
+                result = self._summarize_for_html(review, max_chars=200)
+        elif market == "美股":
+            review = self.adapter.get_us_market_review()
+            if review:
+                result = self._summarize_for_html(review, max_chars=200)
+        elif market == "Crypto":
+            review = self.adapter.get_crypto_market_review()
+            if review:
+                result = self._summarize_for_html(review, max_chars=200)
+        
+        # 缓存结果
+        if not hasattr(self, '_analysis_cache'):
+            self._analysis_cache = {}
+        self._analysis_cache[market] = result
+        
+        return result
+    
+    def _summarize_for_html(self, review_text: str, max_chars: int = 200) -> str:
+        """从复盘报告提取摘要（用于HTML邮件表格）"""
+        if not review_text:
+            return "暂无分析数据"
+        lines = [l.strip() for l in review_text.split('\n') if l.strip()]
+        skip_keywords = ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.']
+        sentences = []
+        for line in lines:
+            if any(kw in line for kw in skip_keywords):
+                continue
+            if len(line) < 15:
+                continue
+            sentences.append(line)
+            if len('；'.join(sentences)) > max_chars:
+                break
+        if not sentences:
+            return "暂无分析数据"
+        result = '；'.join(sentences)
+        result = result.replace('**', '').strip()
+        return result[:max_chars] + '...' if len(result) > max_chars else result
     
     def _get_reason(self, market: str, index_name: str) -> str:
         """获取理由"""
