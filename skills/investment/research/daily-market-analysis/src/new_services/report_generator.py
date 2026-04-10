@@ -34,7 +34,6 @@ if _src_dir not in sys.path:
     sys.path.insert(0, _src_dir)
 
 from new_services.market_data_adapter import MarketDataAdapter
-import litellm
 
 
 # ============================================
