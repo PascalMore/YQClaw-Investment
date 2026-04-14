@@ -403,6 +403,7 @@ NEWS_CARD_TEMPLATE = """
 <div class="card">
     <div class="card-meta">{source} · {time}</div>
     <div class="card-title">{title}</div>
+    <div class="card-content">{content}</div>
 </div>
 """
 
@@ -479,8 +480,19 @@ class ReportGenerator:
         "债市": {"level": "low", "text": "2-3成"},
     }
     
-    def __init__(self):
+    def __init__(self, config=None):
         self.adapter = MarketDataAdapter()
+        # 加载配置（用于新闻数量等设置）
+        if config is None:
+            import json, os
+            config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'config.json')
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path) as f:
+                        config = json.load(f)
+                except:
+                    config = {}
+        self.config = config or {}
         self._fetch_all_data()  # 一次性获取所有数据并缓存
     
     def _format_change_pct(self, pct: float) -> str:
@@ -910,18 +922,64 @@ class ReportGenerator:
         return "".join(rows)
     
     def _generate_global_news(self) -> str:
-        """生成热点资讯"""
-        news_list = self.adapter.get_global_news(limit=3)
+        """生成热点资讯
+        
+        - 新闻数量：从 config.json 的 news_limit 配置读取，默认6条
+        - 时间筛选：只显示24小时内的新闻
+        - 内容展示：显示完整摘要内容
+        """
+        # 从配置读取新闻数量，默认6条
+        news_limit = 6
+        if self.config and isinstance(self.config, dict):
+            news_limit = self.config.get('news', {}).get('limit', 6)
+        
+        news_list = self.adapter.get_global_news(limit=news_limit)
         
         if not news_list:
             return '<div class="no-data">暂无热点资讯</div>'
         
-        cards = []
+        # 过滤24小时内的新闻
+        from datetime import datetime, timedelta
+        cutoff_time = datetime.now() - timedelta(hours=24)
+        filtered_news = []
         for news in news_list:
+            news_time_str = news.get('time', '') or news.get('datetime', '')
+            if news_time_str:
+                try:
+                    # 尝试解析时间
+                    if 'T' in news_time_str:
+                        news_time = datetime.fromisoformat(news_time_str.replace('Z', '+00:00'))
+                    else:
+                        news_time = datetime.strptime(news_time_str, '%Y-%m-%d %H:%M:%S')
+                    if news_time.replace(tzinfo=None) >= cutoff_time:
+                        filtered_news.append(news)
+                except:
+                    # 时间解析失败，保留该新闻
+                    filtered_news.append(news)
+            else:
+                # 没有时间信息的新闻也保留
+                filtered_news.append(news)
+        
+        # 如果过滤后数量太少，补充其他新闻
+        if len(filtered_news) < 3 and len(news_list) > len(filtered_news):
+            for news in news_list:
+                if news not in filtered_news:
+                    filtered_news.append(news)
+                    if len(filtered_news) >= 3:
+                        break
+        
+        cards = []
+        for news in filtered_news[:news_limit]:
+            # 内容截取：取前150字，避免过长
+            content = news.get('content', '') or news.get('snippet', '')
+            if len(content) > 150:
+                content = content[:150].rstrip('-,;:，') + '...'
+            
             card = NEWS_CARD_TEMPLATE.format(
                 source=news.get('source', '未知来源'),
-                time=news.get('time', ''),
-                title=news.get('title', '暂无标题')
+                time=news.get('time', news.get('datetime', '')),
+                title=news.get('title', '暂无标题'),
+                content=content
             )
             cards.append(card)
         
