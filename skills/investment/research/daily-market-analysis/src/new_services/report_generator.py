@@ -20,13 +20,12 @@
 """
 
 import os
+import subprocess
 import sys
 from datetime import datetime, date
 from typing import Dict, List, Optional
 
 # 导入市场数据适配器
-import os
-import sys
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 _src_dir = os.path.join(_parent_dir)
@@ -492,6 +491,15 @@ class ReportGenerator:
             return f"<span class='down'>{pct:.2f}%</span>"
         else:
             return f"<span class='flat'>{pct:.2f}%</span>"
+
+    def _format_change_bp(self, bp: float) -> str:
+        """格式化债券收益率变化（单位：bp）"""
+        if bp > 0:
+            return f"<span class='up'>+{bp:.1f}bp</span>"
+        elif bp < 0:
+            return f"<span class='down'>{bp:.1f}bp</span>"
+        else:
+            return f"<span class='flat'>{bp:.1f}bp</span>"
     
     def _format_price(self, value: float, index_name: str, source: str = None) -> str:
         """格式化价格"""
@@ -499,7 +507,7 @@ class ReportGenerator:
         if index_name in ["BTC", "ETH", "SOL"]:
             return f"${value:,.2f}"
         elif index_name == "PEPE":
-            return f"${value:.6f}"
+            return f"${value:.8f}"
         # 大宗商品
         elif source == "comm":
             if index_name.startswith("黄金"):
@@ -560,56 +568,130 @@ class ReportGenerator:
         """用LLM将复盘报告总结为≤85字的核心分析（用于表格展示）"""
         if not review_text:
             return "暂无分析数据"
-        
-        # 确保加载正确的 API Key（从 daily_stock_analysis/.env）
-        self.adapter._load_env()
-        
-        # 截断过长文本以节省token
+
+        # 构建 prompt
         text_to_summarize = review_text[:3000]
-        
-        # 读取正确配置
-        minimax_key = os.environ.get('LLM_MINIMAX_API_KEYS', '').split(',')[0]
-        if not minimax_key:
-            minimax_key = os.environ.get('MINIMAX_API_KEY', '')
-        minimax_base = os.environ.get('LLM_MINIMAX_BASE_URL', 'https://api.minimaxi.com/v1')
-        
+        prompt = (
+            f"请一句话总结以下市场复盘内容，包含关键涨跌数据，用中文输出：\n\n"
+            f"{text_to_summarize[:2000]}"
+        )
+
+        # 直接在主进程调用 LLM（避免 subprocess 环境变量问题）
         try:
+            import litellm
+            litellm.suppress_debug_info = True
+            # 获取 API key（从 market_daily_analysis 的 .env）
+            import os as _os
+            _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '.env')
+            if os.path.exists(_env_path):
+                for line in open(_env_path):
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        _os.environ.setdefault(k, v)
+            _minimax_key = _os.environ.get('LLM_MINIMAX_API_KEYS', '').split(',')[0]
+            _minimax_base = _os.environ.get('LLM_MINIMAX_BASE_URL', 'https://api.minimaxi.com/v1')
             response = litellm.completion(
-                model="minimax/MiniMax-M2.7",
-                messages=[{
-                    "role": "user",
-                    "content": (
-                        f"请将以下市场复盘内容提炼为约{max_chars}字的完整核心句，要求："
-                        f"1）恰好一个完整句子（以句号或中文句号结尾）；"
-                        f"2）包含关键涨跌数据；3）给出核心结论。用中文输出，不要任何前缀。\n\n"
-                        f"{text_to_summarize}"
-                    )
-                }],
-                api_key=minimax_key,
-                api_base=minimax_base,
-                max_tokens=200,
+                model='minimax/MiniMax-M2.7',
+                messages=[{'role': 'user', 'content': prompt}],
+                api_key=_minimax_key,
+                api_base=_minimax_base,
+                max_tokens=300,
                 temperature=0.3,
             )
-            summary = response.choices[0].message.content.strip()
-            # 确保完整不截断；若超长则截到最后一个完整句结束符
-            if len(summary) > max_chars:
-                truncated = summary[:max_chars]
-                for sep in ['。', '. ']:
-                    idx = truncated.rfind(sep)
-                    if idx > max_chars * 0.5:
-                        summary = truncated[:idx + 1].strip()
-                        break
+            msg = response.choices[0].message if response and response.choices else None
+            content_raw = msg.content.strip() if msg.content else ''
+            if content_raw and len(content_raw) > 3:
+                summary = content_raw
+            else:
+                rc = getattr(msg, 'reasoning_content', None) or ''
+                import re
+                marker = 'Final answer:'
+                if marker in rc:
+                    summary = rc.split(marker)[-1].strip()
                 else:
-                    summary = truncated.rstrip('-,;:').strip()
-            return summary
+                    paragraphs = rc.split('\n')
+                    for para in reversed(paragraphs):
+                        para = para.strip()
+                        if not para:
+                            continue
+                        if re.search(r'[\u4e00-\u9fff]', para) and len(para) > 5:
+                            sentences = re.findall(r'[^。！？]+[。！？]', para + '|')
+                            summary = sentences[-1].rstrip('|') if sentences else para
+                            break
+                    else:
+                        summary = rc.strip()[-400:] if rc.strip() else ''
         except Exception as e:
-            print(f"[ReportGenerator] LLM总结失败: {e}")
-            # 降级：取第一段有效内容
-            lines = [l.strip() for l in review_text.split('\n') if l.strip() and len(l.strip()) > 15]
+            print(f"[ReportGenerator] LLM call error: {e}")
+            summary = ''
+
+        # 如果 subprocess 无输出，降级到启发式
+        if not summary:
+            # 优先尝试提取"市场总结"等第一段正文（结构化复盘格式）
+            import re
+            # 匹配一级或二级标题后的第一段正文（非列表、非代码块）
+            section_header_pattern = re.compile(
+                r'^#{1,3}\s*[一二三四五六七八九十\d]+\s*[、,.\-].*$',
+                re.MULTILINE
+            )
+            lines = review_text.split('\n')
+            in_first_section = False
             for line in lines:
-                if not any(kw in line for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.']):
-                    return line[:max_chars]
-            return "暂无分析数据"
+                stripped = line.strip()
+                # 遇到第一段正文标题
+                if section_header_pattern.match(stripped):
+                    in_first_section = True
+                    continue
+                # 跳过标题行、空行、列表、代码块、分隔线
+                if not stripped or stripped.startswith('#') or stripped.startswith('- ') or \
+                   stripped.startswith('```') or stripped.startswith('>>>') or \
+                   re.match(r'^[\-\*]+ ', stripped) or re.match(r'^\d+\. ', stripped) or \
+                   stripped.startswith('---') or len(stripped) < 15:
+                    continue
+                # 遇到下一个章节标题，停止
+                if in_first_section and section_header_pattern.match(stripped):
+                    break
+                # 找到正文第一段
+                if in_first_section:
+                    # 去掉 ** 加粗标记
+                    clean = re.sub(r'\*\*(.+?)\*\*', r'\1', stripped)
+                    summary = clean[:max_chars]
+                    break
+
+            # 如果结构化提取失败，使用原有启发式
+            if not summary:
+                for line in lines:
+                    stripped = line.strip()
+                    if (stripped and len(stripped) > 15 and
+                        not any(kw in stripped for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.'])):
+                        summary = stripped[:max_chars]
+                        break
+
+        # 确保不超长，截断到最后一个完整句
+        if len(summary) > max_chars:
+            truncated = summary[:max_chars]
+            # 支持中英文标点：句号、逗号（中文逗号也可能是句子分隔）
+            for sep in ['。', '. ', '，']:
+                idx = truncated.rfind(sep)
+                if idx > max_chars * 0.4:  # 阈值降低，留更多内容
+                    summary = truncated[:idx + 1].strip()
+                    break
+            else:
+                summary = truncated.rstrip('-,;:， ').strip()
+
+        # 确保有句号结尾（如果截断后已有句号/感叹号/问号则不加）
+        if summary and summary[-1] not in '。.！？':
+            # 找最后一个完整句（倒着找句号）
+            last_句 = max(summary.rfind('。'), summary.rfind('！'), summary.rfind('？'))
+            if last_句 > max_chars * 0.5:
+                summary = summary[:last_句 + 1]
+            elif summary.endswith('，') or summary.endswith(','):
+                # 逗号结尾 → 改为句号
+                summary = summary.rstrip('，,').strip() + '。'
+            else:
+                summary += '。'
+
+        return summary
     
     def _get_reason(self, market: str, index_name: str) -> str:
         """获取理由"""
@@ -734,11 +816,11 @@ class ReportGenerator:
             elif source == "bond":
                 data = bond_data.get(config['data_key'])
                 if data:
-                    current = data.get('rate_10y', 0)  # 10年期国债收益率
-                    change_pct = 0  # 债券收益率变化不常用
+                    current = data.get('rate_10y', 0)
+                    change_bp = data.get('change_bp', 0)
                     volume = 0
                 else:
-                    current, change_pct, volume = 0, 0, 0
+                    current, change_bp, volume = 0, 0, 0
 
             else:
                 current, change_pct, volume = 0, 0, 0
@@ -763,12 +845,17 @@ class ReportGenerator:
                 else:
                     volume_str = "-"
             
+            if source == "bond":
+                change_cell = self._format_change_bp(change_bp)
+            else:
+                change_cell = self._format_change_pct(change_pct)
+
             row = f"""
                         <tr>
                             <td class="sticky">{market}</td>
                             <td class="sticky">{index_name}</td>
                             <td>{self._format_price(current, index_name, source)}</td>
-                            <td>{self._format_change_pct(change_pct) if source != "bond" else "-"}</td>
+                            <td>{change_cell}</td>
                             <td>{volume_str}</td>
                             <td class="analysis-col">{self._get_analysis(market)}</td>
                             <td>{self._get_position_badge(market)}</td>
