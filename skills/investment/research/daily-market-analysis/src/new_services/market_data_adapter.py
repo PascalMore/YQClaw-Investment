@@ -812,9 +812,18 @@ class MarketDataAdapter:
                 ts.set_token(tushare_token)
                 pro = ts.pro_api()
 
-                # 获取当前主力合约
-                today = datetime.now().strftime('%Y%m%d')
-                mapping = pro.fut_mapping(trade_date=today)
+                # 获取最近有数据的交易日（today可能是假日）
+                today_str = datetime.now().strftime('%Y%m%d')
+                mapping = None
+                for days_back in range(10):
+                    check_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y%m%d')
+                    mapping = pro.fut_mapping(trade_date=check_date)
+                    if not mapping.empty:
+                        print(f"[Adapter] Tushare fut_mapping 使用日期: {check_date}")
+                        break
+                
+                if mapping is None or mapping.empty:
+                    print(f"[Adapter] Tushare fut_mapping 近10个交易日均为空")
 
                 # 黄金主力: AU.SHF → mapping_ts_code
                 gold_rows = mapping[mapping['ts_code'].str.startswith('AU') & ~mapping['ts_code'].str.contains('L')]
@@ -825,8 +834,7 @@ class MarketDataAdapter:
 
                 # 黄金期货日线（查近两年数据，取最后2条）
                 if gold_code:
-                    tomorrow = (datetime.strptime(today, '%Y%m%d') + timedelta(days=1)).strftime('%Y%m%d')
-                    df_g = pro.fut_daily(ts_code=gold_code, start_date='20240101', end_date=tomorrow)
+                    df_g = pro.fut_daily(ts_code=gold_code, start_date='20240101', end_date='20500101')
                     if df_g is not None and not df_g.empty and len(df_g) >= 2:
                         df_g = df_g.sort_values('trade_date').tail(2)
                         curr = df_g.iloc[-1]
@@ -848,8 +856,7 @@ class MarketDataAdapter:
 
                 # 原油期货日线（查近两年数据，取最后2条）
                 if oil_code:
-                    tomorrow = (datetime.strptime(today, '%Y%m%d') + timedelta(days=1)).strftime('%Y%m%d')
-                    df_o = pro.fut_daily(ts_code=oil_code, start_date='20240101', end_date=tomorrow)
+                    df_o = pro.fut_daily(ts_code=oil_code, start_date='20240101', end_date='20500101')
                     if df_o is not None and not df_o.empty and len(df_o) >= 2:
                         df_o = df_o.sort_values('trade_date').tail(2)
                         curr = df_o.iloc[-1]
@@ -859,7 +866,7 @@ class MarketDataAdapter:
                         pct = (curr_price - prev_price) / prev_price * 100 if prev_price else 0
                         # Tushare fut_daily 的 amount 是 万元，×10000 转为元
                         result.append({
-                            'name': '原油',
+                            'name': 'WTI原油',
                             'code': oil_code,
                             'market': '大宗',
                             'price': curr_price,
