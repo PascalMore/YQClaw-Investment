@@ -382,6 +382,11 @@ class MarketDataAdapter:
         Returns:
             list of dicts with keys: title, source, datetime, url, content
         """
+        # 重要：MiniMax API 不走代理，避免代理导致的 529 问题
+        for k in list(os.environ.keys()):
+            if "proxy" in k.lower():
+                del os.environ[k]
+        
         self._load_env()
         api_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0].strip()
         if not api_key:
@@ -446,7 +451,7 @@ class MarketDataAdapter:
         return self.get_international_news("global", limit)
 
     def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国际热点新闻 - 使用 litellm (MiniMax)"""
+        """获取国际热点新闻 - 使用 litellm (MiniMax) + DuckDuckGo 备用"""
         for k in list(os.environ.keys()):
             if "proxy" in k.lower():
                 del os.environ[k]
@@ -479,8 +484,48 @@ class MarketDataAdapter:
             print(f"[Adapter] {category} 国际新闻 (litellm/MiniMax): {len(results)} 条")
             return results
         
+        # 备用：使用 DuckDuckGo 搜索新闻
+        print(f"[Adapter] {category} 国际新闻 MiniMax 失败，尝试 DuckDuckGo...")
+        ddg_results = self._duckduckgo_news_search(category, limit)
+        if ddg_results:
+            print(f"[Adapter] {category} 国际新闻 (DuckDuckGo): {len(ddg_results)} 条")
+            return ddg_results
+        
         print(f"[Adapter] {category} 国际新闻: 获取失败")
         return []
+    
+    def _duckduckgo_news_search(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
+        """使用 DuckDuckGo 搜索新闻作为备用源"""
+        query_map = {
+            "global": "finance economy Federal Reserve interest rates",
+            "crypto": "Bitcoin Ethereum cryptocurrency news",
+            "us": "S&P 500 Nasdaq stock market news",
+        }
+        query = query_map.get(category, query_map["global"])
+        
+        try:
+            from duckduckgosearch import DDGS
+            results = []
+            seen = set()
+            with DDGS() as ddgs:
+                for r in ddgs.news(query, max_results=limit * 2):
+                    title = r.get("title", "").strip()
+                    if title and title not in seen and len(results) < limit:
+                        seen.add(title)
+                        results.append({
+                            "title": title,
+                            "content": r.get("body", title)[:200],
+                            "source": r.get("source", "DuckDuckGo"),
+                            "datetime": r.get("date", ""),
+                            "url": r.get("url", "")
+                        })
+            return results
+        except ImportError:
+            print("[Adapter] duckduckgosearch 库未安装: pip install duckduckgosearch")
+            return []
+        except Exception as e:
+            print(f"[Adapter] DuckDuckGo 新闻搜索失败: {e}")
+            return []
 
     def get_market_news(self, market: str, limit: int = 5) -> List[Dict[str, str]]:
         """获取特定市场新闻 - 根据市场类型选择新闻源
