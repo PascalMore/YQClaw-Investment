@@ -435,25 +435,25 @@ class ReportGenerator:
     _cache_time = None
     CACHE_DURATION = 300  # 缓存5分钟
     
-    # 指数清单配置
+    # 指数清单配置（name 字段必须与 MarketDataAdapter 返回的 name 一致）
     INDEX_CONFIG = {
         # A股
         "上证指数": {"market": "A股", "code": "000001", "source": "cn"},
         "沪深300": {"market": "A股", "code": "000300", "source": "cn"},
         # 港股
-        "恒生指数": {"market": "H股", "code": "^HSI", "source": "hk"},
+        "恒生指数": {"market": "H股", "code": "HSI", "source": "hk"},
         "恒生科技": {"market": "H股", "code": "HSTECH", "source": "hk"},
         # Crypto
         "BTC": {"market": "Crypto", "symbol": "BTCUSDT", "source": "binance"},
         "ETH": {"market": "Crypto", "symbol": "ETHUSDT", "source": "binance"},
         "SOL": {"market": "Crypto", "symbol": "SOLUSDT", "source": "binance"},
         "PEPE": {"market": "Crypto", "symbol": "PEPEUSDT", "source": "binance"},
-        # 美股
-        "标普500": {"market": "美股", "code": "^GSPC", "source": "us"},
-        "纳斯达克": {"market": "美股", "code": "^IXIC", "source": "us"},
-        # 大宗商品
-        "黄金 AU2606": {"market": "大宗", "source": "comm", "data_key": "黄金"},
-        "原油 SC2605": {"market": "大宗", "source": "comm", "data_key": "原油"},
+        # 美股（name 与 DSA fetcher 返回的一致）
+        "标普500指数": {"market": "美股", "code": "SPX", "source": "us"},
+        "纳斯达克综合指数": {"market": "美股", "code": "IXIC", "source": "us"},
+        # 大宗商品（data_key 与 get_commodity_data 返回的 name 一致）
+        "黄金": {"market": "大宗", "source": "comm", "data_key": "黄金"},
+        "WTI原油": {"market": "大宗", "source": "comm", "data_key": "WTI原油"},
         # 债券
         "中国国债(10Y)": {"market": "债市", "source": "bond", "data_key": "中国国债(10Y)"},
         "美国国债(10Y)": {"market": "债市", "source": "bond", "data_key": "美国国债(10Y)"},
@@ -503,6 +503,10 @@ class ReportGenerator:
     
     def _format_price(self, value: float, index_name: str, source: str = None) -> str:
         """格式化价格"""
+        # 数据不可用
+        if value is None or value == 0:
+            return "-"
+        
         # Crypto 小数位
         if index_name in ["BTC", "ETH", "SOL"]:
             return f"${value:,.2f}"
@@ -512,8 +516,8 @@ class ReportGenerator:
         elif source == "comm":
             if index_name.startswith("黄金"):
                 return f"{value:.2f} 元/克"
-            elif index_name.startswith("原油"):
-                return f"{value:.2f} 元/桶"
+            elif index_name.startswith("WTI") or index_name.startswith("原油"):
+                return f"${value:.2f}"
             return f"{value:.2f}"
         # 债券收益率
         elif source == "bond":
@@ -547,15 +551,15 @@ class ReportGenerator:
         if market in review_map:
             review = review_map[market][1]()
             if review:
-                result = self._llm_summarize_review(review, max_chars=85)
+                result = self._llm_summarize_review(review, max_chars=100)
         elif market == "美股":
             review = self.adapter.get_us_market_review()
             if review:
-                result = self._llm_summarize_review(review, max_chars=85)
+                result = self._llm_summarize_review(review, max_chars=100)
         elif market == "Crypto":
             review = self.adapter.get_crypto_market_review()
             if review:
-                result = self._llm_summarize_review(review, max_chars=85)
+                result = self._llm_summarize_review(review, max_chars=100)
         
         # 缓存结果
         if not hasattr(self, '_analysis_cache'):
@@ -811,7 +815,8 @@ class ReportGenerator:
                     # Tushare 期货主连返回 amount（成交金额，元），直接复用
                     volume = data.get('amount', 0) or 0
                 else:
-                    current, change_pct, volume = 0, 0, 0
+                    # 数据获取失败时用 None 标记，不要显示为 0
+                    current, change_pct, volume = None, None, 0
 
             elif source == "bond":
                 data = bond_data.get(config['data_key'])
@@ -848,7 +853,7 @@ class ReportGenerator:
             if source == "bond":
                 change_cell = self._format_change_bp(change_bp)
             else:
-                change_cell = self._format_change_pct(change_pct)
+                change_cell = self._format_change_pct(change_pct) if change_pct is not None else "-"
 
             row = f"""
                         <tr>
