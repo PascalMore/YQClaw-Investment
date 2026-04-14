@@ -896,23 +896,42 @@ class MarketDataAdapter:
             except Exception as e:
                 print(f"[Adapter] 黄金(SGE)失败: {e}")
 
-        # ── 3. yfinance WTI 备用（已确认会 rate limit 但不报错的静默跳过）──
-        if not any(r['name'] == '原油' for r in result):
-            try:
-                import yfinance as yf
-                t = yf.Ticker('CL=F')
-                hist = t.history(period='3d', timeout=5)
-                if not hist.empty and len(hist) >= 2:
-                    curr = float(hist['Close'].iloc[-1])
-                    prev = float(hist['Close'].iloc[-2])
-                    pct = ((curr - prev) / prev * 100) if prev > 0 else 0
-                    result.append({
-                        'name': 'WTI原油', 'code': 'WTI', 'market': '大宗',
-                        'price': curr, 'change_pct': pct,
-                        'unit': '美元/桶', 'source': 'NYMEX'
-                    })
-            except Exception:
-                pass  # 静默跳过
+        # ── 3. yfinance WTI 备用（带重试）────────────────────────────────────
+        # 重要：先清除代理环境变量，避免 yfinance 请求被代理干扰
+        for k in list(os.environ.keys()):
+            if "proxy" in k.lower():
+                del os.environ[k]
+        
+        if not any(r['name'] == 'WTI原油' for r in result):
+            import yfinance as yf
+            for attempt in range(3):
+                try:
+                    t = yf.Ticker('CL=F')
+                    hist = t.history(period='3d', timeout=15)
+                    if not hist.empty and len(hist) >= 2:
+                        curr = float(hist['Close'].iloc[-1])
+                        prev = float(hist['Close'].iloc[-2])
+                        pct = ((curr - prev) / prev * 100) if prev > 0 else 0
+                        result.append({
+                            'name': 'WTI原油', 'code': 'WTI', 'market': '大宗',
+                            'price': curr, 'change_pct': pct,
+                            'unit': '美元/桶', 'source': 'NYMEX'
+                        })
+                        print(f"[Adapter] WTI原油 (yfinance): ${curr:.2f} ({pct:+.2f}%)")
+                        break
+                    else:
+                        print(f"[Adapter] WTI原油 yfinance 数据为空，重试 ({attempt+1}/3)")
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if 'rate' in err_str or '429' in err_str or 'too many' in err_str:
+                        print(f"[Adapter] WTI原油 yfinance rate limit，重试 ({attempt+1}/3)...")
+                        import time
+                        time.sleep(3 * (attempt + 1))
+                    else:
+                        print(f"[Adapter] WTI原油 (yfinance) 失败: {e}")
+                        break
+            else:
+                print(f"[Adapter] WTI原油 获取失败，已达最大重试次数")
 
         return result
 
