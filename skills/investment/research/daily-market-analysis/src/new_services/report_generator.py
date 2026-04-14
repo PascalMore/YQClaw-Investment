@@ -580,53 +580,66 @@ class ReportGenerator:
             f"{text_to_summarize[:2000]}"
         )
 
-        # 直接在主进程调用 LLM（避免 subprocess 环境变量问题）
-        try:
-            import litellm
-            litellm.suppress_debug_info = True
-            # 获取 API key（从 market_daily_analysis 的 .env）
-            import os as _os
-            _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '.env')
-            if os.path.exists(_env_path):
-                for line in open(_env_path):
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        k, v = line.split('=', 1)
-                        _os.environ.setdefault(k, v)
-            _minimax_key = _os.environ.get('LLM_MINIMAX_API_KEYS', '').split(',')[0]
-            _minimax_base = _os.environ.get('LLM_MINIMAX_BASE_URL', 'https://api.minimaxi.com/v1')
-            response = litellm.completion(
-                model='minimax/MiniMax-M2.7',
-                messages=[{'role': 'user', 'content': prompt}],
-                api_key=_minimax_key,
-                api_base=_minimax_base,
-                max_tokens=300,
-                temperature=0.3,
-            )
-            msg = response.choices[0].message if response and response.choices else None
-            content_raw = msg.content.strip() if msg.content else ''
-            if content_raw and len(content_raw) > 3:
-                summary = content_raw
-            else:
-                rc = getattr(msg, 'reasoning_content', None) or ''
-                import re
-                marker = 'Final answer:'
-                if marker in rc:
-                    summary = rc.split(marker)[-1].strip()
+        # 直接在主进程调用 LLM（带重试机制，避免 529 过载）
+        summary = ''
+        for attempt in range(3):
+            try:
+                import litellm
+                litellm.suppress_debug_info = True
+                # 获取 API key（从 market_daily_analysis 的 .env）
+                import os as _os
+                _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '.env')
+                if os.path.exists(_env_path):
+                    for line in open(_env_path):
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            k, v = line.split('=', 1)
+                            _os.environ.setdefault(k, v)
+                _minimax_key = _os.environ.get('LLM_MINIMAX_API_KEYS', '').split(',')[0]
+                _minimax_base = _os.environ.get('LLM_MINIMAX_BASE_URL', 'https://api.minimaxi.com/v1')
+                response = litellm.completion(
+                    model='minimax/MiniMax-M2.7',
+                    messages=[{'role': 'user', 'content': prompt}],
+                    api_key=_minimax_key,
+                    api_base=_minimax_base,
+                    max_tokens=300,
+                    temperature=0.3,
+                )
+                msg = response.choices[0].message if response and response.choices else None
+                content_raw = msg.content.strip() if msg.content else ''
+                if content_raw and len(content_raw) > 3:
+                    summary = content_raw
+                    break  # 成功获取，退出重试循环
                 else:
-                    paragraphs = rc.split('\n')
-                    for para in reversed(paragraphs):
-                        para = para.strip()
-                        if not para:
-                            continue
-                        if re.search(r'[\u4e00-\u9fff]', para) and len(para) > 5:
-                            sentences = re.findall(r'[^。！？]+[。！？]', para + '|')
-                            summary = sentences[-1].rstrip('|') if sentences else para
-                            break
+                    rc = getattr(msg, 'reasoning_content', None) or ''
+                    import re
+                    marker = 'Final answer:'
+                    if marker in rc:
+                        summary = rc.split(marker)[-1].strip()
+                        break
                     else:
-                        summary = rc.strip()[-400:] if rc.strip() else ''
-        except Exception as e:
-            print(f"[ReportGenerator] LLM call error: {e}")
+                        paragraphs = rc.split('\n')
+                        for para in reversed(paragraphs):
+                            para = para.strip()
+                            if not para:
+                                continue
+                            if re.search(r'[\u4e00-\u9fff]', para) and len(para) > 5:
+                                sentences = re.findall(r'[^。！？]+[。！？]', para + '|')
+                                summary = sentences[-1].rstrip('|') if sentences else para
+                                break
+                        if summary:
+                            break
+            except Exception as e:
+                err_str = str(e)
+                if '529' in err_str or 'overloaded' in err_str.lower():
+                    print(f"[ReportGenerator] LLM 529过载，重试 ({attempt+1}/3)...")
+                    import time
+                    time.sleep(3 * (attempt + 1))  # 退避等待
+                else:
+                    print(f"[ReportGenerator] LLM call error: {e}")
+                    break
+        else:
+            # 三次重试都失败
             summary = ''
 
         # 如果 subprocess 无输出，降级到启发式
@@ -659,8 +672,15 @@ class ReportGenerator:
                 if in_first_section:
                     # 去掉 ** 加粗标记
                     clean = re.sub(r'\*\*(.+?)\*\*', r'\1', stripped)
-                    summary = clean[:max_chars]
-                    break
+                    # 如果是纯英文内容且有中文版本，尝试跳过
+                    import re
+                    if not re.search(r'[\u4e00-\u9fff]', clean):
+                        # 纯英文内容，标记但继续找中文
+                        summary = clean[:max_chars]
+                        # 不 break，继续找后续可能的中文内容
+                    else:
+                        summary = clean[:max_chars]
+                        break
 
             # 如果结构化提取失败，使用原有启发式
             if not summary:
@@ -670,6 +690,24 @@ class ReportGenerator:
                         not any(kw in stripped for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.'])):
                         summary = stripped[:max_chars]
                         break
+            
+            # 如果summary是纯英文（无中文），尝试从剩余行找中文内容
+            import re
+            if summary and not re.search(r'[\u4e00-\u9fff]', summary):
+                # 纯英文summary，尝试在后面几行找到中文内容
+                for line in lines:
+                    stripped = line.strip()
+                    if (stripped and len(stripped) > 10 and
+                        not any(kw in stripped for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.']) and
+                        re.search(r'[\u4e00-\u9fff]', stripped)):
+                        clean = re.sub(r'\*\*(.+?)\*\*', r'\1', stripped)
+                        summary = clean[:max_chars]
+                        break
+                # 如果还是找不到中文，使用原始英文但不加句号后缀
+                if not re.search(r'[\u4e00-\u9fff]', summary):
+                    summary = summary.rstrip('.,;: ')
+                    if summary and summary[-1] not in '!.?':
+                        summary += '.'
 
         # 确保不超长，截断到最后一个完整句
         if len(summary) > max_chars:
