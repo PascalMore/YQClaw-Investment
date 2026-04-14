@@ -17,8 +17,11 @@ Phase 3 更新：
 
 import os
 import sys
+import json
+import pandas as pd
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Any
+import litellm
 
 # ============================================
 # 路径设置
@@ -117,11 +120,25 @@ class MarketDataAdapter:
         return self._fetch_hk_indices_direct()
     
     def get_us_index_data(self) -> List[Dict]:
-        """获取美股主要指数（SPX/NDX/DJI）
+        """获取美股主要指数（标普500、纳斯达克）
         
-        注意：跳过 fetcher 直接使用 yfinance，避免双重调用导致 rate limiting
+        优先使用 DSA DataFetcherManager.get_main_indices(region="us")，
+        有更好的多数据源 fallback（Yfinance → Longbridge → Stooq）。
+        失败时降级到 yfinance 直连。
         """
-        # 直接使用 yfinance（跳过 fetcher 避免重复调用）
+        # 优先走 DSA fetcher（多数据源 fallback）
+        try:
+            indices = self.fetcher.get_main_indices(region="us")
+            if indices:
+                # 过滤只保留 SPX 和 IXIC（避免多返回 DJI/VIX）
+                filtered = [d for d in indices if d.get('code') in ('SPX', 'IXIC')]
+                if filtered:
+                    print(f"[Adapter] 美股指数 (DSA fetcher): {len(filtered)} 个")
+                    return filtered
+        except Exception as e:
+            print(f"[Adapter] DSA fetcher 美股获取失败，降级: {e}")
+
+        # Fallback: yfinance 直连
         return self._fetch_us_indices_direct()
     
     def _fetch_hk_indices_direct(self):
@@ -240,7 +257,7 @@ class MarketDataAdapter:
             result.append(data)
         
         # 纳斯达克
-        data = fetch_with_retry("^IXIC", "纳斯达克综合", "NDX")
+        data = fetch_with_retry("^IXIC", "纳斯达克", "NDX")
         if data:
             result.append(data)
         
@@ -355,46 +372,113 @@ class MarketDataAdapter:
                         k, v = line.split('=', 1)
                         os.environ[k] = v
 
+    def _llm_news_search(self, prompt: str, max_results: int = 5) -> List[Dict[str, str]]:
+        """使用 litellm 调用 MiniMax LLM 搜索新闻
+        
+        Args:
+            prompt: 新闻搜索提示词
+            max_results: 最多返回条数
+        
+        Returns:
+            list of dicts with keys: title, source, datetime, url, content
+        """
+        self._load_env()
+        api_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0].strip()
+        if not api_key:
+            api_key = os.environ.get("MINIMAX_API_KEY", "").strip()
+        if not api_key:
+            print("[Adapter] LLM news search: no API key found")
+            return []
+        
+        api_base = os.environ.get("LLM_MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+        
+        system_msg = (
+            "You are a financial news assistant. "
+            "When asked for news, respond ONLY with a valid JSON array (no markdown, no extra text). "
+            f"Each element must have these fields: title, source, datetime, url, content. "
+            f"Return at most {max_results} items. "
+            "If you cannot retrieve real-time news, return an empty JSON array []. "
+            "Do NOT include any explanation outside the JSON."
+        )
+        
+        try:
+            response = litellm.completion(
+                model="minimax/MiniMax-M2.7",
+                messages=[
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": prompt}
+                ],
+                api_key=api_key,
+                api_base=api_base,
+                timeout=30,
+            )
+            raw = response.choices[0].message.content.strip()
+            # Strip markdown code fences if present
+            if raw.startswith("```"):
+                lines = raw.splitlines()
+                raw = "\n".join(lines[1:-1]) if len(lines) > 2 else raw
+            items = json.loads(raw)
+            if not isinstance(items, list):
+                return []
+            results = []
+            seen = set()
+            for item in items[:max_results]:
+                title = str(item.get("title", "")).strip()
+                if title and title not in seen:
+                    seen.add(title)
+                    results.append({
+                        "title": title,
+                        "content": str(item.get("content", item.get("snippet", title))),
+                        "source": str(item.get("source", "MiniMax-LLM")),
+                        "datetime": str(item.get("datetime", item.get("time", ""))),
+                        "url": str(item.get("url", ""))
+                    })
+            return results
+        except json.JSONDecodeError as e:
+            print(f"[Adapter] LLM news search JSON parse error: {e}")
+            return []
+        except Exception as e:
+            print(f"[Adapter] LLM news search error: {e}")
+            return []
+
     def get_global_news(self, limit: int = 3) -> List[Dict[str, str]]:
-        """获取全球宏观热点新闻 - 使用 MiniMax Search"""
+        """获取全球宏观热点新闻 - 使用 MiniMax LLM"""
         return self.get_international_news("global", limit)
 
     def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国际热点新闻 - 使用 MiniMax Search"""
+        """获取国际热点新闻 - 使用 litellm (MiniMax)"""
         for k in list(os.environ.keys()):
             if "proxy" in k.lower():
                 del os.environ[k]
         self._load_env()
         
-        keywords = {
-            "global": "Federal Reserve interest rate economy news April 2026",
-            "crypto": "Bitcoin Ethereum crypto market news April 2026",
-            "us": "S&P 500 Nasdaq Dow stock market news April 2026"
+        prompts = {
+            "global": (
+                f"Please provide the {limit} most important international financial and macroeconomic news "
+                "from the past 24 hours (April 2026). Focus on: Federal Reserve, interest rates, "
+                "global economy, major central banks, geopolitics affecting markets. "
+                f"Return a JSON array of {limit} news items."
+            ),
+            "crypto": (
+                f"Please provide the {limit} most important cryptocurrency market news "
+                "from the past 24 hours (April 2026). Focus on: Bitcoin, Ethereum, "
+                "major altcoins, DeFi, regulatory developments. "
+                f"Return a JSON array of {limit} news items."
+            ),
+            "us": (
+                f"Please provide the {limit} most important US stock market news "
+                "from the past 24 hours (April 2026). Focus on: S&P 500, Nasdaq, Dow Jones, "
+                "earnings reports, Fed policy, major tech stocks. "
+                f"Return a JSON array of {limit} news items."
+            )
         }
-        keyword = keywords.get(category, keywords["global"])
-        minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
-        if not minimax_key:
-            minimax_key = os.environ.get("MINIMAX_API_KEY", "")
+        prompt = prompts.get(category, prompts["global"])
         
-        if minimax_key:
-            try:
-                import requests
-                headers = {'Authorization': f'Bearer {minimax_key}', 'Content-Type': 'application/json', 'MM-API-Source': 'Minimax-MCP'}
-                resp = requests.post('https://api.minimaxi.com/v1/coding_plan/search', headers=headers, json={"q": keyword}, timeout=15)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    results = []
-                    seen = set()
-                    for item in data.get('organic', [])[:limit]:
-                        title = item.get('title', '').strip()
-                        if title and title not in seen:
-                            seen.add(title)
-                            results.append({"title": title, "content": item.get('snippet', title), "source": "MiniMax", "datetime": "", "url": item.get('url', '')})
-                    if results:
-                        print(f"[Adapter] {category} 国际新闻 (MiniMax): {len(results)} 条")
-                        return results
-            except Exception as e:
-                print(f"[Adapter] MiniMax 失败: {e}")
+        results = self._llm_news_search(prompt, max_results=limit)
+        if results:
+            print(f"[Adapter] {category} 国际新闻 (litellm/MiniMax): {len(results)} 条")
+            return results
+        
         print(f"[Adapter] {category} 国际新闻: 获取失败")
         return []
 
@@ -415,56 +499,50 @@ class MarketDataAdapter:
             return self.get_domestic_news("cn", limit)
 
     def get_domestic_news(self, market: str = "cn", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国内热点新闻 - 降级链: MiniMax > 华尔街见闻 > CCTV
+        """获取国内热点新闻 - 降级链: litellm/MiniMax > 华尔街见闻 > CCTV
         """
-        # 市场热点关键字
-        keywords = {
-            "cn": "A股 热点板块 概念股 涨停 龙头股 资金流入 今日行情 2026年4月",
-            "hk": "港股 恒生指数 恒生科技 科技股 南向资金 腾讯 阿里 今日行情 2026年4月",
-            "commodity": "黄金价格 原油走势 大宗商品 期货 铜 农产品 今日行情 2026年4月"
+        for k in list(os.environ.keys()):
+            if "proxy" in k.lower():
+                del os.environ[k]
+        self._load_env()
+        
+        # 市场热点提示词
+        prompts = {
+            "cn": (
+                f"请提供今天（2026年4月）A股市场最重要的{limit}条热点新闻。"
+                "重点关注：热点板块、概念股、涨停板龙头、主力资金流向、重要政策利好/利空、"
+                "重大公司公告。每条新闻包含 title、source、datetime、url、content 字段，"
+                f"以JSON数组格式返回，最多{limit}条。"
+            ),
+            "hk": (
+                f"请提供今天（2026年4月）港股市场最重要的{limit}条热点新闻。"
+                "重点关注：恒生指数、恒生科技、南向资金动向、腾讯阿里美团等科技龙头、"
+                "港股通标的异动、重要宏观数据影响。"
+                f"以JSON数组格式返回，最多{limit}条。"
+            ),
+            "commodity": (
+                f"请提供今天（2026年4月）大宗商品市场最重要的{limit}条新闻。"
+                "重点关注：黄金价格走势、原油供需、铜铝等工业金属、农产品期货、"
+                "OPEC政策、美元走势影响。"
+                f"以JSON数组格式返回，最多{limit}条。"
+            )
         }
         
-        keyword = keywords.get(market, keywords["cn"])
+        prompt = prompts.get(market, prompts["cn"])
         results = []
         seen_titles = set()
         
-        # 源1: MiniMax Search (市场热点)
-        minimax_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0] if os.environ.get("LLM_MINIMAX_API_KEYS") else ""
-        if not minimax_key:
-            minimax_key = os.environ.get("MINIMAX_API_KEY", "")
-        
-        if minimax_key:
-            try:
-                import requests
-                headers = {
-                    'Authorization': f'Bearer {minimax_key}',
-                    'Content-Type': 'application/json',
-                    'MM-API-Source': 'Minimax-MCP',
-                }
-                payload = {"q": keyword}
-                resp = requests.post(
-                    'https://api.minimaxi.com/v1/coding_plan/search',
-                    headers=headers, json=payload, timeout=15
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for item in data.get('organic', [])[:limit]:
-                        title = item.get('title', '').strip()
-                        if title and len(title) > 5 and title not in seen_titles:
-                            seen_titles.add(title)
-                            results.append({
-                                "title": title,
-                                "content": item.get('snippet', title),
-                                "source": "MiniMax",
-                                "datetime": "",
-                                "url": item.get('url', '')
-                            })
-            except Exception as e:
-                print(f"[Adapter] MiniMax 失败: {e}")
+        # 源1: litellm/MiniMax LLM (市场热点)
+        llm_results = self._llm_news_search(prompt, max_results=limit)
+        for item in llm_results:
+            title = item.get("title", "").strip()
+            if title and len(title) > 5 and title not in seen_titles:
+                seen_titles.add(title)
+                results.append(item)
         
         if len(results) >= limit:
             results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
-            print(f"[Adapter] {market} 国内新闻 (MiniMax): {len(results)} 条")
+            print(f"[Adapter] {market} 国内新闻 (litellm/MiniMax): {len(results)} 条")
             return results[:limit]
         
         # 源2: 华尔街见闻
@@ -839,47 +917,45 @@ class MarketDataAdapter:
         return result
 
     def get_bond_data(self) -> List[Dict[str, Any]]:
-        """获取债券收益率数据（中债、美债），自动回溯最新有效值"""
+        """获取债券收益率数据（中债、美债），自动回溯最新有效值并计算日变化(bp)"""
         result = []
         try:
             import akshare as ak
             df = ak.bond_zh_us_rate()
             if not df.empty:
-                # 从最新行往前扫（df 升序排列，需反向迭代取最新值）
-                cn_10y_val, cn_2y_val, us_10y_val, us_2y_val = None, None, None, None
-                for _, row in df[::-1].iterrows():
-                    if cn_10y_val is None:
-                        v = row.get('中国国债收益率10年')
-                        if v is not None and str(v) != 'nan':
-                            cn_10y_val = float(v)
-                            cn_2y_v = row.get('中国国债收益率2年')
-                            cn_2y_val = float(cn_2y_v) if cn_2y_v and str(cn_2y_v) != 'nan' else None
-                    if us_10y_val is None:
-                        v = row.get('美国国债收益率10年')
-                        if v is not None and str(v) != 'nan':
-                            us_10y_val = float(v)
-                            us_2y_v = row.get('美国国债收益率2年')
-                            us_2y_val = float(us_2y_v) if us_2y_v and str(us_2y_v) != 'nan' else None
-                    if cn_10y_val and us_10y_val:
-                        break
+                # df 升序排列，取最后两行（含有效数据）
+                valid = df.dropna(subset=['中国国债收益率10年', '美国国债收益率10年'])
+                if len(valid) >= 2:
+                    prev_row = valid.iloc[-2]
+                    curr_row = valid.iloc[-1]
 
-                if cn_10y_val is not None:
+                    cn_10y_curr = float(curr_row['中国国债收益率10年'])
+                    cn_10y_prev = float(prev_row['中国国债收益率10年'])
+                    cn_2y_curr = float(curr_row['中国国债收益率2年']) if pd.notna(curr_row['中国国债收益率2年']) else None
+                    cn_change_bp = (cn_10y_curr - cn_10y_prev) * 100  # 收益率差转 bp
+
+                    us_10y_curr = float(curr_row['美国国债收益率10年'])
+                    us_10y_prev = float(prev_row['美国国债收益率10年'])
+                    us_2y_curr = float(curr_row['美国国债收益率2年']) if pd.notna(curr_row['美国国债收益率2年']) else None
+                    us_change_bp = (us_10y_curr - us_10y_prev) * 100
+
                     result.append({
                         'name': '中国国债(10Y)',
                         'code': 'CNBOND',
                         'market': '债市',
-                        'rate_10y': cn_10y_val,
-                        'rate_2y': cn_2y_val,
+                        'rate_10y': cn_10y_curr,
+                        'rate_2y': cn_2y_curr,
+                        'change_bp': cn_change_bp,
                         'unit': '%',
                         'source': 'akshare'
                     })
-                if us_10y_val is not None:
                     result.append({
                         'name': '美国国债(10Y)',
                         'code': 'USBOND',
                         'market': '债市',
-                        'rate_10y': us_10y_val,
-                        'rate_2y': us_2y_val,
+                        'rate_10y': us_10y_curr,
+                        'rate_2y': us_2y_curr,
+                        'change_bp': us_change_bp,
                         'unit': '%',
                         'source': 'akshare'
                     })
