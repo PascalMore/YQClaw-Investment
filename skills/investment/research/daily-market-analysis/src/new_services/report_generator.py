@@ -317,6 +317,141 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             padding: 20px;
             font-size: 13px;
         }}
+
+        /* ========== 热点资讯 Grid ========== */
+        .news-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }}
+
+        .news-card {{
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }}
+
+        .news-card-header {{
+            padding: 6px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        .news-card-header .dot {{
+            display: none;
+        }}
+
+        .news-card.global   .news-card-header {{ background: #EEF3FF; color: #3B49DD; }}
+        .news-card.global   .news-card-header .dot {{ background: #3B49DD; }}
+        .news-card.cn        .news-card-header {{ background: #FFF3E0; color: #E65100; }}
+        .news-card.cn        .news-card-header .dot {{ background: #E65100; }}
+        .news-card.hk        .news-card-header {{ background: #F3E5F5; color: #6A1B9A; }}
+        .news-card.hk        .news-card-header .dot {{ background: #6A1B9A; }}
+        .news-card.us        .news-card-header {{ background: #E3F2FD; color: #0D47A1; }}
+        .news-card.us        .news-card-header .dot {{ background: #0D47A1; }}
+        .news-card.crypto    .news-card-header {{ background: #E8F5E9; color: #2E7D32; }}
+        .news-card.crypto    .news-card-header .dot {{ background: #2E7D32; }}
+        .news-card.commodity .news-card-header {{ background: #FBE9E7; color: #BF360C; }}
+        .news-card.commodity .news-card-header .dot {{ background: #BF360C; }}
+
+        .news-card-body {{
+            padding: 6px 10px;
+            display: flex;
+            flex-direction: column;
+        }}
+
+        .news-card-item {{
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }}
+        .news-card-item:last-child {{
+            border-bottom: none;
+            padding-bottom: 0;
+        }}
+        .news-card-item:first-child {{
+            padding-top: 0;
+        }}
+
+        .news-card-item .title {{
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a1a;
+            line-height: 1.5;
+            margin-bottom: 3px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }}
+
+        .news-card-item .title a {{
+            color: inherit;
+            text-decoration: none;
+        }}
+
+        .news-card-item .title a:hover {{
+            color: #3B49DD;
+            text-decoration: underline;
+        }}
+
+        .news-card-item .digest {{
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }}
+
+        .news-card-item .meta {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #aaa;
+            white-space: nowrap;
+        }}
+
+        .news-card-item .meta .source {{
+            color: #888;
+            background: #f5f5f5;
+            padding: 1px 6px;
+            border-radius: 3px;
+            max-width: 90px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 1;
+        }}
+
+        .news-card-item .meta .time {{
+            flex-shrink: 0;
+            color: #aaa;
+        }}
+
+        .news-card-item .meta .detail-link {{
+            color: #3B49DD;
+            text-decoration: none;
+            margin-left: auto;
+            font-size: 11px;
+        }}
+
+        .news-card-item .meta .detail-link:hover {{
+            text-decoration: underline;
+        }}
+
+        .news-footer {{
+            margin-top: 16px;
+            text-align: center;
+            color: #bbb;
+            font-size: 11px;
+        }}
     </style>
 </head>
 <body>
@@ -388,7 +523,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     
     <div class="report-footer">
         <div>报告生成时间：{generated_at}</div>
-        <div style="margin-top: 4px;">Powered by 小Q · AI 投资助手</div>
+        <div style="margin-top: 4px;">Powered by {sender_name}</div>
     </div>
 </body>
 </html>
@@ -399,11 +534,38 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 # 新闻卡片 HTML
 # ============================================
 
-NEWS_CARD_TEMPLATE = """
-<div class="card">
-    <div class="card-meta">{source} · {time}</div>
-    <div class="card-title">{title}</div>
-    <div class="card-content">{content}</div>
+# 单条新闻 HTML（用于 grid 中的每个 item）
+NEWS_ITEM_TEMPLATE = """
+<div class="news-card-item">
+    <div class="title"><a href="{url}" target="_blank">{title}</a></div>
+    <div class="digest">{digest}</div>
+    <div class="meta">
+        <span class="time">{time}</span>
+        <span class="source">{source}</span>
+    </div>
+</div>
+"""
+
+NEWS_ITEM_TEMPLATE_NO_TIME = """
+<div class="news-card-item">
+    <div class="title"><a href="{url}" target="_blank">{title}</a></div>
+    <div class="digest">{digest}</div>
+    <div class="meta">
+        <span class="source">{source}</span>
+    </div>
+</div>
+"""
+
+# 单板块卡片 HTML
+NEWS_SECTION_TEMPLATE = """
+<div class="news-card {cls}">
+    <div class="news-card-header">
+        <span class="dot"></span>
+        {label}
+    </div>
+    <div class="news-card-body">
+{items}
+    </div>
 </div>
 """
 
@@ -493,6 +655,7 @@ class ReportGenerator:
                 except:
                     config = {}
         self.config = config or {}
+        self.adapter = MarketDataAdapter(self.config)
         self._fetch_all_data()  # 一次性获取所有数据并缓存
     
     def _format_change_pct(self, pct: float) -> str:
@@ -921,69 +1084,88 @@ class ReportGenerator:
         
         return "".join(rows)
     
+    # 六大新闻板块配置
+    NEWS_CATEGORIES = [
+        {"key": "global",    "cls": "global",    "label": "🌍 全球宏观影响力"},
+        {"key": "us",        "cls": "us",        "label": "🇺🇸 美股市场"},
+        {"key": "crypto",    "cls": "crypto",    "label": "₿ 数字货币"},
+        {"key": "cn",        "cls": "cn",        "label": "🇨🇳 A 股市场"},
+        {"key": "hk",        "cls": "hk",        "label": "🇭🇰 港股市场"},
+        {"key": "commodity", "cls": "commodity", "label": "🥇 大宗商品"},
+    ]
+
     def _generate_global_news(self) -> str:
-        """生成热点资讯
-        
-        - 新闻数量：从 config.json 的 news_limit 配置读取，默认6条
-        - 时间筛选：只显示24小时内的新闻
-        - 内容展示：显示完整摘要内容
+        """生成热点资讯 - 6 板块 grid 布局
+
+        每个板块从各市场新闻接口获取 3 条，6 列 grid 展示。
         """
-        # 从配置读取新闻数量，默认6条
-        news_limit = 6
-        if self.config and isinstance(self.config, dict):
-            news_limit = self.config.get('news', {}).get('limit', 6)
-        
-        news_list = self.adapter.get_global_news(limit=news_limit)
-        
-        if not news_list:
-            return '<div class="no-data">暂无热点资讯</div>'
-        
-        # 过滤24小时内的新闻
-        from datetime import datetime, timedelta
-        cutoff_time = datetime.now() - timedelta(hours=24)
-        filtered_news = []
-        for news in news_list:
-            news_time_str = news.get('time', '') or news.get('datetime', '')
-            if news_time_str:
-                try:
-                    # 尝试解析时间
-                    if 'T' in news_time_str:
-                        news_time = datetime.fromisoformat(news_time_str.replace('Z', '+00:00'))
-                    else:
-                        news_time = datetime.strptime(news_time_str, '%Y-%m-%d %H:%M:%S')
-                    if news_time.replace(tzinfo=None) >= cutoff_time:
-                        filtered_news.append(news)
-                except:
-                    # 时间解析失败，保留该新闻
-                    filtered_news.append(news)
+        news_limit = 3
+        sections = []
+
+        for cat in self.NEWS_CATEGORIES:
+            key = cat["key"]
+            # 获取对应市场新闻
+            if key == "global":
+                news_list = self.adapter.get_global_news(limit=news_limit)
             else:
-                # 没有时间信息的新闻也保留
-                filtered_news.append(news)
-        
-        # 如果过滤后数量太少，补充其他新闻
-        if len(filtered_news) < 3 and len(news_list) > len(filtered_news):
-            for news in news_list:
-                if news not in filtered_news:
-                    filtered_news.append(news)
-                    if len(filtered_news) >= 3:
-                        break
-        
-        cards = []
-        for news in filtered_news[:news_limit]:
-            # 内容截取：取前150字，避免过长
-            content = news.get('content', '') or news.get('snippet', '')
-            if len(content) > 150:
-                content = content[:150].rstrip('-,;:，') + '...'
-            
-            card = NEWS_CARD_TEMPLATE.format(
-                source=news.get('source', '未知来源'),
-                time=news.get('time', news.get('datetime', '')),
-                title=news.get('title', '暂无标题'),
-                content=content
-            )
-            cards.append(card)
-        
-        return "".join(cards)
+                news_list = self.adapter.get_market_news(key, limit=news_limit)
+
+            items_html = []
+            for news in news_list[:news_limit]:
+                title = news.get('title', '暂无标题')
+                digest = news.get('content', '') or news.get('snippet', '')
+                if len(digest) > 100:
+                    digest = digest[:100].rstrip('-,;:，') + '...'
+                source = news.get('source', '未知')
+                time_str = news.get('time') or news.get('datetime', '')
+                # 简化时间显示为短格式
+                if 'T' in time_str:
+                    try:
+                        dt = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                        time_str = dt.strftime('%y/%m/%d %H:%M')
+                    except:
+                        pass
+                else:
+                    # 去掉秒和完整日期，只保留 MM-DD HH:MM 或 HH:MM
+                    import re
+                    m = re.search(r'(\d{2,4})\D(\d{2})\D(\d{2}).*?(\d{1,2}:\d{2})', time_str)
+                    if m:
+                        time_str = f"{m.group(1)[-2:]}/{m.group(2)}/{m.group(3)} {m.group(4)}"
+                    elif re.search(r'\d{1,2}:\d{2}', time_str):
+                        time_str = re.search(r'(\d{1,2}:\d{2})', time_str).group(1)
+                url = news.get('url', '#')
+                if not url or url == '#':
+                    url = '#'
+
+                if time_str:
+                    items_html.append(NEWS_ITEM_TEMPLATE.format(
+                        title=title,
+                        digest=digest,
+                        source=source,
+                        time=time_str,
+                        url=url,
+                    ))
+                else:
+                    items_html.append(NEWS_ITEM_TEMPLATE_NO_TIME.format(
+                        title=title,
+                        digest=digest,
+                        source=source,
+                        url=url,
+                    ))
+
+            if not items_html:
+                items_html = ['<div class="news-card-item"><div class="title">暂无资讯</div></div>']
+
+            sections.append(NEWS_SECTION_TEMPLATE.format(
+                cls=cat["cls"],
+                label=cat["label"],
+                items="\n".join(items_html),
+            ))
+
+        grid_html = '<div class="news-grid">\n' + '\n'.join(sections) + '\n</div>'
+        sender_name = self.config.get('push', {}).get('email', {}).get('sender_name', 'YQClaw智能投资助手')
+        footer = f'<div class="news-footer">数据来源：MiniMax · DuckDuckGo · GNews　｜　{sender_name}</div>'
+        return grid_html + '\n' + footer
     
     def _generate_market_review(self) -> str:
         """生成各市场复盘"""
@@ -1075,6 +1257,7 @@ class ReportGenerator:
         insight = self._generate_insight()
         
         # 渲染模板
+        sender_name = self.config.get('push', {}).get('email', {}).get('sender_name', 'YQClaw智能投资助手')
         html = HTML_TEMPLATE.format(
             title="全球市场日报",
             date_str=today.strftime("%Y年%m月%d日"),
@@ -1083,7 +1266,8 @@ class ReportGenerator:
             market_review=market_review,
             calendar=calendar,
             insight=insight,
-            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            sender_name=sender_name
         )
         
         return html

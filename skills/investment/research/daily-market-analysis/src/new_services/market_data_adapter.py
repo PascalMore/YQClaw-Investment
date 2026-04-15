@@ -372,125 +372,143 @@ class MarketDataAdapter:
                         k, v = line.split('=', 1)
                         os.environ[k] = v
 
-    def _llm_news_search(self, prompt: str, max_results: int = 5) -> List[Dict[str, str]]:
-        """使用 litellm 调用 MiniMax LLM 搜索新闻
-        
-        Args:
-            prompt: 新闻搜索提示词
-            max_results: 最多返回条数
-        
-        Returns:
-            list of dicts with keys: title, source, datetime, url, content
+    def _mini_max_web_search(self, query: str, max_results: int = 5, days: int = 1) -> List[Dict[str, str]]:
+        """使用 MiniMax Web Search API (v1/coding_plan/search) 搜索新闻
+
+        这是 DSA /daily_stock_analysis 同款的真实网页搜索接口，不是 LLM 对话 API。
+        API endpoint: POST https://api.minimaxi.com/v1/coding_plan/search
         """
-        # 重要：MiniMax API 不走代理，避免代理导致的 529 问题
+        import time as _time
+        import requests as _requests
+
+        # 清除代理
         for k in list(os.environ.keys()):
             if "proxy" in k.lower():
                 del os.environ[k]
-        
+
         self._load_env()
         api_key = os.environ.get("LLM_MINIMAX_API_KEYS", "").split(",")[0].strip()
         if not api_key:
-            api_key = os.environ.get("MINIMAX_API_KEY", "").strip()
-        if not api_key:
-            print("[Adapter] LLM news search: no API key found")
+            print("[Adapter] MiniMax Web Search: no API key found")
             return []
-        
-        api_base = os.environ.get("LLM_MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
-        
-        system_msg = (
-            "You are a financial news assistant. "
-            "When asked for news, respond ONLY with a valid JSON array (no markdown, no extra text). "
-            f"Each element must have these fields: title, source, datetime, url, content. "
-            f"Return at most {max_results} items. "
-            "If you cannot retrieve real-time news, return an empty JSON array []. "
-            "Do NOT include any explanation outside the JSON."
-        )
-        
-        try:
-            response = litellm.completion(
-                model="minimax/MiniMax-M2.7",
-                messages=[
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": prompt}
-                ],
-                api_key=api_key,
-                api_base=api_base,
-                timeout=30,
-            )
-            raw = response.choices[0].message.content.strip()
-            # Strip markdown code fences if present
-            if raw.startswith("```"):
-                lines = raw.splitlines()
-                raw = "\n".join(lines[1:-1]) if len(lines) > 2 else raw
-            items = json.loads(raw)
-            if not isinstance(items, list):
-                return []
-            results = []
-            seen = set()
-            for item in items[:max_results]:
-                title = str(item.get("title", "")).strip()
-                if title and title not in seen:
-                    seen.add(title)
+
+        # 判断是否中文查询
+        has_cjk = any('\u4e00' <= ch <= '\u9fff' for ch in query)
+
+        # 时间 hint
+        if days <= 1:
+            time_hint = "今天" if has_cjk else "today"
+        elif days <= 3:
+            time_hint = "最近三天" if has_cjk else "past 3 days"
+        elif days <= 7:
+            time_hint = "最近一周" if has_cjk else "past week"
+        else:
+            time_hint = "最近一月" if has_cjk else "past month"
+
+        augmented_query = f"{query} {time_hint}"
+
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+            'MM-API-Source': 'Minimax-MCP',
+        }
+        payload = {"q": augmented_query}
+
+        for attempt in range(3):
+            try:
+                resp = _requests.post(
+                    'https://api.minimaxi.com/v1/coding_plan/search',
+                    headers=headers,
+                    json=payload,
+                    timeout=15,
+                )
+                if resp.status_code != 200:
+                    print(f"[Adapter] MiniMax Web Search HTTP {resp.status_code}")
+                    return []
+
+                data = resp.json()
+                base_resp = data.get('base_resp', {})
+                if base_resp.get('status_code', 0) != 0:
+                    print(f"[Adapter] MiniMax Web Search API error: {base_resp.get('status_msg', 'unknown')}")
+                    return []
+
+                results = []
+                seen_titles = set()
+                for item in data.get('organic', []):
+                    date_val = item.get('date', '')
+                    # 简单日期过滤：跳过明显过期日期
+                    title = item.get('title', '').strip()
+                    if not title or title in seen_titles:
+                        continue
+                    seen_titles.add(title)
+
+                    snippet = (item.get('snippet') or '')[:200]
+                    link = item.get('link', '')
+                    # 提取域名作为 source
+                    source = ''
+                    if link:
+                        from urllib.parse import urlparse
+                        source = urlparse(link).netloc.replace('www.', '')
+
                     results.append({
                         "title": title,
-                        "content": str(item.get("content", item.get("snippet", title))),
-                        "source": str(item.get("source", "MiniMax-LLM")),
-                        "datetime": str(item.get("datetime", item.get("time", ""))),
-                        "url": str(item.get("url", ""))
+                        "content": snippet,
+                        "source": source,
+                        "datetime": date_val,
+                        "url": link,
                     })
-            return results
-        except json.JSONDecodeError as e:
-            print(f"[Adapter] LLM news search JSON parse error: {e}")
-            return []
-        except Exception as e:
-            print(f"[Adapter] LLM news search error: {e}")
-            return []
+                    if len(results) >= max_results:
+                        break
+
+                print(f"[Adapter] MiniMax Web Search: {len(results)} 条结果 for '{query}'")
+                return results
+
+            except _requests.exceptions.Timeout:
+                print(f"[Adapter] MiniMax Web Search 超时，重试 ({attempt+1}/3)...")
+                _time.sleep(3)
+            except Exception as e:
+                print(f"[Adapter] MiniMax Web Search error: {e}")
+                _time.sleep(2)
+
+        return []
 
     def get_global_news(self, limit: int = 3) -> List[Dict[str, str]]:
         """获取全球宏观热点新闻 - 使用 MiniMax LLM"""
         return self.get_international_news("global", limit)
 
     def get_international_news(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国际热点新闻 - 使用 litellm (MiniMax) + DuckDuckGo 备用"""
+        """获取国际热点新闻 - 优先级: MiniMax Web Search > GNews > DuckDuckGo"""
         for k in list(os.environ.keys()):
             if "proxy" in k.lower():
                 del os.environ[k]
-        self._load_env()
-        
-        prompts = {
-            "global": (
-                f"Please provide the {limit} most important international financial and macroeconomic news "
-                "from the past 24 hours (April 2026). Focus on: Federal Reserve, interest rates, "
-                "global economy, major central banks, geopolitics affecting markets. "
-                f"Return a JSON array of {limit} news items."
-            ),
-            "crypto": (
-                f"Please provide the {limit} most important cryptocurrency market news "
-                "from the past 24 hours (April 2026). Focus on: Bitcoin, Ethereum, "
-                "major altcoins, DeFi, regulatory developments. "
-                f"Return a JSON array of {limit} news items."
-            ),
-            "us": (
-                f"Please provide the {limit} most important US stock market news "
-                "from the past 24 hours (April 2026). Focus on: S&P 500, Nasdaq, Dow Jones, "
-                "earnings reports, Fed policy, major tech stocks. "
-                f"Return a JSON array of {limit} news items."
-            )
+
+        # 国际板块 -> 英文查询（Web Search 效果更好）
+        query_map = {
+            "global": "global macro finance Federal Reserve interest rates economy",
+            "crypto":  "Bitcoin Ethereum cryptocurrency market news",
+            "us":      "US stock market S&P 500 Nasdaq Dow Jones news",
         }
-        prompt = prompts.get(category, prompts["global"])
-        
-        results = self._llm_news_search(prompt, max_results=limit)
+        query = query_map.get(category, query_map["global"])
+
+        # 源1: MiniMax Web Search (真实网页搜索，DSA 同款接口)
+        results = self._mini_max_web_search(query, max_results=limit, days=1)
         if results:
-            print(f"[Adapter] {category} 国际新闻 (litellm/MiniMax): {len(results)} 条")
+            print(f"[Adapter] {category} 国际新闻 (MiniMax Web Search): {len(results)} 条")
             return results
-        
-        # 备用：使用 DuckDuckGo 搜索新闻
-        print(f"[Adapter] {category} 国际新闻 MiniMax 失败，尝试 DuckDuckGo...")
+
+        # 备用1: GNews.io
+        print(f"[Adapter] {category} 国际新闻 MiniMax 失败，尝试 GNews...")
+        gnews_results = self._gnews_search(category, limit)
+        if gnews_results:
+            return gnews_results
+
+        # 备用2: DuckDuckGo
+        print(f"[Adapter] {category} 国际新闻 GNews 失败，尝试 DuckDuckGo...")
         ddg_results = self._duckduckgo_news_search(category, limit)
         if ddg_results:
             print(f"[Adapter] {category} 国际新闻 (DuckDuckGo): {len(ddg_results)} 条")
             return ddg_results
-        
+
         print(f"[Adapter] {category} 国际新闻: 获取失败")
         return []
     
@@ -502,9 +520,9 @@ class MarketDataAdapter:
             "us": "S&P 500 Nasdaq stock market news",
         }
         query = query_map.get(category, query_map["global"])
-        
+
         try:
-            from duckduckgosearch import DDGS
+            from duckduckgo_search import DDGS
             results = []
             seen = set()
             with DDGS() as ddgs:
@@ -521,11 +539,79 @@ class MarketDataAdapter:
                         })
             return results
         except ImportError:
-            print("[Adapter] duckduckgosearch 库未安装: pip install duckduckgosearch")
+            print("[Adapter] duckduckgo-search 库未安装: pip install duckduckgo-search")
             return []
         except Exception as e:
             print(f"[Adapter] DuckDuckGo 新闻搜索失败: {e}")
             return []
+
+    def _gnews_search(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
+        """使用 GNews.io API 搜索新闻（免费 100次/天）
+        
+        GNews 覆盖全球金融、crypto 等主题，免费配额充足
+        API doc: https://gnews.io/docs/v4#search-endpoint
+        """
+        # 清除代理
+        for k in list(os.environ.keys()):
+            if "proxy" in k.lower():
+                del os.environ[k]
+
+        # 优先从环境变量读取，其次从 config 读取
+        gnews_token = os.environ.get('GNEWS_API_KEY', '').strip()
+        if not gnews_token and self.config:
+            gnews_token = self.config.get('data_sources', {}).get('gnews', {}).get('api_key', '').strip()
+        if not gnews_token:
+            # 尝试从 .env 手动加载
+            self._load_env()
+            gnews_token = os.environ.get('GNEWS_API_KEY', '').strip()
+
+        if not gnews_token:
+            print("[Adapter] GNews: 无 API Key，跳过")
+            return []
+
+        topic_map = {
+            "global": "business",
+            "crypto": "business",
+            "us": "business",
+        }
+        topic = topic_map.get(category, "business")
+
+        try:
+            import requests
+            resp = requests.get(
+                'https://gnews.io/api/v4/top-headlines',
+                params={
+                    'topic': topic,
+                    'lang': 'en',
+                    'max': limit,
+                    'apikey': gnews_token,
+                },
+                timeout=15,
+                proxies=None,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                results = []
+                seen = set()
+                for article in data.get('articles', []):
+                    title = article.get('title', '').strip()
+                    if title and title not in seen and len(results) < limit:
+                        seen.add(title)
+                        results.append({
+                            "title": title,
+                            "content": article.get('description', title)[:200],
+                            "source": article.get('source', {}).get('name', 'GNews'),
+                            "datetime": article.get('publishedAt', ''),
+                            "url": article.get('url', ''),
+                        })
+                if results:
+                    print(f"[Adapter] {category} 国际新闻 (GNews): {len(results)} 条")
+                return results
+            else:
+                print(f"[Adapter] GNews API 错误: {resp.status_code} {resp.text[:100]}")
+        except Exception as e:
+            print(f"[Adapter] GNews 搜索失败: {e}")
+        return []
 
     def get_market_news(self, market: str, limit: int = 5) -> List[Dict[str, str]]:
         """获取特定市场新闻 - 根据市场类型选择新闻源
@@ -544,13 +630,17 @@ class MarketDataAdapter:
             return self.get_domestic_news("cn", limit)
 
     def get_domestic_news(self, market: str = "cn", limit: int = 3) -> List[Dict[str, str]]:
-        """获取国内热点新闻 - 降级链: litellm/MiniMax > 华尔街见闻 > CCTV
+        """获取国内热点新闻
+
+        优先级链：
+        - cn/hk:  MiniMax → 华尔街见闻 → 东方财富 → CCTV
+        - commodity: MiniMax → SHMET有色金属网 → 华尔街见闻 → CCTV
         """
         for k in list(os.environ.keys()):
             if "proxy" in k.lower():
                 del os.environ[k]
         self._load_env()
-        
+
         # 市场热点提示词
         prompts = {
             "cn": (
@@ -572,25 +662,31 @@ class MarketDataAdapter:
                 f"以JSON数组格式返回，最多{limit}条。"
             )
         }
-        
+
         prompt = prompts.get(market, prompts["cn"])
         results = []
         seen_titles = set()
-        
-        # 源1: litellm/MiniMax LLM (市场热点)
-        llm_results = self._llm_news_search(prompt, max_results=limit)
-        for item in llm_results:
+
+        # ── 源1: MiniMax Web Search ──────────────────────
+        web_query_map = {
+            "cn": "A股市场 今日热点新闻 板块 概念股",
+            "hk": "港股市场 恒生指数 今日新闻 南向资金",
+            "commodity": "大宗商品 黄金 原油 铜 期货 今日行情",
+        }
+        web_query = web_query_map.get(market, web_query_map["cn"])
+        web_results = self._mini_max_web_search(web_query, max_results=limit, days=1)
+        for item in web_results:
             title = item.get("title", "").strip()
             if title and len(title) > 5 and title not in seen_titles:
                 seen_titles.add(title)
                 results.append(item)
-        
+
         if len(results) >= limit:
             results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
-            print(f"[Adapter] {market} 国内新闻 (litellm/MiniMax): {len(results)} 条")
+            print(f"[Adapter] {market} 国内新闻 (MiniMax Web Search): {len(results)} 条")
             return results[:limit]
-        
-        # 源2: 华尔街见闻
+
+        # ── 源2: 华尔街见闻 (akshare) ───────────────────
         try:
             import akshare as ak
             df = ak.stock_news_main_cx()
@@ -608,12 +704,63 @@ class MarketDataAdapter:
                         })
         except Exception as e:
             print(f"[Adapter] 华尔街见闻失败: {e}")
-        
+
         if len(results) >= limit:
             results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
+            print(f"[Adapter] {market} 国内新闻 (MiniMax+华尔街见闻): {len(results)} 条")
             return results[:limit]
-        
-        # 源3: CCTV新闻
+
+        # ── 源3: 东方财富 / SHMET（取决于市场）──────────
+        if market == "commodity":
+            # 大宗商品第三优先级: SHMET 有色金属网
+            try:
+                import akshare as ak
+                df = ak.futures_news_shmet()
+                if df is not None and not df.empty:
+                    for _, row in df.head(limit * 2).iterrows():
+                        content = str(row.get('内容', '')).strip()
+                        if not content or content == 'nan' or len(content) < 10:
+                            continue
+                        # 标题取内容前50字（SHMET格式为【快讯】开头）
+                        title = content[:60].strip()
+                        if title not in seen_titles:
+                            seen_titles.add(title)
+                            results.append({
+                                "title": title,
+                                "content": content,
+                                "source": "上海有色金属网",
+                                "datetime": str(row.get('发布时间', '')),
+                                "url": ''
+                            })
+            except Exception as e:
+                print(f"[Adapter] SHMET 有色金属网失败: {e}")
+        else:
+            # A股/港股第三优先级: 东方财富
+            try:
+                import akshare as ak
+                df = ak.stock_news_em()
+                if df is not None and not df.empty:
+                    for _, row in df.head(limit * 2).iterrows():
+                        title = str(row.get('新闻标题', '')).strip()
+                        content = str(row.get('新闻内容', title))[:200]
+                        if title and 'None' not in title and len(title) > 5 and title not in seen_titles:
+                            seen_titles.add(title)
+                            results.append({
+                                "title": title,
+                                "content": content,
+                                "source": str(row.get('文章来源', '东方财富')),
+                                "datetime": str(row.get('发布时间', '')),
+                                "url": str(row.get('新闻链接', ''))
+                            })
+            except Exception as e:
+                print(f"[Adapter] 东方财富失败: {e}")
+
+        if len(results) >= limit:
+            results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
+            print(f"[Adapter] {market} 国内新闻 (到源3): {len(results)} 条")
+            return results[:limit]
+
+        # ── 源4: CCTV（所有市场通用第四优先级）───────────
         try:
             import akshare as ak
             df = ak.news_cctv()
@@ -631,7 +778,7 @@ class MarketDataAdapter:
                         })
         except Exception as e:
             print(f"[Adapter] CCTV新闻失败: {e}")
-        
+
         results.sort(key=lambda x: x.get('datetime', ''), reverse=True)
         return results[:limit]
     
@@ -709,7 +856,59 @@ class MarketDataAdapter:
         except Exception as e:
             print(f"[Adapter] Binance 失败: {e}")
         
-        # Fallback: Yahoo Finance
+        # Fallback 1: CoinGecko (免费 API，无需 key)
+        try:
+            import requests
+            coingecko_ids = {
+                'BTC': 'bitcoin',
+                'ETH': 'ethereum',
+                'SOL': 'solana',
+                'BNB': 'binancecoin',
+                'PEPE': 'pepe',
+            }
+            # 清除代理，避免干扰
+            for k in list(os.environ.keys()):
+                if "proxy" in k.lower():
+                    del os.environ[k]
+            resp = requests.get(
+                'https://api.coingecko.com/api/v3/simple/price',
+                params={
+                    'ids': ','.join(coingecko_ids.values()),
+                    'vs_currencies': 'usd',
+                    'include_24hr_change': 'true',
+                    'include_24hr_vol': 'true',
+                },
+                timeout=15,
+                proxies=None,  # 不走代理
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                id_to_sym = {v: k for k, v in coingecko_ids.items()}
+                name_map = {
+                    'BTC': '比特币 BTC',
+                    'ETH': '以太坊 ETH',
+                    'SOL': 'Solana SOL',
+                    'BNB': 'BNB',
+                    'PEPE': 'Pepe',
+                }
+                crypto_data = []
+                for cid, sym in id_to_sym.items():
+                    if cid in data:
+                        d = data[cid]
+                        crypto_data.append({
+                            'symbol': sym,
+                            'name': name_map[sym],
+                            'price': d.get('usd', 0),
+                            'change_pct': d.get('usd_24h_change', 0),
+                            'volume': d.get('usd_24h_vol', 0),
+                        })
+                if crypto_data:
+                    print(f"[Adapter] Crypto 数据 (CoinGecko): {len(crypto_data)} 个币种")
+                    return crypto_data
+        except Exception as e:
+            print(f"[Adapter] CoinGecko 失败: {e}")
+
+        # Fallback 2: Yahoo Finance
         try:
             import yfinance as yf
             tickers = {
@@ -740,7 +939,7 @@ class MarketDataAdapter:
                 return crypto_data
         except Exception as e:
             print(f"[Adapter] Yahoo Finance 失败: {e}")
-        
+
         return []
     
     def get_crypto_market_review(self) -> str:
