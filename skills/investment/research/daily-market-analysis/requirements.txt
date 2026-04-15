@@ -10,13 +10,16 @@ python-dateutil>=2.8.0 # 日期处理
 pandas>=2.0.0          # 数据处理
 ```
 
-## Optional Dependencies
-
+## News Search Dependencies
 ```
+duckduckgo-search>=8.0.0  # 新闻搜索备用源（国际/美股/数字货币）
+litellm>=1.80.0          # MiniMax LLM 新闻搜索
 tavily-python>=0.3.0   # AI 新闻搜索
+gnews>=0.4.3            # GNews 全球新闻 API
 tradingeconomics       # 经济日历
 beautifulsoup4>=4.12.0 # HTML 解析
 feedparser>=6.0.0      # RSS 解析
+python-dotenv>=1.0.0   # 环境变量
 ```
 
 ## Installation
@@ -55,6 +58,8 @@ crontab -e
 ```bash
 # Tavily API Key
 export TAVILY_API_KEY="your-key"
+
+export GNEWS_API_KEY="your-key"
 
 # TradingEconomics API Key
 export TRADINGECONOMICS_API_KEY="your-key"
