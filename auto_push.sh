@@ -5,6 +5,6 @@ if git diff --cached --quiet; then
     echo "No changes to commit"
 else
     git commit -m "Auto commit: $(date '+%Y-%m-%d %H:%M')"
-    git push github main
+    git push origin main
     echo "Pushed to GitHub at $(date)"
 fi
