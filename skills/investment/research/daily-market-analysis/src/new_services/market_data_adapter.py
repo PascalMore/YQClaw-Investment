@@ -19,7 +19,7 @@ import os
 import sys
 import json
 import pandas as pd
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional, Any
 import litellm
 
@@ -208,16 +208,54 @@ class MarketDataAdapter:
         return result
     
     def _fetch_us_indices_direct(self):
-        """直接使用 yfinance 获取美股指数（带重试，rate limit 时快速失败）"""
+        """直接获取美股指数（优先级: akshare新浪 > yfinance）
+        
+        akshare 不受 yfinance rate limit 影响，且国内可访问，
+        数据源为新浪财经，与 yfinance 一致（均来自交易所）。
+        """
+        # ── 源1: akshare 新浪财经美股指数（国内可访问，无 rate limit）──
+        try:
+            import akshare as ak
+            for os.environ_key in list(os.environ.keys()):
+                if 'proxy' in os.environ_key.lower():
+                    del os.environ[os.environ_key]
+
+            result = []
+            for symbol, name, code in [
+                ('.INX', '标普500', 'SPX'),
+                ('.IXIC', '纳斯达克', 'NDX'),
+            ]:
+                df = ak.index_us_stock_sina(symbol=symbol)
+                if df is not None and not df.empty:
+                    df['date'] = pd.to_datetime(df['date'])
+                    df = df.sort_values('date').tail(2)
+                    if len(df) >= 2:
+                        curr = df.iloc[-1]
+                        prev = df.iloc[-2]
+                        close = float(curr['close'])
+                        prev_close = float(prev['close'])
+                        change_pct = ((close - prev_close) / prev_close * 100) if prev_close > 0 else 0
+                        result.append({
+                            'name': name,
+                            'code': code,
+                            'current': close,
+                            'change_pct': change_pct,
+                            'volume': float(curr.get('volume', 0)),
+                        })
+            if result:
+                print(f"[Adapter] 美股指数 (akshare): {len(result)} 个")
+                return result
+        except Exception as e:
+            print(f"[Adapter] akshare 美股指数失败: {e}")
+
+        # ── 源2: yfinance（备用）──
         import time
         import yfinance as yf
 
         def fetch_with_retry(ticker_symbol, name, code, max_retries=2):
-            """带重试的获取函数，rate limit 时最多重试1次"""
             for attempt in range(max_retries):
                 try:
                     ticker = yf.Ticker(ticker_symbol)
-                    # 带超时：避免挂住（通过 socket 超时实现）
                     import socket
                     socket.setdefaulttimeout(10)
                     hist = ticker.history(period="2d")
@@ -248,19 +286,14 @@ class MarketDataAdapter:
                         print(f"[Adapter] {name} 获取失败：{e}")
                         break
             return None
-        
+
         result = []
-        
-        # 标普500
         data = fetch_with_retry("^GSPC", "标普500", "SPX")
         if data:
             result.append(data)
-        
-        # 纳斯达克
         data = fetch_with_retry("^IXIC", "纳斯达克", "NDX")
         if data:
             result.append(data)
-        
         return result
     
     # ========================================
@@ -372,11 +405,57 @@ class MarketDataAdapter:
                         k, v = line.split('=', 1)
                         os.environ[k] = v
 
+    # ── 新闻相关性预过滤（非新闻页/索引页/文档页过滤）─────────────────────────
+    _NEWS_SKIP_PATTERNS = [
+        # 非新闻页常见关键词
+        r'findone\s*method', r'method\s*\(.*system\.',
+        r'^home$', r'^-home$', r'\bindex\b', r'\bstockq\b',
+        r'wiki\s*(?:pearson|api|documentation)',
+        r'msdn\b', r'docs\.microsoft', r'developer\.',
+        r'api\s*reference', r'\.dll\b', r'\.pdf\b',
+        r'\(c\)\s*\d{4}\s*(?:microsoft|apple|google|amazon)',
+        r'世界经济论坛', r'\bglobalcatalogue\b',
+        # 页面标题太短或明显是页面导航而非文章
+        r'^\s*<[^>]+>\s*$',
+    ]
+    _NEWS_GOOD_KEYWORDS = [
+        # 新闻类关键词（出现则优先保留）
+        r'(?:today|yesterday|this\s+week)',
+        r'(?:report|update|news|breaking|alert)',
+        r'(?:s&p|spx|nasdaq|dow\s+jones|sp500)',
+        r'(?:market|stock|index|forecast)',
+        r'(?:federal|fed|reserve|rate|interest)',
+        r'(?:surge|fell|rally|plunge|drop|rise)',
+        r'(?:trade| tariff|inflation|cpi|gdp)',
+        r'(?:比特|比特币|数字货币|加密货币)',
+        r'(?:股价|指数|行情|涨停|跌停|热点)',
+    ]
+
+    def _is_relevant_news(self, title: str, url: str = '') -> bool:
+        """判断结果是否是相关新闻（非索引页/文档页/非新闻）"""
+        import re
+        t = title.lower()
+        u = url.lower()
+        # 命中跳过模式 → 直接排除
+        for pat in self._NEWS_SKIP_PATTERNS:
+            if re.search(pat, title, re.IGNORECASE) or re.search(pat, u, re.IGNORECASE):
+                return False
+        # 命中好关键词 → 强烈保留
+        for pat in self._NEWS_GOOD_KEYWORDS:
+            if re.search(pat, title, re.IGNORECASE):
+                return True
+        # 标题长度合理（新闻标题通常 > 20 字符）
+        if len(title) < 15:
+            return False
+        return True  # 不确定时保守保留
+
     def _mini_max_web_search(self, query: str, max_results: int = 5, days: int = 1) -> List[Dict[str, str]]:
         """使用 MiniMax Web Search API (v1/coding_plan/search) 搜索新闻
 
         这是 DSA /daily_stock_analysis 同款的真实网页搜索接口，不是 LLM 对话 API。
         API endpoint: POST https://api.minimaxi.com/v1/coding_plan/search
+        
+        过滤策略：相关性预过滤 + 24 小时日期过滤。
         """
         import time as _time
         import requests as _requests
@@ -414,6 +493,9 @@ class MarketDataAdapter:
         }
         payload = {"q": augmented_query}
 
+        # 24小时过滤基准时间（UTC）
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24 * days)
+
         for attempt in range(3):
             try:
                 resp = _requests.post(
@@ -435,16 +517,35 @@ class MarketDataAdapter:
                 results = []
                 seen_titles = set()
                 for item in data.get('organic', []):
-                    date_val = item.get('date', '')
-                    # 简单日期过滤：跳过明显过期日期
+                    date_str = item.get('date', '')
                     title = item.get('title', '').strip()
+                    link = item.get('link', '')
                     if not title or title in seen_titles:
                         continue
-                    seen_titles.add(title)
 
+                    # ── Step 1: 相关性预过滤（剔除索引页/文档页）────────────
+                    if not self._is_relevant_news(title, link):
+                        print(f"[Adapter] 过滤非新闻: {title[:50]}")
+                        continue
+
+                    # ── Step 2: 日期过滤 ───────────────────────────────
+                    if date_str:
+                        try:
+                            date_str_clean = date_str.split('+')[0].split('Z')[0].strip()
+                            if len(date_str_clean) == 10:
+                                item_time = datetime.fromisoformat(date_str_clean).replace(tzinfo=timezone.utc)
+                            elif ' ' in date_str_clean:
+                                item_time = datetime.fromisoformat(date_str_clean.rsplit(' ', 1)[0]).replace(tzinfo=timezone.utc)
+                            else:
+                                item_time = datetime.fromisoformat(date_str_clean).replace(tzinfo=timezone.utc)
+                            if item_time < cutoff_time:
+                                print(f"[Adapter] 过滤旧新闻: [{date_str}] {title[:40]}")
+                                continue
+                        except Exception:
+                            pass
+
+                    seen_titles.add(title)
                     snippet = (item.get('snippet') or '')[:200]
-                    link = item.get('link', '')
-                    # 提取域名作为 source
                     source = ''
                     if link:
                         from urllib.parse import urlparse
@@ -454,13 +555,13 @@ class MarketDataAdapter:
                         "title": title,
                         "content": snippet,
                         "source": source,
-                        "datetime": date_val,
+                        "datetime": date_str,
                         "url": link,
                     })
                     if len(results) >= max_results:
                         break
 
-                print(f"[Adapter] MiniMax Web Search: {len(results)} 条结果 for '{query}'")
+                print(f"[Adapter] MiniMax Web Search: {len(results)} 条结果 for '{query}' (过滤后)")
                 return results
 
             except _requests.exceptions.Timeout:
@@ -484,9 +585,9 @@ class MarketDataAdapter:
 
         # 国际板块 -> 英文查询（Web Search 效果更好）
         query_map = {
-            "global": "global macro finance Federal Reserve interest rates economy",
-            "crypto":  "Bitcoin Ethereum cryptocurrency market news",
-            "us":      "US stock market S&P 500 Nasdaq Dow Jones news",
+            "global": "global macro finance Federal Reserve interest rates economy today",
+            "crypto":  "Bitcoin Ethereum cryptocurrency market news today",
+            "us":      "S&P 500 Nasdaq stock market news today",
         }
         query = query_map.get(category, query_map["global"])
 
@@ -494,7 +595,14 @@ class MarketDataAdapter:
         results = self._mini_max_web_search(query, max_results=limit, days=1)
         if results:
             print(f"[Adapter] {category} 国际新闻 (MiniMax Web Search): {len(results)} 条")
-            return results
+            # 日期过滤后可能结果不足，继续用 DuckDuckGo 补充
+            if len(results) < limit:
+                print(f"[Adapter] {category} MiniMax 结果不足({len(results)})，DuckDuckGo 补充...")
+                ddg = self._duckduckgo_news_search(category, limit - len(results))
+                for item in ddg:
+                    if item.get('title') not in [r.get('title') for r in results]:
+                        results.append(item)
+            return results[:limit]
 
         # 备用1: GNews.io
         print(f"[Adapter] {category} 国际新闻 MiniMax 失败，尝试 GNews...")
@@ -513,33 +621,53 @@ class MarketDataAdapter:
         return []
     
     def _duckduckgo_news_search(self, category: str = "global", limit: int = 3) -> List[Dict[str, str]]:
-        """使用 DuckDuckGo 搜索新闻作为备用源"""
+        """使用 DuckDuckGo 搜索新闻（带相关性和日期双重过滤）"""
         query_map = {
-            "global": "finance economy Federal Reserve interest rates",
-            "crypto": "Bitcoin Ethereum cryptocurrency news",
-            "us": "S&P 500 Nasdaq stock market news",
+            "global": "Federal Reserve interest rates economy today breaking",
+            "crypto": "Bitcoin Ethereum cryptocurrency news today",
+            "us": "S&P 500 Nasdaq stock market today breaking",
         }
         query = query_map.get(category, query_map["global"])
+
+        # 24小时过滤基准时间（UTC）
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         try:
             from duckduckgo_search import DDGS
             results = []
             seen = set()
             with DDGS() as ddgs:
-                for r in ddgs.news(query, max_results=limit * 2):
+                for r in ddgs.news(query, max_results=limit * 3):
                     title = r.get("title", "").strip()
+                    url = r.get("url", "")
                     if title and title not in seen and len(results) < limit:
+                        # 相关性预过滤
+                        if not self._is_relevant_news(title, url):
+                            continue
+                        date_str = r.get("date", "")
+                        # 日期过滤
+                        if date_str:
+                            try:
+                                date_clean = date_str.split('+')[0].split('Z')[0].strip()
+                                if len(date_clean) == 10:
+                                    item_time = datetime.fromisoformat(date_clean).replace(tzinfo=timezone.utc)
+                                else:
+                                    item_time = datetime.fromisoformat(date_clean.rsplit(' ', 1)[0]).replace(tzinfo=timezone.utc)
+                                if item_time < cutoff_time:
+                                    continue
+                            except Exception:
+                                pass
                         seen.add(title)
                         results.append({
                             "title": title,
                             "content": r.get("body", title)[:200],
                             "source": r.get("source", "DuckDuckGo"),
-                            "datetime": r.get("date", ""),
-                            "url": r.get("url", "")
+                            "datetime": date_str,
+                            "url": url
                         })
             return results
         except ImportError:
-            print("[Adapter] duckduckgo-search 库未安装: pip install duckduckgo-search")
+            print("[Adapter] duckduckgo-search 库未安装: pip install ddgs (rename)")
             return []
         except Exception as e:
             print(f"[Adapter] DuckDuckGo 新闻搜索失败: {e}")
@@ -669,8 +797,8 @@ class MarketDataAdapter:
 
         # ── 源1: MiniMax Web Search ──────────────────────
         web_query_map = {
-            "cn": "A股市场 今日热点新闻 板块 概念股",
-            "hk": "港股市场 恒生指数 今日新闻 南向资金",
+            "cn": "A股 板块 涨停 龙头 今日 资金 概念",
+            "hk": "港股 恒生科技 南向资金 异动",
             "commodity": "大宗商品 黄金 原油 铜 期货 今日行情",
         }
         web_query = web_query_map.get(market, web_query_map["cn"])
