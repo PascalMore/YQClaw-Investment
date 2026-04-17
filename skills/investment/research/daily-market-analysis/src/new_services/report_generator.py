@@ -721,20 +721,28 @@ class ReportGenerator:
             "H股": ('hk', self.adapter.get_hk_market_review),
         }
         
+        # 默认用 MARKET_ANALYSIS 静态文本
         result = self.MARKET_ANALYSIS.get(market, "暂无分析数据")
         
         if market in review_map:
             review = review_map[market][1]()
             if review:
-                result = self._llm_summarize_review(review, max_chars=100)
+                summarized = self._llm_summarize_review(review, max_chars=100)
+                # 只有 LLM 返回有效内容（非空、非复读文本）才用
+                if summarized and len(summarized) > 5:
+                    result = summarized
         elif market == "美股":
             review = self.adapter.get_us_market_review()
             if review:
-                result = self._llm_summarize_review(review, max_chars=100)
+                summarized = self._llm_summarize_review(review, max_chars=100)
+                if summarized and len(summarized) > 5:
+                    result = summarized
         elif market == "Crypto":
             review = self.adapter.get_crypto_market_review()
             if review:
-                result = self._llm_summarize_review(review, max_chars=100)
+                summarized = self._llm_summarize_review(review, max_chars=100)
+                if summarized and len(summarized) > 5:
+                    result = summarized
         
         # 缓存结果
         if not hasattr(self, '_analysis_cache'):
@@ -748,20 +756,20 @@ class ReportGenerator:
         if not review_text:
             return "暂无分析数据"
 
-        # 构建 prompt
+        import re
         text_to_summarize = review_text[:3000]
+        has_chinese = bool(re.search(r'[\u4e00-\u9fff]', text_to_summarize))
+        input_text = text_to_summarize[:500] if not has_chinese else text_to_summarize[:1500]
         prompt = (
-            f"请一句话总结以下市场复盘内容，包含关键涨跌数据，用中文输出：\n\n"
-            f"{text_to_summarize[:2000]}"
+            f"请用中文一句话总结以下市场复盘内容，包含关键涨跌数据和方向，用85-100字输出：\n\n"
+            f"{input_text}"
         )
 
-        # 直接在主进程调用 LLM（带重试机制，避免 529 过载）
         summary = ''
         for attempt in range(3):
             try:
                 import litellm
                 litellm.suppress_debug_info = True
-                # 获取 API key（从 market_daily_analysis 的 .env）
                 import os as _os
                 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '.env')
                 if os.path.exists(_env_path):
@@ -782,42 +790,55 @@ class ReportGenerator:
                 )
                 msg = response.choices[0].message if response and response.choices else None
                 content_raw = msg.content.strip() if msg.content else ''
-                if content_raw and len(content_raw) > 3:
+                rc = getattr(msg, 'reasoning_content', None) or ''
+
+                # 优先从 content 提取（非MiniMax模型通常在content）
+                if content_raw and len(content_raw) > 5 and '请用中文' not in content_raw:
                     summary = content_raw
-                    break  # 成功获取，退出重试循环
-                else:
-                    rc = getattr(msg, 'reasoning_content', None) or ''
-                    import re
-                    marker = 'Final answer:'
-                    if marker in rc:
-                        summary = rc.split(marker)[-1].strip()
-                        break
-                    else:
-                        paragraphs = rc.split('\n')
-                        for para in reversed(paragraphs):
-                            para = para.strip()
-                            if not para:
-                                continue
-                            if re.search(r'[\u4e00-\u9fff]', para) and len(para) > 5:
-                                sentences = re.findall(r'[^。！？]+[。！？]', para + '|')
-                                summary = sentences[-1].rstrip('|') if sentences else para
-                                break
-                        if summary:
+                    break
+
+                # MiniMax-M2.7: content为空，实际回复在reasoning_content中
+                if rc:
+                    # 找英文双引号包裹的内容（模型在思考过程中输出的中文摘要）
+                    quoted = re.findall(r'"([^"]{20,300})"', rc)
+                    for q in reversed(quoted):
+                        # 跳过 prompt 本身（prompt 以特定中文指令开头）
+                        if q.strip().startswith(('请用中文', '一句话总结', '用中文')):
+                            continue
+                        if re.search(r'[\u4e00-\u9fff]', q) and re.search(r'\d', q) and len(q) > 20:
+                            summary = q.strip()
                             break
+                    # 从后往前找第一个包含数字的完整中文句子
+                    if not summary:
+                        sentences = re.findall(r'[^。！？\n]{30,300}[。！？]', rc)
+                        for s in reversed(sentences):
+                            s = s.strip()
+                            if s.startswith(('请用中文', '一句话总结', '用中文')):
+                                continue
+                            if re.search(r'[\u4e00-\u9fff]', s) and re.search(r'\d', s) and len(s) > 20:
+                                summary = s
+                                break
+                    # 跳过 prompt 复读内容（包含 prompt 完整文本或开头关键词）
+                    if summary and (
+                        '请用中文' in summary
+                        or summary == prompt
+                        or summary.startswith(('请用中文', '一句话总结', '用中文'))
+                    ):
+                        summary = ''
+                    if summary:
+                        break
             except Exception as e:
                 err_str = str(e)
                 if '529' in err_str or 'overloaded' in err_str.lower():
                     print(f"[ReportGenerator] LLM 529过载，重试 ({attempt+1}/3)...")
                     import time
-                    time.sleep(3 * (attempt + 1))  # 退避等待
+                    time.sleep(3 * (attempt + 1))
                 else:
                     print(f"[ReportGenerator] LLM call error: {e}")
                     break
         else:
-            # 三次重试都失败
             summary = ''
 
-        # 如果 subprocess 无输出，降级到启发式
         if not summary:
             # 优先尝试提取"市场总结"等第一段正文（结构化复盘格式）
             import re

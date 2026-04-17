@@ -222,8 +222,8 @@ class MarketDataAdapter:
 
             result = []
             for symbol, name, code in [
-                ('.INX', '标普500', 'SPX'),
-                ('.IXIC', '纳斯达克', 'NDX'),
+                ('.INX', '标普500指数', 'SPX'),
+                ('.IXIC', '纳斯达克综合指数', 'IXIC'),
             ]:
                 df = ak.index_us_stock_sina(symbol=symbol)
                 if df is not None and not df.empty:
@@ -288,10 +288,10 @@ class MarketDataAdapter:
             return None
 
         result = []
-        data = fetch_with_retry("^GSPC", "标普500", "SPX")
+        data = fetch_with_retry("^GSPC", "标普500指数", "SPX")
         if data:
             result.append(data)
-        data = fetch_with_retry("^IXIC", "纳斯达克", "NDX")
+        data = fetch_with_retry("^IXIC", "纳斯达克综合指数", "IXIC")
         if data:
             result.append(data)
         return result
@@ -301,40 +301,67 @@ class MarketDataAdapter:
     # ========================================
     
     def _get_latest_report_path(self) -> Optional[str]:
-        """获取最新复盘报告路径"""
+        """获取最新复盘报告路径（优先 market_review_*.md，不存在则用 daily_report_*.md）"""
         if not os.path.exists(self._reports_root):
             return None
         
         today = date.today()
+        # 优先找 market_review_*.md（来自 daily_stock_analysis）
         for days_ago in range(3):
             check_date = today - timedelta(days=days_ago)
             report_name = f"market_review_{check_date.strftime('%Y%m%d')}.md"
             report_path = os.path.join(self._reports_root, report_name)
             if os.path.exists(report_path):
                 return report_path
+        # Fallback: 找 daily_report_*.md
+        for days_ago in range(3):
+            check_date = today - timedelta(days=days_ago)
+            report_name = f"daily_report_{check_date.strftime('%Y-%m-%d')}.md"
+            report_path = os.path.join(self._reports_root, report_name)
+            if os.path.exists(report_path):
+                return report_path
         return None
     
     def _parse_report_sections(self, content: str) -> Dict[str, str]:
-        """解析复盘报告，提取 A 股和美股部分"""
+        """解析复盘报告，提取 A 股和美股部分
+        
+        支持的标题格式：
+        - daily_report 格式: ### 3.2 美股市场复盘 / ### 3.2 US Market Recap
+        - market_review 格式: ### 美股大盘复盘 / # 美股大盘复盘
+        """
         sections = {}
         
+        # 方式1: 以下为美股大盘复盘（market_review 格式）
         if "以下为美股大盘复盘" in content:
             parts = content.split("以下为美股大盘复盘")
             cn_part = parts[0]
             us_part = parts[1] if len(parts) > 1 else ""
-            
             if "# A股大盘复盘" in cn_part:
                 cn_section = cn_part.split("# A股大盘复盘")[1]
             else:
                 cn_section = cn_part
-            
             if "# 美股大盘复盘" in us_part:
                 us_section = us_part.split("# 美股大盘复盘")[1]
             else:
                 us_section = us_part
-            
             sections['cn'] = cn_section.strip()
             sections['us'] = us_section.strip()
+        # 方式2: daily_report 格式（### 3.2 美股市场复盘 / ### 3.2 US Market Recap）
+        elif "### 3.2" in content:
+            # 按 ### 3.2 分割，找到美股复盘部分
+            parts = content.split("### 3.2")
+            cn_part = parts[0]
+            us_part = parts[1] if len(parts) > 1 else ""
+            # 继续找 A股复盘部分（在 ### 3.2 之前）
+            for marker in ["## 一、全球市场概览", "## 全球市场概览"]:
+                if marker in cn_part:
+                    sections['cn'] = cn_part.split(marker)[1].strip() if marker in cn_part else cn_part.strip()
+                    break
+            # 美股部分（### 3.2 之后到下一个 ### 之前）
+            if us_part:
+                next_section = us_part.split("###")[0]
+                sections['us'] = next_section.strip()
+        # 方式3: 旧格式 # 美股大盘复盘 / # A股大盘复盘
         elif "# 美股大盘复盘" in content:
             sections['us'] = content.split("# 美股大盘复盘")[1].strip()
         elif "# A股大盘复盘" in content:
