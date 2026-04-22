@@ -684,13 +684,14 @@ class ReportGenerator:
     }
 
     # 市场分析映射(从复盘报告提取的关键结论)
+    # 注意:这些是兜底静态数据,如果LLM总结成功则不会用到.内容需定期更新。
     MARKET_ANALYSIS = {
-        "A股": "科创50和创业板指表现最强,分别上涨6.18%和5.91%。市场分化突出,上涨1240家下跌4194家。科技成长板块获资金青睐,半导体净流入25.27亿元。",
-        "H股": "港股今日震荡反弹,恒生科技指数表现优于大盘。南向资金净流入,科技股估值修复中。",
-        "美股": "三大指数大幅上涨,标普500涨2.51%,纳斯达克涨2.80%。VIX暴跌18.39%至21.04,风险偏好急剧回升。",
-        "Crypto": "加密市场整体回调,BTC跌1.23%逼近71000美元。山寨币普跌,PEPE跌超5%。",
-        "大宗": "黄金和原油走势分化。黄金受到避险需求支撑,原油因地缘风险缓解而承压下跌。",
-        "债市": "中美债券市场平稳运行。美联储政策预期稳定,中国债券收益率小幅波动。",
+        "A股": "市场小幅震荡,成交额维持高位,科技板块分化。关注政策导向及资金流向。",
+        "H股": "港股震荡整理,南向资金净流入,科技股估值修复仍有空间。",
+        "美股": "美股高位承压,通胀数据和美联储政策为核心变量,防御为主。",
+        "Crypto": "加密市场波动加大,BTC整体偏强,关注趋势延续性。",
+        "大宗": "黄金偏强震荡,原油受供需格局驱动。",
+        "债市": "中美债券收益率平稳,美联储政策预期稳定。",
     }
 
     # 仓位建议配置
@@ -785,24 +786,47 @@ class ReportGenerator:
         # 默认用 MARKET_ANALYSIS 静态文本
         result = self.MARKET_ANALYSIS.get(market, "暂无分析数据")
 
+        # placeholder 检测关键词
+        _placeholder_kws = ['暂无接入', '待接入', '待更新', '暂无数据', '暂无资讯',
+                           '暂无信息', '复盘待', 'data not', 'not available',
+                           'no data', 'TBD', 'pending']
+
         if market in review_map:
             review = review_map[market][1]()
             if review:
                 summarized = self._llm_summarize_review(review, max_chars=100)
-                # 只有 LLM 返回有效内容(非空、非复读文本)才用
-                if summarized and len(summarized) > 5:
+                has_placeholder = any(kw in summarized for kw in _placeholder_kws)
+                # 验证:非空、非标题行开头、非复读prompt、非placeholder
+                if (summarized and len(summarized) > 5 and
+                    not summarized.startswith(('#', '**', '> ', '```')) and
+                    '用中文' not in summarized[:20] and
+                    '用户要求' not in summarized[:20] and
+                    'The user wants' not in summarized[:20] and
+                    not has_placeholder):
                     result = summarized
         elif market == "美股":
             review = self.adapter.get_us_market_review()
             if review:
                 summarized = self._llm_summarize_review(review, max_chars=100)
-                if summarized and len(summarized) > 5:
+                has_placeholder = any(kw in summarized for kw in _placeholder_kws)
+                if (summarized and len(summarized) > 5 and
+                    not summarized.startswith(('#', '**', '> ', '```')) and
+                    '用中文' not in summarized[:20] and
+                    '用户要求' not in summarized[:20] and
+                    'The user wants' not in summarized[:20] and
+                    not has_placeholder):
                     result = summarized
         elif market == "Crypto":
             review = self.adapter.get_crypto_market_review()
             if review:
                 summarized = self._llm_summarize_review(review, max_chars=100)
-                if summarized and len(summarized) > 5:
+                has_placeholder = any(kw in summarized for kw in _placeholder_kws)
+                if (summarized and len(summarized) > 5 and
+                    not summarized.startswith(('#', '**', '> ', '```')) and
+                    '用中文' not in summarized[:20] and
+                    '用户要求' not in summarized[:20] and
+                    'The user wants' not in summarized[:20] and
+                    not has_placeholder):
                     result = summarized
 
         # 缓存结果
@@ -822,8 +846,7 @@ class ReportGenerator:
         has_chinese = bool(re.search(r'[\u4e00-\u9fff]', text_to_summarize))
         input_text = text_to_summarize[:500] if not has_chinese else text_to_summarize[:1500]
         prompt = (
-            f"请用中文一句话总结以下市场复盘内容,包含关键涨跌数据和方向,用85-100字输出:\n\n"
-            f"{input_text}"
+            f"用中文一句话总结下面市场复盘,85-100字,只输出摘要不解释。涨跌数据+方向:\n{input_text[:800]}"
         )
 
         summary = ''
@@ -854,7 +877,16 @@ class ReportGenerator:
                 rc = getattr(msg, 'reasoning_content', None) or ''
 
                 # 优先从 content 提取(非MiniMax模型通常在content)
-                if content_raw and len(content_raw) > 5 and '请用中文' not in content_raw:
+                # 过滤 prompt 复读: 模型回显 prompt 本身的情况
+                _is_prompt_echo = (
+                    content_raw.startswith('用户要求') or
+                    content_raw.startswith('请用中文') or
+                    content_raw.startswith('The user wants') or
+                    '用中文一句话总结' in content_raw or
+                    content_raw.startswith(prompt[:30]) or
+                    len(content_raw) > 10 and content_raw[:50] == prompt[:50]
+                )
+                if content_raw and len(content_raw) > 5 and not _is_prompt_echo:
                     summary = content_raw
                     break
 
@@ -863,28 +895,25 @@ class ReportGenerator:
                     # 找英文双引号包裹的内容(模型在思考过程中输出的中文摘要)
                     quoted = re.findall(r'"([^"]{20,300})"', rc)
                     for q in reversed(quoted):
-                        # 跳过 prompt 本身(prompt 以特定中文指令开头)
-                        if q.strip().startswith(('请用中文', '一句话总结', '用中文')):
+                        q_stripped = q.strip()
+                        # 跳过 prompt 本身及其复读
+                        if any(q_stripped.startswith(p) for p in ('用户要求', '请用中文', 'The user wants', '用中文一')):
                             continue
                         if re.search(r'[\u4e00-\u9fff]', q) and re.search(r'\d', q) and len(q) > 20:
-                            summary = q.strip()
+                            summary = q_stripped
                             break
                     # 从后往前找第一个包含数字的完整中文句子
                     if not summary:
                         sentences = re.findall(r'[^。!?\n]{30,300}[。!?]', rc)
                         for s in reversed(sentences):
                             s = s.strip()
-                            if s.startswith(('请用中文', '一句话总结', '用中文')):
+                            if any(s.startswith(p) for p in ('用户要求', '请用中文', 'The user wants', '用中文一')):
                                 continue
                             if re.search(r'[\u4e00-\u9fff]', s) and re.search(r'\d', s) and len(s) > 20:
                                 summary = s
                                 break
-                    # 跳过 prompt 复读内容(包含 prompt 完整文本或开头关键词)
-                    if summary and (
-                        '请用中文' in summary
-                        or summary == prompt
-                        or summary.startswith(('请用中文', '一句话总结', '用中文'))
-                    ):
+                    # 跳过 prompt 复读内容
+                    if summary:
                         summary = ''
                     if summary:
                         break
@@ -903,16 +932,17 @@ class ReportGenerator:
         if not summary:
             # 优先尝试提取"市场总结"等第一段正文(结构化复盘格式)
             import re
-            # 匹配一级或二级标题后的第一段正文(非列表、非代码块)
+            # 匹配中文标题: 一、市场总结 / 二、板块分析 / ## 2026-04-22 大盘复盘
+            # 也匹配英文标题: 1. Market Summary / ## US Market Recap
             section_header_pattern = re.compile(
-                r'^#{1,3}\s*[一二三四五六七八九十\d]+\s*[、,.\-].*$',
-                re.MULTILINE
+                r'^#{1,3}\s*(?:[一二三四五六七八九十\d]+[、,.\-]|\d+\.\s+)[^\n]*$',
+                re.MULTILINE | re.IGNORECASE
             )
             lines = review_text.split('\n')
             in_first_section = False
             for line in lines:
                 stripped = line.strip()
-                # 遇到第一段正文标题
+                # 遇到标题行
                 if section_header_pattern.match(stripped):
                     in_first_section = True
                     continue
@@ -929,66 +959,67 @@ class ReportGenerator:
                 if in_first_section:
                     # 去掉 ** 加粗标记
                     clean = re.sub(r'\*\*(.+?)\*\*', r'\1', stripped)
-                    # 如果是纯英文内容且有中文版本,尝试跳过
-                    import re
+                    # 非中文内容 → 直接返回空触发兜底
                     if not re.search(r'[\u4e00-\u9fff]', clean):
-                        # 纯英文内容,标记但继续找中文
-                        summary = clean[:max_chars]
-                        # 不 break,继续找后续可能的中文内容
-                    else:
-                        summary = clean[:max_chars]
+                        summary = ''
                         break
+                    summary = clean
+                    break
 
-            # 如果结构化提取失败,使用原有启发式
+            # 如果结构化提取失败,使用原有启发式(跳过非中文)
             if not summary:
                 for line in lines:
                     stripped = line.strip()
+                    # 跳过无中文的英文内容行、标题、空行等
                     if (stripped and len(stripped) > 15 and
-                        not any(kw in stripped for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.'])):
-                        summary = stripped[:max_chars]
-                        break
-
-            # 如果summary是纯英文(无中文),尝试从剩余行找中文内容
-            import re
-            if summary and not re.search(r'[\u4e00-\u9fff]', summary):
-                # 纯英文summary,尝试在后面几行找到中文内容
-                for line in lines:
-                    stripped = line.strip()
-                    if (stripped and len(stripped) > 10 and
                         not any(kw in stripped for kw in ['#', '---', '**', '##', '```', '>>>', '- ', '1.', '2.', '3.']) and
                         re.search(r'[\u4e00-\u9fff]', stripped)):
-                        clean = re.sub(r'\*\*(.+?)\*\*', r'\1', stripped)
-                        summary = clean[:max_chars]
+                        summary = stripped
                         break
-                # 如果还是找不到中文,使用原始英文但不加句号后缀
-                if not re.search(r'[\u4e00-\u9fff]', summary):
-                    summary = summary.rstrip('.,;: ')
-                    if summary and summary[-1] not in '!.?':
-                        summary += '.'
+
+            # 非中文内容 → 返回空触发静态兜底
+            if summary and not re.search(r'[\u4e00-\u9fff]', summary):
+                summary = ''
 
         # 确保不超长,截断到最后一个完整句
         if len(summary) > max_chars:
             truncated = summary[:max_chars]
-            # 支持中英文标点:句号、逗号(中文逗号也可能是句子分隔)
-            for sep in ['。', '. ', ',']:
-                idx = truncated.rfind(sep)
-                if idx > max_chars * 0.4:  # 阈值降低,留更多内容
-                    summary = truncated[:idx + 1].strip()
-                    break
+            # 优先找中文句号(最可靠的句子结尾),向后查找最后一个
+            last_句号 = truncated.rfind('。')
+            if last_句号 > max_chars * 0.3:
+                summary = truncated[:last_句号 + 1].strip()
             else:
-                summary = truncated.rstrip('-,;:, ').strip()
+                # 其次找英文句号
+                last_dot = truncated.rfind('. ')
+                if last_dot > max_chars * 0.3:
+                    summary = truncated[:last_dot + 1].strip()
+                else:
+                    # 不用逗号截断(会切断数字/价格),直接截断并补句号
+                    summary = truncated.rstrip('-,;:, ').strip()
+
+        # 确保不超长,截断到最后一个完整句
+        if len(summary) > max_chars:
+            truncated = summary[:max_chars]
+            # 优先找中文句号
+            last_句号 = truncated.rfind('。')
+            if last_句号 > max_chars * 0.3:
+                summary = truncated[:last_句号 + 1].strip()
+            else:
+                # 其次找英文句号
+                last_dot = truncated.rfind('. ')
+                if last_dot > max_chars * 0.3:
+                    summary = truncated[:last_dot + 1].strip()
+                else:
+                    # 不用逗号截断(会切断数字),直接截断
+                    summary = truncated.rstrip('-,;:,; ').strip()
 
         # 确保有句号结尾(如果截断后已有句号/感叹号/问号则不加)
         if summary and summary[-1] not in '。.!?':
-            # 找最后一个完整句(倒着找句号)
             last_句 = max(summary.rfind('。'), summary.rfind('!'), summary.rfind('?'))
-            if last_句 > max_chars * 0.5:
+            if last_句 > max_chars * 0.4:
                 summary = summary[:last_句 + 1]
-            elif summary.endswith(',') or summary.endswith(','):
-                # 逗号结尾 → 改为句号
-                summary = summary.rstrip(',,').strip() + '。'
             else:
-                summary += '。'
+                summary = summary.rstrip(',，、;') + '。'
 
         return summary
 
