@@ -1,3 +1,3 @@
-[submodule "skills/investment/research/daily_stock_analysis"]
-	path = skills/investment/research/daily_stock_analysis
+[submodule "skills/research/daily_stock_analysis"]
+	path = skills/research/daily_stock_analysis
 	url = https://github.com/PascalMore/daily_stock_analysis.git
