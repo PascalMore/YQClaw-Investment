@@ -171,13 +171,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .down {{ color: #27ae60; }}
         .flat {{ color: #888; }}
 
-        /* 市场分析列 - 更宽以显示完整内容 */
+        /* 市场分析列 */
         .analysis-col {{
-            width: 200px;
-            max-width: 200px;
+            width: 250px;
+            max-width: 250px;
             font-size: 11px;
             line-height: 1.4;
             color: #555;
+            word-break: break-word;
         }}
 
         /* 卡片区块 */
@@ -810,7 +811,7 @@ class ReportGenerator:
                 summarized = self._llm_summarize_review(review, max_chars=100)
                 has_placeholder = any(kw in summarized for kw in _placeholder_kws)
                 if (summarized and len(summarized) > 5 and
-                    not summarized.startswith(('#', '**', '> ', '```')) and
+                    not summarized.startswith(('#', '**', '> ', '```', '|')) and
                     '用中文' not in summarized[:20] and
                     '用户要求' not in summarized[:20] and
                     'The user wants' not in summarized[:20] and
