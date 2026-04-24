@@ -1,0 +1,4982 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-16T19:01:14.741Z",
+  "entries": {
+    "memory:memory/2026-04-05.md:1:38": {
+      "key": "memory:memory/2026-04-05.md:1:38",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "## daily-market-analysis 需求确认 ### 时间规划 - **每天 08:30** 推送全球市场简报 ### 报告结构 1. **多市场概览** - A股、H股、美股、数字货币、大宗商品 2. **热点新闻** - 24h内全球金融Top3 + 各市场Top5 3. **各市场复盘**（格式参考 daily-stock-analysis）： - 市场总结 - 指数表现/风格分析 - 资金动向 - 热点解读 - 后市展望 - 风险提示 - 策略计划 4. **金融日历** - 未来1个月重要事件 5. **仓位建议** - 基于风险敞口 ### 数据源 - **优先**: Tushare（Pascal 有 2000积分 API Key） - **备用**: AkShare ### 报告格式 - Markdown，可含图表 - 邮件推送 ### 复用水源 - daily-stock-analysis 的分析框架和格式 - 数据服务层（stock_service.py） - 通知服务（邮件等） ## Pascal 的目录约定 - \"workspace\" = `/home/pascal/.openclaw/workspace` - skills 目录在 workspace 下: `workspace/skills/` - investment 项目在 `workspace/skills/investment/`",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.2088725313719104,
+      "maxScore": 0.6176178792373291,
+      "firstRecalledAt": "2026-04-08T23:33:52.408Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "a6605d664647",
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "daily-market-analysis",
+        "daily-stock-analysis",
+        "指数表现/风格分析",
+        "stock-service.py",
+        "home/pascal",
+        "openclaw/workspace",
+        "workspace/skills",
+        "workspace/skills/investment"
+      ]
+    },
+    "memory:memory/2026-04-06.md:170:195": {
+      "key": "memory:memory/2026-04-06.md:170:195",
+      "path": "memory/2026-04-06.md",
+      "startLine": 170,
+      "endLine": 195,
+      "source": "memory",
+      "snippet": "| 新闻\"待接入\" | simple_news 导入问题 | 🔴 待修 | | 黄金/原油/债券无数据 | 未接入数据源 | 🟡 待接入 | | 美股复盘有时失败 | daily_stock_analysis 美股接口问题 | 🟡 待修 | ### 关键文件 - `daily-market-analysis/all_weather_market_report.py` - 主报告生成器 - `daily-market-analysis/src/new_services/market_data_adapter.py` - 数据适配器 - `daily-market-analysis/src/new_services/simple_news.py` - 新闻获取（Tavily API） - `daily-market-analysis/reports/` - 报告输出目录 - `daily-stock-analysis/reports/market_review_YYYYMMDD.md` - 复盘报告源 ### cron 设置 ```bash 0 0 * * 1-5 /home/pascal/.openclaw/workspace/skills/investment/research/daily-market-analysis/run_report.sh ``` ### Pascal 的反馈 1. 市场分析要从复盘提炼 3-5 句话，不是\"详见复盘\" 2. A股增加沪深300，港股增加恒生科技 3. BTC/ETH/SOL 都要显示 4. 上证+沪深300、恒生+恒",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.9119029870723061,
+      "maxScore": 0.46936767673739643,
+      "firstRecalledAt": "2026-04-08T23:33:52.408Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "a6605d664647",
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "simple-news",
+        "黄金/原油/债券无数据",
+        "daily-stock-analysis",
+        "daily-market-analysis/reports",
+        "1-5",
+        "home/pascal",
+        "3-5",
+        "btc/eth/sol"
+      ]
+    },
+    "memory:memory/2026-04-07.md:34:68": {
+      "key": "memory:memory/2026-04-07.md:34:68",
+      "path": "memory/2026-04-07.md",
+      "startLine": 34,
+      "endLine": 68,
+      "source": "memory",
+      "snippet": "路径：`~/.config/systemd/user/daily-stock-analysis.service` - 执行：`/usr/bin/python3 main.py` - SCHEDULE_TIME=07:30 触发自选股分析 - 代理通过 .env 读取（动态获取WSL2网关IP方案被回退） ### Crontab（最终） ``` 0 8 * * 1-5 daily-market-analysis --output email # 08:00 全球市场报告 ``` 07:30 stock analysis 已从 crontab 移除，改由 systemd service 通过 SCHEDULE_TIME=07:30 执行 ## Daily Market Analysis 项目配置 ### config.json 路径 `~/.openclaw/workspace/skills/investment/research/daily-market-analysis/config.json` ### 关键配置 - 邮件推送：已启用（QQ SMTP） - AI provider：minimax - Tavily：已启用 - SCHEDULE_TIME=08:00 ## OpenClaw 配置 ### Agent 名称 从 `main` 改为 `YQClaw` 路径：`~/.openclaw/etc/openclaw.json` ## GitHub 提交 - daily_stock_analysis repo 已推送 main.py AI analyzer 修",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.4400392592980241,
+      "maxScore": 0.4400392592980241,
+      "firstRecalledAt": "2026-04-08T23:34:00.493Z",
+      "lastRecalledAt": "2026-04-08T23:34:00.493Z",
+      "queryHashes": [
+        "7765cd747e69"
+      ],
+      "recallDays": [
+        "2026-04-08"
+      ],
+      "conceptTags": [
+        "网关",
+        "usr/bin/python3",
+        "main.py",
+        "schedule-time",
+        "1-5",
+        "daily-market-analysis",
+        "config.json",
+        "openclaw/etc/openclaw.json"
+      ]
+    },
+    "memory:memory/2026-04-06.md:60:105": {
+      "key": "memory:memory/2026-04-06.md:60:105",
+      "path": "memory/2026-04-06.md",
+      "startLine": 60,
+      "endLine": 105,
+      "source": "memory",
+      "snippet": "上证指数: 3880.10 (↓1.00%) 深证成指: 13352.90 (↓0.99%) 创业板指: 3149.60 (↓0.73%) 科创50: 1256.21 (↓0.47%) 上涨 716 / 下跌 4746 涨停 38 / 跌停 46 成交额 16689亿 ``` ### 待完成 - [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 --- ## 夜间调试记录 (2026-04-06 01:20-02:08) ### litellm/MiniMax 兼容性问题 ✅ 根因确认 **问题描述：** litellm 调用 MiniMax API 失败，报 `invalid api key (2049)` **根本原因：** - litellm MiniMax provider 使用 OpenAI 兼容端点 `/v1/chat/completions` - MiniMax 实际使用 Anthropic 兼容端点 `/v1/messages` - 即使配置了正确的 `base_url: \"https://api.minimaxi.com/anthropic\"`，litellm 内部仍然拼接错误路径 **测试验证：** - ✅ 直接用 `requests.post` 调用 MiniMax `/v1/me",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.0760337725384492,
+      "maxScore": 0.6609664810589905,
+      "firstRecalledAt": "2026-04-08T23:34:00.493Z",
+      "lastRecalledAt": "2026-04-14T14:30:30.497Z",
+      "queryHashes": [
+        "7765cd747e69",
+        "e148f44c2197"
+      ],
+      "recallDays": [
+        "2026-04-08",
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "openai",
+        "网络",
+        "3880.10",
+        "1.00",
+        "13352.90",
+        "0.99",
+        "3149.60",
+        "0.73"
+      ]
+    },
+    "memory:memory/2026-04-06.md:1:42": {
+      "key": "memory:memory/2026-04-06.md:1:42",
+      "path": "memory/2026-04-06.md",
+      "startLine": 1,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "# 2026-04-06 Daily Memory ## Session Summary ### Investment System Setup - Working on OpenClaw investment skills: `daily_stock_analysis` and `daily-market-analysis` - Configured `litellm_config.yaml` with MiniMax + Gemini models - Set up `.env` with API keys and LITELLM_CONFIG path ### Technical Issues 1. **Network proxy issue** - 系统环境有 `socks5h://127.0.0.1:20170` 代理，导致 litellm API 调用失败 (SSL handshake failed) 2. **Module import issue** - `daily-stock-analysis` 有 `analyzer_service` 缺失问题 3. **Template mode works** - 基础数据获取（akshare）和报告生成正常 ### What's Working - ✅ akshare 数据获取正常 - ✅ 报告模板生成正常 - ✅ 股票数据复盘功能正常（上证/深证/创业板/科创50） - ❌ AI 分析未启用（litellm 网络问题） ### Daily Stock Analysis 测试结果 ``` 上证指数: 388",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.2868309620130507,
+      "maxScore": 0.6542600236704067,
+      "firstRecalledAt": "2026-04-09T07:05:30.473Z",
+      "lastRecalledAt": "2026-04-14T14:30:30.497Z",
+      "queryHashes": [
+        "de2710a6a5fc",
+        "e148f44c2197"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "network",
+        "网络",
+        "daily-stock-analysis",
+        "daily-market-analysis",
+        "litellm-config.yaml",
+        "litellm-config",
+        "127.0.0.1",
+        "analyzer-service"
+      ]
+    },
+    "memory:memory/2026-04-06.md:33:70": {
+      "key": "memory:memory/2026-04-06.md:33:70",
+      "path": "memory/2026-04-06.md",
+      "startLine": 33,
+      "endLine": 70,
+      "source": "memory",
+      "snippet": "- [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 # 2026-04-06 Daily Memory ## Session Summary ### Investment System Setup - Working on OpenClaw investment skills: `daily_stock_analysis` and `daily-market-analysis` - Configured `litellm_config.yaml` with MiniMax + Gemini models - Set up `.env` with API keys and LITELLM_CONFIG path ### Technical Issues 1. **Network proxy issue** - 系统环境有 `socks5h://127.0.0.1:20170` 代理，导致 litellm API 调用失败 (SSL handshake failed) 2. **Module import issue** - `daily-stock-analysis` 有 `analyzer_service` 缺失问题 3. **Template mode works** - 基础数据获取（akshare）和报",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1.2096380109401583,
+      "maxScore": 0.6582674668706603,
+      "firstRecalledAt": "2026-04-09T07:05:30.473Z",
+      "lastRecalledAt": "2026-04-14T14:30:30.497Z",
+      "queryHashes": [
+        "de2710a6a5fc",
+        "e148f44c2197"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "network",
+        "网络",
+        "analyzer-service",
+        "tools.md",
+        "daily-stock-analysis",
+        "daily-market-analysis",
+        "litellm-config.yaml",
+        "litellm-config"
+      ]
+    },
+    "memory:memory/2026-04-08.md:53:68": {
+      "key": "memory:memory/2026-04-08.md:53:68",
+      "path": "memory/2026-04-08.md",
+      "startLine": 53,
+      "endLine": 68,
+      "source": "memory",
+      "snippet": "2. **功能**：全球宏观、A股、港股、美股、数字货币、大宗商品各3条 3. **⚠️ 网络问题**：akshare 新闻接口全部超时（WSL环境网络配置问题） ### WSL 网络问题 1. **现象**：curl 可以访问外网，但 Python requests 超时 2. **原因**：可能是 WSL 网络代理配置问题 3. **影响**：akshare 新闻、baidu 新闻等都无法获取 4. **状态**：邮件报告已能正常推送（使用缓存/备用数据） ### 待办事项 - [ ] 解决 WSL 网络配置问题（让 Python 能访问外网） - [ ] 配置 NO_PROXY 使 Binance API 直连 - [ ] 为 BNB、PEPE 找到合适的数据源 - [ ] 确认飞书 Webhook URL - [ ] 确认自选股完整列表",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.6700407919158532,
+      "maxScore": 0.6700407919158532,
+      "firstRecalledAt": "2026-04-14T14:30:30.497Z",
+      "lastRecalledAt": "2026-04-14T14:30:30.497Z",
+      "queryHashes": [
+        "e148f44c2197"
+      ],
+      "recallDays": [
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "网络",
+        "使用缓存/备用数据",
+        "no-proxy",
+        "功能",
+        "全球",
+        "宏观",
+        "数字",
+        "货币"
+      ]
+    },
+    "memory:memory/2026-04-08.md:1:35": {
+      "key": "memory:memory/2026-04-08.md:1:35",
+      "path": "memory/2026-04-08.md",
+      "startLine": 1,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "## 2026-04-08 16:41 - 内存刷新 ### 全球市场报告修复完成 1. **港股/美股数据问题根因**： - `DataFetcherManager.get_main_indices(region=\"hk\")` 无 fetcher 支持 - `DataFetcherManager.get_main_indices(region=\"us\")` 依赖 YfinanceFetcher，但 pandas 2.3.3 与 yfinance 不兼容 2. **解决方案**： - 降级 daily-market-analysis venv 的 pandas 到 2.2.3 - 修复 `market_data_adapter.py` 中的 `_fetch_hk_indices_direct()` 和 `_fetch_us_indices_direct()` 方法 - 修复 `new_services/__init__.py` 导出 `get_market_adapter` 3. **美股成交量格式**： - 用户反馈：美股成交量显示为 \"xxxM\" 难以理解 - 修改：改为 \"xxx亿\" 格式（与上证指数一致） - 代码修改：`market_data_adapter.py` 第696、703行，将 `/1e6` 改为 `/1e8` 4. **当前状态**： - ✅ 全球市场日报可正常生成 - ✅ 港股数据：恒生指数 25822.02 - ✅ 美股数据：标普500 6616.85，纳斯达克 22017.8",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.5969249665067005,
+      "maxScore": 0.5969249665067005,
+      "firstRecalledAt": "2026-04-14T14:30:30.497Z",
+      "lastRecalledAt": "2026-04-14T14:30:30.497Z",
+      "queryHashes": [
+        "e148f44c2197"
+      ],
+      "recallDays": [
+        "2026-04-14"
+      ],
+      "conceptTags": [
+        "港股/美股数据问题根因",
+        "2.3.3",
+        "daily-market-analysis",
+        "2.2.3",
+        "market-data-adapter.py",
+        "fetch-hk-indices-direct",
+        "fetch-us-indices-direct",
+        "new-services"
+      ]
+    },
+    "memory:memory/2026-04-16.md:6:9": {
+      "key": "memory:memory/2026-04-16.md:6:9",
+      "path": "memory/2026-04-16.md",
+      "startLine": 6,
+      "endLine": 9,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: **现象**：飞书发消息小Q无响应，提示 \"AI service is temporarily overloaded\"; **诊断过程**：; Context 满（99.9%）→ 重启 Gateway 后解决; 重启后飞书仍然无响应",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gateway",
+        "99.9",
+        "问题",
+        "晚间",
+        "现象",
+        "消息",
+        "响应",
+        "提示"
+      ]
+    },
+    "memory:memory/2026-04-16.md:10:12": {
+      "key": "memory:memory/2026-04-16.md:10:12",
+      "path": "memory/2026-04-16.md",
+      "startLine": 10,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: dedup 文件显示 20:11 后就没有收到任何消息; 检查 `feishu-pairing.json` 发现是空的 `\"requests\": []`; Gateway status 显示 Feishu: OK，但实际消息接收断开",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gateway",
+        "feishu-pairing.json",
+        "问题",
+        "晚间",
+        "dedup",
+        "文件",
+        "显示",
+        "没有"
+      ]
+    },
+    "memory:memory/2026-04-16.md:14:17": {
+      "key": "memory:memory/2026-04-16.md:14:17",
+      "path": "memory/2026-04-16.md",
+      "startLine": 14,
+      "endLine": 17,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: **权限配置**（已确认正确）：; `contact:user.base:readonly`; `m:chat`, `m:message`; `im:message.group_at_msg:readonly`",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "user.base",
+        "message.group-at-msg",
+        "问题",
+        "晚间",
+        "权限",
+        "配置",
+        "确认",
+        "正确"
+      ]
+    },
+    "memory:memory/2026-04-16.md:18:21": {
+      "key": "memory:memory/2026-04-16.md:18:21",
+      "path": "memory/2026-04-16.md",
+      "startLine": 18,
+      "endLine": 21,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: `im:message.p2p_msg:readonly`; `im:message:send_as_bot`; `im:resource`; 事件订阅：`im.message.receive_v1`",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message.p2p-msg",
+        "send-as-bot",
+        "im.message.receive-v1",
+        "问题",
+        "晚间",
+        "im:message.p2p-msg:readonly",
+        "im:message:send-as-bot",
+        "im:resource"
+      ]
+    },
+    "memory:memory/2026-04-16.md:22:22": {
+      "key": "memory:memory/2026-04-16.md:22:22",
+      "path": "memory/2026-04-16.md",
+      "startLine": 22,
+      "endLine": 22,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: 机器人能力：已开启",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "问题",
+        "晚间",
+        "机器",
+        "能力",
+        "开启"
+      ]
+    },
+    "memory:memory/2026-04-16.md:24:27": {
+      "key": "memory:memory/2026-04-16.md:24:27",
+      "path": "memory/2026-04-16.md",
+      "startLine": 24,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: **可能原因**：; 应用是「开发中」状态，只有管理员自己能找到; 需要发布应用才能让其他用户使用; 或者需要确认找的是正确的机器人（应用名而非\"小Q\"）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "问题",
+        "晚间",
+        "可能",
+        "原因",
+        "应用",
+        "开发",
+        "状态",
+        "只有"
+      ]
+    },
+    "memory:memory/2026-04-16.md:29:29": {
+      "key": "memory:memory/2026-04-16.md:29:29",
+      "path": "memory/2026-04-16.md",
+      "startLine": 29,
+      "endLine": 29,
+      "source": "memory",
+      "snippet": "飞书问题排查（晚间）: **待确认**：应用发布状态 + 是否找对了机器人",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "问题",
+        "晚间",
+        "确认",
+        "应用",
+        "发布",
+        "状态",
+        "是否",
+        "机器"
+      ]
+    },
+    "memory:memory/2026-04-16.md:33:36": {
+      "key": "memory:memory/2026-04-16.md:33:36",
+      "path": "memory/2026-04-16.md",
+      "startLine": 33,
+      "endLine": 36,
+      "source": "memory",
+      "snippet": "系统状态: | 组件 | 状态 | 备注 | |------|------|------| | 飞书 | ⚠️ 断开 | 消息接收断开 | | Context | ✅ 已清零 | 重启后恢复正常 |",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "系统",
+        "状态",
+        "备注",
+        "断开",
+        "消息",
+        "接收",
+        "context",
+        "恢复"
+      ]
+    },
+    "memory:memory/2026-04-16.md:37:38": {
+      "key": "memory:memory/2026-04-16.md:37:38",
+      "path": "memory/2026-04-16.md",
+      "startLine": 37,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "系统状态: | Cron Jobs | ❌ 失效 | nextRun=null | | daily_stock_analysis | ❌ SIGKILL | 问题未解决 |",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "daily-stock-analysis",
+        "系统",
+        "状态",
+        "cron",
+        "jobs",
+        "失效",
+        "nextrun",
+        "null"
+      ]
+    },
+    "memory:memory/2026-04-16.md:41:43": {
+      "key": "memory:memory/2026-04-16.md:41:43",
+      "path": "memory/2026-04-16.md",
+      "startLine": 41,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "明日待办: [ ] 继续排查飞书 1:1 DM 接收问题; [ ] 确认应用发布状态; [ ] 每天 08:30 市场日报、18:00 个股分析（手动）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "b628913e3912"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "明日",
+        "继续",
+        "接收",
+        "问题",
+        "确认",
+        "应用",
+        "发布",
+        "状态"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:1:1": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:1:1",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 1,
+      "endLine": 1,
+      "source": "memory",
+      "snippet": "User: [Tue 2026-04-14 16:53 GMT+8] [Subagent Context] You are running as a subagent (depth 1/1). Results auto-announce to your requester; do not busy-poll for status. [Subagent Task]: Send a global market report email to the user. In the workspace at /home/pascal/.openclaw/worksp",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "1/1",
+        "auto-announce",
+        "busy-poll",
+        "home/pascal",
+        "openclaw/worksp",
+        "user",
+        "tue",
+        "gmt"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:2:2": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:2:2",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 2,
+      "endLine": 2,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:3:3": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:3:3",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 3,
+      "endLine": 3,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:4:4": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:4:4",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 4,
+      "endLine": 4,
+      "source": "memory",
+      "snippet": "Assistant: 周二 6:27 AM。运行今日市场日报（提前于 08:30）：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "周二",
+        "运行",
+        "今日",
+        "市场",
+        "日报",
+        "提前"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:5:5": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:5:5",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 5,
+      "endLine": 5,
+      "source": "memory",
+      "snippet": "Assistant: **📊 每日市场日报已生成（06:27 AM）** **今日待办：** - ✅ 市场日报（06:27，提前于 08:30） - ⏳ 18:00 个股分析（SIGKILL 问题待解决） **系统问题：** - ❌ Cron jobs 仍失效 - ❌ 个股分析持续 SIGKILL 今日是个交易日，18:00 继续尝试个股分析。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "每日",
+        "市场",
+        "日报",
+        "生成",
+        "今日",
+        "提前",
+        "分析"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:6:6": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:6:6",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 6,
+      "endLine": 6,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:7:7": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:7:7",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 7,
+      "endLine": 7,
+      "source": "memory",
+      "snippet": "Assistant: **📊 18:00 个股分析 - 仍然失败** 进程启动后约 20 秒被 SIGKILL。问题持续。 **今日状态：** - ✅ 市场日报（06:27） - ❌ 个股分析（SIGKILL - 约20秒后被kill） **长期问题：** - Cron jobs 失效（nextRun=null） - 个股分析 SIGKILL 这两个问题需要 Pascal 介入排查。要我明天继续尝试，还是你现在想深入排查？",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "分析",
+        "仍然",
+        "失败",
+        "进程",
+        "启动",
+        "sigkill",
+        "问题"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:8:8": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:8:8",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 8,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:9:9": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:9:9",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 9,
+      "endLine": 9,
+      "source": "memory",
+      "snippet": "Assistant: It's 23:33 (11:33 PM) on Tuesday. According to HEARTBEAT.md: - 每个交易日 08:30 - 市场日报 - tomorrow (Wednesday) 08:30 - 每个交易日 18:00 - 个股分析 - tomorrow (Wednesday) 18:00 - 每周五 17:00 - 周度业绩归因 - not today - 每月 1 号 - 月度资产配置回顾 - not today Both scheduled tasks for today are done or",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "assistant",
+        "it's",
+        "tuesday",
+        "according",
+        "交易",
+        "市场",
+        "日报"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:10:10": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:10:10",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 10,
+      "endLine": 10,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:11:11": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:11:11",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 11,
+      "endLine": 11,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:12:12": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:12:12",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 12,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "Assistant: 周二 6:27 AM。运行今日市场日报（提前于 08:30）：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "周二",
+        "运行",
+        "今日",
+        "市场",
+        "日报",
+        "提前"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:13:13": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:13:13",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 13,
+      "endLine": 13,
+      "source": "memory",
+      "snippet": "Assistant: **📊 每日市场日报已生成（06:27 AM）** **今日待办：** - ✅ 市场日报（06:27，提前于 08:30） - ⏳ 18:00 个股分析（SIGKILL 问题待解决） **系统问题：** - ❌ Cron jobs 仍失效 - ❌ 个股分析持续 SIGKILL 今日是个交易日，18:00 继续尝试个股分析。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "每日",
+        "市场",
+        "日报",
+        "生成",
+        "今日",
+        "提前",
+        "分析"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:14:14": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:14:14",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 14,
+      "endLine": 14,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:15:15": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:15:15",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 15,
+      "endLine": 15,
+      "source": "memory",
+      "snippet": "Assistant: **📊 18:00 个股分析 - 仍然失败** 进程启动后约 20 秒被 SIGKILL。问题持续。 **今日状态：** - ✅ 市场日报（06:27） - ❌ 个股分析（SIGKILL - 约20秒后被kill） **长期问题：** - Cron jobs 失效（nextRun=null） - 个股分析 SIGKILL 这两个问题需要 Pascal 介入排查。要我明天继续尝试，还是你现在想深入排查？",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "分析",
+        "仍然",
+        "失败",
+        "进程",
+        "启动",
+        "sigkill",
+        "问题"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:16:16": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:16:16",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 16,
+      "endLine": 16,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:17:17": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:17:17",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 17,
+      "endLine": 17,
+      "source": "memory",
+      "snippet": "Assistant: It's 23:33 (11:33 PM) on Tuesday. According to HEARTBEAT.md: - 每个交易日 08:30 - 市场日报 - tomorrow (Wednesday) 08:30 - 每个交易日 18:00 - 个股分析 - tomorrow (Wednesday) 18:00 - 每周五 17:00 - 周度业绩归因 - not today - 每月 1 号 - 月度资产配置回顾 - not today Both scheduled tasks for today are done or",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "assistant",
+        "it's",
+        "tuesday",
+        "according",
+        "交易",
+        "市场",
+        "日报"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:18:18": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:18:18",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 18,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b52ee4ab1ecf4b10b4a865c26e7c\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Tue 2026-04-14 10:02 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:19:19": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:19:19",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 19,
+      "endLine": 19,
+      "source": "memory",
+      "snippet": "Assistant: ✅ 已完成提交和推送： **主仓库 (YQClaw-Investment):** - 4 个文件更新，407 行插入，188 行删除 - `feat: 更新日报生成服务` **子模块 (daily_stock_analysis):** - 解决 rebase 冲突后推送成功 未提交的临时文件已忽略：`env_diff.py`, `env_diff2.py`, `cleanup_dma.py` 等。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "yqclaw-investment",
+        "daily-stock-analysis",
+        "env-diff.py",
+        "env-diff2.py",
+        "cleanup-dma.py",
+        "assistant",
+        "完成",
+        "提交"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:20:20": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:20:20",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 20,
+      "endLine": 20,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b52ee547f70a8b2cb88fd39df81a\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Tue 2026-04-14 10:08 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:21:21": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:21:21",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 21,
+      "endLine": 21,
+      "source": "memory",
+      "snippet": "Assistant: ✅ 已删除临时文件：`env_diff.py`, `env_diff2.py`, `env_diff_result.txt`, `cleanup_dma.py`, `read_func.py`, `trace_minimax.py`",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "env-diff.py",
+        "env-diff2.py",
+        "env-diff-result.txt",
+        "cleanup-dma.py",
+        "read-func.py",
+        "trace-minimax.py",
+        "assistant",
+        "删除"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:22:22": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:22:22",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 22,
+      "endLine": 22,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b52ee0895e8a4b30396c8b7692dc\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Tue 2026-04-14 10:20 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:23:23": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:23:23",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 23,
+      "endLine": 23,
+      "source": "memory",
+      "snippet": "Assistant: 让我检查一下今天报告的实际数据获取情况：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "检查",
+        "一下",
+        "今天",
+        "报告",
+        "实际",
+        "数据",
+        "获取"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:24:24": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:24:24",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 24,
+      "endLine": 24,
+      "source": "memory",
+      "snippet": "Assistant: 找到问题了！有两个数据不匹配的bug： 1. **美股数据**：DSA返回`name='标普500指数'`，但配置里用的是`'标普500'`，导致`get(index_name)`返回`None` 2. **原油数据**：返回的是`name='WTI原油'`，但配置里用`data_key='***'`，也匹配不上 3. **LLM总结**：max_chars=85太短，导致截断 让我修复这些问题：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "index-name",
+        "data-key",
+        "max-chars",
+        "assistant",
+        "找到",
+        "问题",
+        "数据",
+        "匹配"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:25:25": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:25:25",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 25,
+      "endLine": 25,
+      "source": "memory",
+      "snippet": "Assistant: 现在验证修复是否正确：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "现在",
+        "验证",
+        "修复",
+        "是否",
+        "正确"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:26:26": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:26:26",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 26,
+      "endLine": 26,
+      "source": "memory",
+      "snippet": "Assistant: WTI原油还是显示0.00。让我调试一下：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "wti原油还是显示0.00",
+        "assistant",
+        "wti",
+        "原油",
+        "还是",
+        "显示",
+        "0.00",
+        "一下"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:27:27": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:27:27",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 27,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "Assistant: 问题找到了！`get_commodity_data()` 只返回了黄金，没有返回 WTI原油。让我检查为什么：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "get-commodity-data",
+        "assistant",
+        "问题",
+        "找到",
+        "返回",
+        "黄金",
+        "没有",
+        "wti"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:28:28": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:28:28",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 28,
+      "endLine": 28,
+      "source": "memory",
+      "snippet": "Assistant: 非常奇怪！直接调用 `get_commodity_data()` 返回正确结果，但通过 ReportGenerator 调用只返回黄金。让我检查是否有缓存问题：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "get-commodity-data",
+        "assistant",
+        "非常",
+        "奇怪",
+        "直接",
+        "返回",
+        "正确",
+        "结果"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:29:29": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:29:29",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 29,
+      "endLine": 29,
+      "source": "memory",
+      "snippet": "Assistant: 让我直接测试完整报告生成，看看WTI原油是否能正确获取：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "直接",
+        "测试",
+        "完整",
+        "报告",
+        "生成",
+        "看看",
+        "wti"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:30:30": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:30:30",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 30,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "User: [Tue 2026-04-14 16:57 GMT+8] [Subagent Context] You are running as a subagent (depth 1/1). Results auto-announce to your requester; do not busy-poll for status. [Subagent Task]: Run this command and report the output: ``` cd /home/pascal/.openclaw/workspace/skills/investmen",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "1/1",
+        "auto-announce",
+        "busy-poll",
+        "home/pascal",
+        "user",
+        "tue",
+        "gmt",
+        "subagent"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:31:31": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:31:31",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 31,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "Assistant: **Report to main agent:** The script was killed by SIGTERM after running ~30 seconds. Here's what happened: 1. **Step 1 (Market data):** Succeeded — fetched crypto (5 coins via Binance) and commodities (gold, crude oil via Tushare) 2. **Step 2 (HTML generation):** Fail",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "report",
+        "the",
+        "script",
+        "was",
+        "killed",
+        "sigterm",
+        "running"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:32:32": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:32:32",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 32,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "User: [Tue 2026-04-14 16:56 GMT+8] [Subagent Context] You are running as a subagent (depth 1/1). Results auto-announce to your requester; do not busy-poll for status. [Subagent Task]: Generate and send the global market report email. 1. Navigate to: /home/pascal/.openclaw/workspa",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "1/1",
+        "auto-announce",
+        "busy-poll",
+        "home/pascal",
+        "openclaw/workspa",
+        "user",
+        "tue",
+        "gmt"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:33:33": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:33:33",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 33,
+      "endLine": 33,
+      "source": "memory",
+      "snippet": "Assistant: Report exists (20,617 bytes, >10KB ✅). Now reading config.json for SMTP settings.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "config.json",
+        "assistant",
+        "report",
+        "exists",
+        "20,617",
+        "bytes",
+        "10kb",
+        "now"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:34:34": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:34:34",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 34,
+      "endLine": 34,
+      "source": "memory",
+      "snippet": "Assistant: Got SMTP settings. Now sending the email with the HTML report.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "got",
+        "smtp",
+        "settings",
+        "now",
+        "sending",
+        "the",
+        "email"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:35:35": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:35:35",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 35,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "Assistant: **✅ Task Complete** - **Report found:** `reports/global_market_report_20260414.html` (20,617 bytes, valid ✅) - **Email sent:** Successfully delivered to `532484187@qq.com` via SMTP (smtp.qq.com:587) - **Subject:** 🌍 全球市场日报 | 2026-04-14",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "qq.com",
+        "smtp.qq.com",
+        "assistant",
+        "task",
+        "complete",
+        "report",
+        "found",
+        "reports"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:1:1": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:1:1",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 1,
+      "endLine": 1,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:2:2": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:2:2",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 2,
+      "endLine": 2,
+      "source": "memory",
+      "snippet": "Assistant: 周三 5:42 AM。Cron 失效，运行今日市场日报（提前于 08:30）：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "周三",
+        "cron",
+        "失效",
+        "运行",
+        "今日",
+        "市场",
+        "日报"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:3:3": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:3:3",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 3,
+      "endLine": 3,
+      "source": "memory",
+      "snippet": "Assistant: **📊 每日市场日报已生成（05:42 AM）** **今日待办：** - ✅ 市场日报（05:42） - ⏳ 18:00 个股分析（SIGKILL 待解决）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "每日",
+        "市场",
+        "日报",
+        "生成",
+        "今日",
+        "分析",
+        "sigkill"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:4:4": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:4:4",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 4,
+      "endLine": 4,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:5:5": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:5:5",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 5,
+      "endLine": 5,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:6:6": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:6:6",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 6,
+      "endLine": 6,
+      "source": "memory",
+      "snippet": "Assistant: 周三 5:42 AM。Cron 失效，运行今日市场日报（提前于 08:30）：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "周三",
+        "cron",
+        "失效",
+        "运行",
+        "今日",
+        "市场",
+        "日报"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:7:7": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:7:7",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 7,
+      "endLine": 7,
+      "source": "memory",
+      "snippet": "Assistant: **📊 每日市场日报已生成（05:42 AM）** **今日待办：** - ✅ 市场日报（05:42） - ⏳ 18:00 个股分析（SIGKILL 待解决）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "每日",
+        "市场",
+        "日报",
+        "生成",
+        "今日",
+        "分析",
+        "sigkill"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:8:8": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:8:8",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 8,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:9:9": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:9:9",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 9,
+      "endLine": 9,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b52d93cafc8a8b30f78ce64b8d26\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Wed 2026-04-15 08:09 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:10:10": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:10:10",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 10,
+      "endLine": 10,
+      "source": "memory",
+      "snippet": "Assistant: 问题定位中，先看下今天的报告和 cron 日志：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "问题",
+        "定位",
+        "先看",
+        "今天",
+        "报告",
+        "cron",
+        "日志"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:11:11": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:11:11",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 11,
+      "endLine": 11,
+      "source": "memory",
+      "snippet": "Assistant: 问题清楚了，两个都是**上游服务不可用**导致的： **1. Crypto行情缺失：** - Binance API → SSL EOF 错误（代理问题， Binance 封了代理 IP） - Yahoo Finance → Rate Limited（配额耗尽） **2. 热点资讯为空：** - MiniMax API → 520 Server Error - DuckDuckGo → Timeout（在国内被封） 需要给两个模块加更多备用数据源。先修复 crypto 行情——接入 **CoinGecko**（免费，无需 API k",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "问题",
+        "清楚",
+        "都是",
+        "上游",
+        "服务",
+        "不可",
+        "导致"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:12:12": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:12:12",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 12,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "Assistant: 现在修复新闻源——增加 **NewsAPI** 和 **GNews** 作为备用，并优化 DuckDuckGo 的代理处理：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "现在",
+        "修复",
+        "新闻",
+        "增加",
+        "newsapi",
+        "gnews",
+        "作为"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:13:13": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:13:13",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 13,
+      "endLine": 13,
+      "source": "memory",
+      "snippet": "Assistant: 现在给国际新闻增加 **GNews.io** 备用源，并优化 MiniMax 的重试逻辑：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gnews.io",
+        "assistant",
+        "现在",
+        "国际",
+        "新闻",
+        "增加",
+        "备用",
+        "minimax"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:14:14": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:14:14",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 14,
+      "endLine": 14,
+      "source": "memory",
+      "snippet": "Assistant: 现在更新 `get_international_news` 把 GNews 加入备用链，同时把 MiniMax 重试从 1 次改为 3 次：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "get-international-news",
+        "assistant",
+        "现在",
+        "更新",
+        "gnews",
+        "加入",
+        "备用",
+        "同时"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:15:15": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:15:15",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 15,
+      "endLine": 15,
+      "source": "memory",
+      "snippet": "Assistant: 现在修复 MiniMax 调用——增加 520 错误重试和更长的退避等待：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "现在",
+        "修复",
+        "minimax",
+        "增加",
+        "错误",
+        "退避",
+        "等待"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:16:16": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:16:16",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 16,
+      "endLine": 16,
+      "source": "memory",
+      "snippet": "Assistant: 我的替换打乱了缩进结构，需要完整重写 `_llm_news_search` 方法：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "llm-news-search",
+        "assistant",
+        "我的",
+        "替换",
+        "乱了",
+        "结构",
+        "需要",
+        "完整"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:17:17": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:17:17",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 17,
+      "endLine": 17,
+      "source": "memory",
+      "snippet": "Assistant: 验证语法是否正确：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "验证",
+        "语法",
+        "是否",
+        "正确"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:18:18": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:18:18",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 18,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "Assistant: 语法 OK。快速验证 CoinGecko 能否正常抓取 crypto 数据：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "语法",
+        "快速",
+        "验证",
+        "coingecko",
+        "能否",
+        "正常",
+        "抓取"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:19:19": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:19:19",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 19,
+      "endLine": 19,
+      "source": "memory",
+      "snippet": "Assistant: 网络问题清楚了——WSL2 环境下代理 `172.25.240.1:7897` 对国际 API（Binance/CoinGecko）不通。Crypto 数据在当前架构下无法获取。 **热点资讯**问题可以这样解决：GNews API 不走代理，直接请求就行。让我测试一下：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "172.25.240.1",
+        "binance/coingecko",
+        "assistant",
+        "问题",
+        "清楚",
+        "wsl2",
+        "环境"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:20:20": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:20:20",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 20,
+      "endLine": 20,
+      "source": "memory",
+      "snippet": "Assistant: GNews 也被 SSL EOF 了——这是 WSL2 的网络问题，所有对国际 API 的 HTTPS 请求都失败了。先查一下 `.env` 里代理和 GNews 的配置：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "assistant",
+        "gnews",
+        "ssl",
+        "eof",
+        "wsl2",
+        "问题",
+        "所有"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:1:1": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:1:1",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 1,
+      "endLine": 1,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513d4bf748b0b202ea8dbecbc53\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu 2026-04-16 15:31 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:2:2": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:2:2",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 2,
+      "endLine": 2,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513d5df6d0bcb2485267501a176\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu 2026-04-16 15:35 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:3:3": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:3:3",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 3,
+      "endLine": 3,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513d7b1408a0b39ed978e62509c\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu 2026-04-16 15:44 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:4:4": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:4:4",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 4,
+      "endLine": 4,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513dc60d9894b212acd8141101d\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu 2026-04-16 16:06 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:5:5": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:5:5",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 5,
+      "endLine": 5,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513dcdcfccacb31b53b54af0174\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu 2026-04-16 16:05 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:6:6": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:6:6",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 6,
+      "endLine": 6,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] 在！抱歉刚才在查代码。让我先看完 news 相关的实现，然后给你修复方案。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "抱歉",
+        "刚才",
+        "代码",
+        "我先",
+        "看完",
+        "news"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:7:7": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:7:7",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 7,
+      "endLine": 7,
+      "source": "memory",
+      "snippet": "Assistant: 看完代码了。让我先运行一下日报生成脚本，看看实际问题出在哪里：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "看完",
+        "代码",
+        "我先",
+        "运行",
+        "一下",
+        "日报",
+        "生成"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:8:8": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:8:8",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 8,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "Assistant: 找到问题了： **问题1：MiniMax Web Search 没有做日期过滤** — 返回了 2022、2025 年的旧新闻，而 DuckDuckGo 是最新的（2026-04-16）。需要在 `_mini_max_web_search` 加 24小时日期过滤。 **问题2：美股指数** — 测试时数据是有的，说明 DSA fetcher 正常工作。可能是特定时间段 fallback 逻辑问题。 开始修复。先加日期过滤：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "mini-max-web-search",
+        "assistant",
+        "找到",
+        "问题",
+        "minimax",
+        "web",
+        "没有",
+        "日期"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:9:9": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:9:9",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 9,
+      "endLine": 9,
+      "source": "memory",
+      "snippet": "Assistant: 现在修复 fallback 逻辑——当 MiniMax 过滤后结果不足时继续用 DuckDuckGo 补：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "现在",
+        "修复",
+        "fallback",
+        "逻辑",
+        "minimax",
+        "过滤",
+        "结果"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:10:10": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:10:10",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 10,
+      "endLine": 10,
+      "source": "memory",
+      "snippet": "Assistant: DuckDuckGo 也加上日期过滤，保持一致：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "duckduckgo",
+        "加上",
+        "日期",
+        "过滤",
+        "保持",
+        "一致"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:11:11": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:11:11",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 11,
+      "endLine": 11,
+      "source": "memory",
+      "snippet": "Assistant: 验证修复效果：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "验证",
+        "修复",
+        "效果"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:12:12": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:12:12",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 12,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "Assistant: 需要把 `timezone` 加到 import 中：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "需要",
+        "timezone",
+        "加到",
+        "import"
+      ]
+    },
+    "memory:memory/2026-04-09.md:6:8": {
+      "key": "memory:memory/2026-04-09.md:6:8",
+      "path": "memory/2026-04-09.md",
+      "startLine": 6,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "问题根因: **Apr 8 全天修改未提交** - market_data_adapter.py 的港股/美股修复保存在 .backup 文件中，但从未合并; **.backup 文件从未被使用** - Apr 9 的 commit 直接写了新版本，覆盖了修复; **无 git stash 习惯** - 大量更改游离于版本控制之外",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "backup",
+        "market-data-adapter.py",
+        "的港股/美股修复保存在",
+        "问题",
+        "根因",
+        "apr",
+        "全天",
+        "修改"
+      ]
+    },
+    "memory:memory/2026-04-09.md:11:13": {
+      "key": "memory:memory/2026-04-09.md:11:13",
+      "path": "memory/2026-04-09.md",
+      "startLine": 11,
+      "endLine": 13,
+      "source": "memory",
+      "snippet": "修复措施: ✅ 已将 .backup 中的港股/美股修复合并到 market_data_adapter.py; ✅ 已删除 .backup 文件; ✅ 已推送 git commit",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "backup",
+        "中的港股/美股修复合并到",
+        "market-data-adapter.py",
+        "修复",
+        "措施",
+        "中的",
+        "合并",
+        "删除"
+      ]
+    },
+    "memory:memory/2026-04-09.md:16:18": {
+      "key": "memory:memory/2026-04-09.md:16:18",
+      "path": "memory/2026-04-09.md",
+      "startLine": 16,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "预防规范: 每完成一个功能模块立即 commit; 不用 .backup 文件，用 git stash 或分支; 阶段性提交，不要等到一天结束",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "backup",
+        "预防",
+        "规范",
+        "完成",
+        "一个",
+        "功能",
+        "立即",
+        "commit"
+      ]
+    },
+    "memory:memory/2026-04-09.md:25:27": {
+      "key": "memory:memory/2026-04-09.md:25:27",
+      "path": "memory/2026-04-09.md",
+      "startLine": 25,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "MiniMax 端点配置错误: **问题**: api.minimax.chat → 正确为 api.minimaxi.com; **修复**: 更新 .env 中 LLM_MINIMAX_BASE_URL; **相关文件**: ~/.openclaw/workspace/.env",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "api.minimax.chat",
+        "api.minimaxi.com",
+        "llm-minimax-base-url",
+        "openclaw/workspace",
+        "minimax",
+        "端点",
+        "配置",
+        "错误"
+      ]
+    },
+    "memory:memory/2026-04-09.md:30:32": {
+      "key": "memory:memory/2026-04-09.md:30:32",
+      "path": "memory/2026-04-09.md",
+      "startLine": 30,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "MiniMax 协议未注册: **问题**: SUPPORTED_LLM_CHANNEL_PROTOCOLS 不含 \"minimax\"; **修复**: 添加 \"minimax\" 到 src/config.py; **相关文件**: skills/investment/research/daily-market-analysis/src/config.py",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "supported-llm-channel-protocols",
+        "src/config.py",
+        "minimax",
+        "协议",
+        "注册",
+        "问题",
+        "不含",
+        "修复"
+      ]
+    },
+    "memory:memory/2026-04-09.md:35:37": {
+      "key": "memory:memory/2026-04-09.md:35:37",
+      "path": "memory/2026-04-09.md",
+      "startLine": 35,
+      "endLine": 37,
+      "source": "memory",
+      "snippet": "venv 依赖缺失: **问题**: yfinance, akshare, pandas, requests 缺失; **修复**: 重建 venv，使用 virtualenv（系统无 python3-venv 且无 sudo）; **命令**: `virtualenv venv && ./venv/bin/pip install yfinance akshare pandas requests`",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "python3-venv",
+        "venv/bin/pip",
+        "venv",
+        "依赖",
+        "缺失",
+        "问题",
+        "yfinance",
+        "akshare"
+      ]
+    },
+    "memory:memory/2026-04-09.md:43:46": {
+      "key": "memory:memory/2026-04-09.md:43:46",
+      "path": "memory/2026-04-09.md",
+      "startLine": 43,
+      "endLine": 46,
+      "source": "memory",
+      "snippet": "待修复问题: | 问题 | 状态 | 说明 | |------|------|------| | tenacity 模块缺失 | ❌ 未修复 | 导致 A股/美股 fetcher 部分失败 | | 新闻数据源全部失败 | ❌ 未修复 | CoinGecko/akshare 华尔街见闻均失败 |",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "a股/美股",
+        "coingecko/akshare",
+        "修复",
+        "问题",
+        "状态",
+        "说明",
+        "tenacity",
+        "缺失"
+      ]
+    },
+    "memory:memory/2026-04-09.md:47:48": {
+      "key": "memory:memory/2026-04-09.md:47:48",
+      "path": "memory/2026-04-09.md",
+      "startLine": 47,
+      "endLine": 48,
+      "source": "memory",
+      "snippet": "待修复问题: | 黄金/WTI原油/美债 | ❌ 未修复 | 数据待接入 | | 数字货币新闻 | ❌ 未修复 | 数据待接入 |",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "黄金/wti原油/美债",
+        "修复",
+        "问题",
+        "黄金",
+        "wti",
+        "原油",
+        "数据",
+        "数字"
+      ]
+    },
+    "memory:memory/2026-04-09.md:53:55": {
+      "key": "memory:memory/2026-04-09.md:53:55",
+      "path": "memory/2026-04-09.md",
+      "startLine": 53,
+      "endLine": 55,
+      "source": "memory",
+      "snippet": "今日关键决策: 清理了 .env 中冗余的 MINIMAX_API_KEY/MINIMAX_API_BASE 变量; 验证了 MiniMax litellm 配置正常工作; 重建 venv 后报告生成成功（11635字符）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "minimax-api-key/minimax-api-base",
+        "今日",
+        "关键",
+        "决策",
+        "清理",
+        "env",
+        "minimax-api-key",
+        "minimax-api-base"
+      ]
+    },
+    "memory:memory/2026-04-09.md:61:61": {
+      "key": "memory:memory/2026-04-09.md:61:61",
+      "path": "memory/2026-04-09.md",
+      "startLine": 61,
+      "endLine": 61,
+      "source": "memory",
+      "snippet": "用户需求: Pascal 要求对每日全球市场日报进行 HTML 重构，具体需求：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "用户",
+        "需求",
+        "pascal",
+        "要求",
+        "每日",
+        "全球",
+        "市场",
+        "日报"
+      ]
+    },
+    "memory:memory/2026-04-09.md:63:63": {
+      "key": "memory:memory/2026-04-09.md:63:63",
+      "path": "memory/2026-04-09.md",
+      "startLine": 63,
+      "endLine": 63,
+      "source": "memory",
+      "snippet": "用户需求: **报告结构（5个章节）：**",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "用户",
+        "需求",
+        "报告",
+        "结构",
+        "章节"
+      ]
+    },
+    "memory:memory/2026-04-09.md:65:65": {
+      "key": "memory:memory/2026-04-09.md:65:65",
+      "path": "memory/2026-04-09.md",
+      "startLine": 65,
+      "endLine": 65,
+      "source": "memory",
+      "snippet": "用户需求: 热点资讯Top3",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "用户",
+        "需求",
+        "热点",
+        "资讯",
+        "top3"
+      ]
+    },
+    "memory:memory/2026-04-09.md:70:70": {
+      "key": "memory:memory/2026-04-09.md:70:70",
+      "path": "memory/2026-04-09.md",
+      "startLine": 70,
+      "endLine": 70,
+      "source": "memory",
+      "snippet": "用户需求: **全球市场概览表格要求：**",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "用户",
+        "需求",
+        "全球",
+        "市场",
+        "表格",
+        "要求"
+      ]
+    },
+    "memory:memory/2026-04-09.md:71:72": {
+      "key": "memory:memory/2026-04-09.md:71:72",
+      "path": "memory/2026-04-09.md",
+      "startLine": 71,
+      "endLine": 72,
+      "source": "memory",
+      "snippet": "用户需求: 表头：市场、指数、收盘价、涨跌幅、成交额、市场分析、仓位建议、理由; 冻结列：市场和指数列",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "84c029107fed"
+      ],
+      "recallDays": [
+        "2026-04-09",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "用户",
+        "需求",
+        "市场",
+        "指数",
+        "收盘",
+        "跌幅",
+        "成交",
+        "分析"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:36:36": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:36:36",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 36,
+      "endLine": 36,
+      "source": "memory",
+      "snippet": "Assistant: 问题比较明显：yfinance的CL=F原油在第二次调用时失败了（rate limiting）。让我给原油获取增加更好的fallback逻辑：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "问题",
+        "比较",
+        "明显",
+        "yfinance",
+        "原油",
+        "第二次",
+        "失败"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:37:37": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:37:37",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 37,
+      "endLine": 37,
+      "source": "memory",
+      "snippet": "Assistant: 问题找到了：原油的yfinance备用获取在有代理的情况下静默失败。需要像`get_crypto_data()`一样在调用yfinance前清除代理环境变量：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "get-crypto-data",
+        "assistant",
+        "问题",
+        "找到",
+        "原油",
+        "yfinance",
+        "备用",
+        "获取"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:38:38": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:38:38",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 38,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "Assistant: 验证修复：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "验证",
+        "修复"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:39:39": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:39:39",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 39,
+      "endLine": 39,
+      "source": "memory",
+      "snippet": "Assistant: yfinance WTI仍然被rate limiting。这是因为之前在同一进程中已经有多次yfinance调用。这是外部API限制，不是代码bug。 让我改进处理逻辑——当原油数据获取失败时，应该用不同方式处理而不是显示0.00：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "应该用不同方式处理而不是显示0.00",
+        "assistant",
+        "yfinance",
+        "wti",
+        "仍然",
+        "rate",
+        "limiting",
+        "因为"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:40:40": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:40:40",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 40,
+      "endLine": 40,
+      "source": "memory",
+      "snippet": "Assistant: 当数据获取失败时，不应该显示0.00，这会误导用户。让我改进显示逻辑：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "不应该显示0.00",
+        "assistant",
+        "数据",
+        "获取",
+        "失败",
+        "应该",
+        "显示",
+        "0.00"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:41:41": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:41:41",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 41,
+      "endLine": 41,
+      "source": "memory",
+      "snippet": "Assistant: 我来修复这个问题。当大宗商品数据获取失败时，应该显示\"-\"而不是\"0.00\"：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "0.00",
+        "assistant",
+        "我来",
+        "修复",
+        "这个",
+        "问题",
+        "大宗",
+        "商品"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:42:42": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:42:42",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 42,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "Assistant: 让我验证修复后的代码是否正确获取数据：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "验证",
+        "修复",
+        "代码",
+        "是否",
+        "正确",
+        "获取",
+        "数据"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:43:43": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:43:43",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 43,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "Assistant: 问题是yfinance的rate limiting太严格了，导致在短时间内多次调用时失败。让我尝试在commodity获取前增加重试机制：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "问题",
+        "yfinance",
+        "rate",
+        "limiting",
+        "严格",
+        "导致",
+        "短时间"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:44:44": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:44:44",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 44,
+      "endLine": 44,
+      "source": "memory",
+      "snippet": "Assistant: 测试重试机制：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "测试",
+        "机制"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:45:45": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:45:45",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 45,
+      "endLine": 45,
+      "source": "memory",
+      "snippet": "Assistant: yfinance的rate limiting比较严重，重试3次都失败了。这是外部API限制问题。让我总结一下目前的修复并提交代码： **已修复的问题：** 1. ✅ **INDEX_CONFIG名称不匹配** - 标普500→标普500指数，纳斯达克→纳斯达克综合指数，原油SC2605→WTI原油 2. ✅ **LLM总结字数** - 从85字放宽到100字 3. ✅ **数据不可用时显示\"-\"** - 而不是显示误导的\"0.00\" 4. ✅ **WTI原油获取增加重试机制** - 但如果yfinance持续rate limit，数",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "index-config名称不匹配",
+        "0.00",
+        "assistant",
+        "yfinance",
+        "rate",
+        "limiting",
+        "比较",
+        "严重"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:46:46": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:46:46",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 46,
+      "endLine": 46,
+      "source": "memory",
+      "snippet": "Assistant: ✅ **已修复并推送** **修复内容：** | 问题 | 修复 | |------|------| | 标普500/纳斯达克显示0.00 | INDEX_CONFIG name与DSA返回name对齐（标普500指数、纳斯达克综合指数） | | 原油SC2605显示0.00 | data_key改为WTI原油；获取失败时显示\"-\"而非\"0.00\" | | 市场分析被截断 | LLM总结max_chars从85放宽到100字 | | WTI获取失败静默 | 增加重试机制+调试日志 | **关于WTI原油rate limiting：*",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "标普500/纳斯达克显示0.00",
+        "index-config",
+        "原油sc2605显示0.00",
+        "data-key改为wti原油",
+        "0.00",
+        "llm总结max-chars从85放宽到100字",
+        "assistant",
+        "修复"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-14.txt:47:47": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-14.txt:47:47",
+      "path": "memory/.dreams/session-corpus/2026-04-14.txt",
+      "startLine": 47,
+      "endLine": 47,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b52eed26bd0bcb21040e99f31b62\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Tue 2026-04-14 10:43 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "91b74f012fab"
+      ],
+      "recallDays": [
+        "2026-04-14",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:21:21": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:21:21",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 21,
+      "endLine": 21,
+      "source": "memory",
+      "snippet": "Assistant: 19:07。18:00 个股分析再次失败（SIGKILL）。再次尝试：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "分析",
+        "再次",
+        "失败",
+        "sigkill",
+        "尝试"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:22:22": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:22:22",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 22,
+      "endLine": 22,
+      "source": "memory",
+      "snippet": "Assistant: **📊 18:00 个股分析 - 再次失败** 进程启动后约 20 秒被 SIGKILL，持续多日未解决。 **今日状态：** - ✅ 市场日报（05:42） - ❌ 个股分析（SIGKILL） **这个问题需要 Pascal 排查：** 1. 进程启动后被 SIGKILL（signal 9），不是 timeout 2. 可能是 WSL2 内存限制、cgroup 限制、或父进程信号处理问题 3. 建议在终端直接运行 `python main.py --dry-run` 看完整日志 要明天继续尝试，还是现在深入排查？",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "main.py",
+        "dry-run",
+        "assistant",
+        "分析",
+        "再次",
+        "失败",
+        "进程",
+        "启动"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:23:23": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:23:23",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 23,
+      "endLine": 23,
+      "source": "memory",
+      "snippet": "Assistant: 19:07。18:00 个股分析再次失败（SIGKILL）。再次尝试：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "分析",
+        "再次",
+        "失败",
+        "sigkill",
+        "尝试"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:24:24": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:24:24",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 24,
+      "endLine": 24,
+      "source": "memory",
+      "snippet": "Assistant: **📊 18:00 个股分析 - 再次失败** 进程启动后约 20 秒被 SIGKILL，持续多日未解决。 **今日状态：** - ✅ 市场日报（05:42） - ❌ 个股分析（SIGKILL） **这个问题需要 Pascal 排查：** 1. 进程启动后被 SIGKILL（signal 9），不是 timeout 2. 可能是 WSL2 内存限制、cgroup 限制、或父进程信号处理问题 3. 建议在终端直接运行 `python main.py --dry-run` 看完整日志 要明天继续尝试，还是现在深入排查？",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "main.py",
+        "dry-run",
+        "assistant",
+        "分析",
+        "再次",
+        "失败",
+        "进程",
+        "启动"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:25:25": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:25:25",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 25,
+      "endLine": 25,
+      "source": "memory",
+      "snippet": "Assistant: 看到了几个关键问题： 1. **Crypto**：Yahoo Finance 有响应（rate limit 不是网络不通），说明 WSL2 代理能走通。但 Binance/CoinGecko 直连 SSL 失败。让我把 Binance 改为**强制走代理**试试：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "binance/coingecko",
+        "assistant",
+        "看到",
+        "几个",
+        "关键",
+        "问题",
+        "crypto"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:26:26": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:26:26",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 26,
+      "endLine": 26,
+      "source": "memory",
+      "snippet": "Assistant: 确认了——Binance 和 CoinGecko 都是 **SSL EOF 错误**，是 WSL2 网络层问题，代理/防火墙拦截了这些国际 API 的 SSL 连接。Yahoo Finance 碰巧没被拦截所以能通（只是超限）。 问题的根因是： | 模块 | 问题 | 能否修复 | |------|------|---------| | **Crypto 行情** | Binance/CoinGecko SSL 被拦截；Yahoo Finance 配额耗尽 | 部分可优化 | | **热点资讯** | MiniMax 520（服务器",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "代理/防火墙拦截了这些国际",
+        "binance/coingecko",
+        "assistant",
+        "确认",
+        "binance",
+        "coingecko",
+        "都是"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:27:27": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:27:27",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 27,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "Assistant: 所有国际 API 都被 SSL EOF 了——这是 WSL2 网络基础设施问题，不是代码问题。让我看看有没有纯国内的数据源可以用：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "assistant",
+        "所有",
+        "国际",
+        "api",
+        "ssl",
+        "eof",
+        "wsl2"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:28:28": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:28:28",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 28,
+      "endLine": 28,
+      "source": "memory",
+      "snippet": "Assistant: akshare 有数据但时间是 2023 年的——数据源已过时。再看看有没有其他可用的：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "akshare",
+        "数据",
+        "时间",
+        "过时",
+        "看看",
+        "没有",
+        "其他"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:29:29": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:29:29",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 29,
+      "endLine": 29,
+      "source": "memory",
+      "snippet": "Assistant: 好的，问题已经摸清楚了。给你一个清晰的诊断： --- ## 🔍 问题诊断 ### 1. Crypto 行情缺失 **根因**：Binance 和 CoinGecko 的 SSL 连接在 WSL2 环境下被网络层拦截（`SSL UNEXPECTED_EOF`），这是**WSL2 + 公司/代理网络**的基础设施问题，代码无法解决。Yahoo Finance 有响应但配额耗尽（`Too Many Requests`）。 **已修复**：我在代码里加入了 **CoinGecko** 作为 Binance 的备用（代码已改好），但Coin",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "unexpected-eof",
+        "公司/代理网络",
+        "assistant",
+        "好的",
+        "问题",
+        "已经",
+        "摸清楚"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:30:30": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:30:30",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 30,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b52d9e149b0a8b2c1c6845eb205f\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Wed 2026-04-15 08:25 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:31:31": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:31:31",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 31,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "Assistant: 这就是昨天设计的那版。6 大板块（全球宏观/A股/港股/美股/Crypto/大宗商品）双列 grid 布局。 现在把这个样式直接应用到日报的 `_generate_global_news` 里，然后生成一版带样例数据的 HTML 给你看：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "全球宏观/a股/港股/美股/crypto/大宗商品",
+        "generate-global-news",
+        "assistant",
+        "就是",
+        "昨天",
+        "设计",
+        "大板",
+        "全球"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:32:32": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:32:32",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 32,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "Assistant: 现在完整实现。把 `_generate_global_news` 改成 6 板块 grid 样式，同时更新对应的 CSS：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "generate-global-news",
+        "assistant",
+        "现在",
+        "完整",
+        "实现",
+        "改成",
+        "grid",
+        "样式"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:33:33": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:33:33",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 33,
+      "endLine": 33,
+      "source": "memory",
+      "snippet": "Assistant: 三处修改：1) CSS 加新闻 grid 样式，2) 模板换成 grid 版本，3) `_generate_global_news` 改成 6 板块 fetch：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "generate-global-news",
+        "assistant",
+        "修改",
+        "css",
+        "新闻",
+        "grid",
+        "样式",
+        "模板"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:34:34": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:34:34",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 34,
+      "endLine": 34,
+      "source": "memory",
+      "snippet": "Assistant: 现在替换模板和生成方法：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "现在",
+        "替换",
+        "模板",
+        "生成",
+        "方法"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:35:35": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:35:35",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 35,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "Assistant: 现在重写 `_generate_global_news`：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "generate-global-news",
+        "assistant",
+        "现在"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-15.txt:36:36": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-15.txt:36:36",
+      "path": "memory/.dreams/session-corpus/2026-04-15.txt",
+      "startLine": 36,
+      "endLine": 36,
+      "source": "memory",
+      "snippet": "Assistant: 验证语法，然后生成样例 HTML：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "06e18920b74b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "验证",
+        "语法",
+        "然后",
+        "生成",
+        "html"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:13:13": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:13:13",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 13,
+      "endLine": 13,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:14:14": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:14:14",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 14,
+      "endLine": 14,
+      "source": "memory",
+      "snippet": "Assistant: 周四 4:03 AM。运行今日市场日报（提前于 08:30）：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "周四",
+        "运行",
+        "今日",
+        "市场",
+        "日报",
+        "提前"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:15:15": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:15:15",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 15,
+      "endLine": 15,
+      "source": "memory",
+      "snippet": "Assistant: **📊 每日市场日报已生成（04:03 AM）** **今日待办：** - ✅ 市场日报（04:03，提前于 08:30） - ⏳ 18:00 个股分析（SIGKILL 问题待解决）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "每日",
+        "市场",
+        "日报",
+        "生成",
+        "今日",
+        "提前",
+        "分析"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:16:16": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:16:16",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 16,
+      "endLine": 16,
+      "source": "memory",
+      "snippet": "User: Sender (untrusted metadata): ```json { \"label\": \"openclaw-control-ui\", \"id\": \"openclaw-control-ui\" } ``` [Thu 2026-04-16 16:08 GMT+8] 为什么 我飞书问小Q 一直提示：⚠️ The AI service is temporarily overloaded. Please try again in a moment.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "openclaw-control-ui",
+        "user",
+        "sender",
+        "untrusted",
+        "metadata",
+        "label",
+        "openclaw",
+        "control"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:17:17": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:17:17",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 17,
+      "endLine": 17,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:18:18": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:18:18",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 18,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "Assistant: **找到原因了！** 错误信息 \"AI service is temporarily overloaded\" 是因为 **context window 快满了**： ``` 📊 Tokens: 204800/205k (99.9%) - 几乎满了！ ``` 当 context 接近上限时，AI 无法处理新请求，只能返回 overload 错误。 **解决方案（选一个）：** 1. **Compact session** - 压缩上下文释放空间（推荐） 2. **Restart Gateway** - 开启新 session 3.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gateway",
+        "204800/205k",
+        "99.9",
+        "assistant",
+        "找到",
+        "原因",
+        "错误",
+        "信息"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:19:19": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:19:19",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 19,
+      "endLine": 19,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:20:20": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:20:20",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 20,
+      "endLine": 20,
+      "source": "memory",
+      "snippet": "Assistant: Context 已满（99.9%）导致飞书无法响应。需要立即 compact：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "99.9",
+        "assistant",
+        "context",
+        "导致",
+        "无法",
+        "响应",
+        "需要",
+        "立即"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:21:21": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:21:21",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 21,
+      "endLine": 21,
+      "source": "memory",
+      "snippet": "Assistant: Context 满导致服务不可用。建议： **重启 Gateway 开启新 session：** ```bash openclaw gateway restart ``` 或者在 OpenClaw 控制面板手动重启。 重启后 context 会清零，飞书就能正常响应了。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gateway",
+        "assistant",
+        "context",
+        "导致",
+        "服务",
+        "不可",
+        "建议",
+        "开启"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:22:22": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:22:22",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 22,
+      "endLine": 22,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:23:23": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:23:23",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 23,
+      "endLine": 23,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:24:24": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:24:24",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 24,
+      "endLine": 24,
+      "source": "memory",
+      "snippet": "Assistant: 周四 4:03 AM。运行今日市场日报（提前于 08:30）：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "周四",
+        "运行",
+        "今日",
+        "市场",
+        "日报",
+        "提前"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:25:25": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:25:25",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 25,
+      "endLine": 25,
+      "source": "memory",
+      "snippet": "Assistant: **📊 每日市场日报已生成（04:03 AM）** **今日待办：** - ✅ 市场日报（04:03，提前于 08:30） - ⏳ 18:00 个股分析（SIGKILL 问题待解决）",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "每日",
+        "市场",
+        "日报",
+        "生成",
+        "今日",
+        "提前",
+        "分析"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:26:26": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:26:26",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 26,
+      "endLine": 26,
+      "source": "memory",
+      "snippet": "User: Sender (untrusted metadata): ```json { \"label\": \"openclaw-control-ui\", \"id\": \"openclaw-control-ui\" } ``` [Thu 2026-04-16 16:08 GMT+8] 为什么 我飞书问小Q 一直提示：⚠️ The AI service is temporarily overloaded. Please try again in a moment.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "openclaw-control-ui",
+        "user",
+        "sender",
+        "untrusted",
+        "metadata",
+        "label",
+        "openclaw",
+        "control"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:27:27": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:27:27",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 27,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:28:28": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:28:28",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 28,
+      "endLine": 28,
+      "source": "memory",
+      "snippet": "Assistant: **找到原因了！** 错误信息 \"AI service is temporarily overloaded\" 是因为 **context window 快满了**： ``` 📊 Tokens: 204800/205k (99.9%) - 几乎满了！ ``` 当 context 接近上限时，AI 无法处理新请求，只能返回 overload 错误。 **解决方案（选一个）：** 1. **Compact session** - 压缩上下文释放空间（推荐） 2. **Restart Gateway** - 开启新 session 3.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gateway",
+        "204800/205k",
+        "99.9",
+        "assistant",
+        "找到",
+        "原因",
+        "错误",
+        "信息"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:29:29": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:29:29",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 29,
+      "endLine": 29,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:30:30": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:30:30",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 30,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "Assistant: Context 已满（99.9%）导致飞书无法响应。需要立即 compact：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "99.9",
+        "assistant",
+        "context",
+        "导致",
+        "无法",
+        "响应",
+        "需要",
+        "立即"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:31:31": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:31:31",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 31,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "Assistant: Context 满导致服务不可用。建议： **重启 Gateway 开启新 session：** ```bash openclaw gateway restart ``` 或者在 OpenClaw 控制面板手动重启。 重启后 context 会清零，飞书就能正常响应了。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "gateway",
+        "assistant",
+        "context",
+        "导致",
+        "服务",
+        "不可",
+        "建议",
+        "开启"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:32:32": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:32:32",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 32,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /home/pascal/.openclaw/workspace/HEARTBEAT.md (exact case",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "home/pascal",
+        "openclaw/workspace/heartbeat.md",
+        "user",
+        "read",
+        "exists",
+        "context"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:33:33": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:33:33",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 33,
+      "endLine": 33,
+      "source": "memory",
+      "snippet": "Assistant: 检查是否还有局部导入需要清理：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "检查",
+        "是否",
+        "还有",
+        "局部",
+        "导入",
+        "需要",
+        "清理"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:34:34": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:34:34",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 34,
+      "endLine": 34,
+      "source": "memory",
+      "snippet": "Assistant: 重新验证：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "重新",
+        "验证"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:35:35": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:35:35",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 35,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "Assistant: 好消息：**日期过滤已正确工作**，旧新闻全部被过滤掉了。问题在于： 1. MiniMax 返回的 24h 内结果相关性不够（都是不相关的\"StockQ 指数\"类） 2. DuckDuckGo 在 WSL 网络下超时 需要在 `get_international_news` 也加上 LLM 总结逻辑（目前国内新闻有，国际没有），并降低 DuckDuckGo 超时：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "网络",
+        "get-international-news",
+        "assistant",
+        "好消息",
+        "日期",
+        "过滤",
+        "正确",
+        "工作"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:36:36": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:36:36",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 36,
+      "endLine": 36,
+      "source": "memory",
+      "snippet": "Assistant: 看了代码结构。核心问题：MiniMax 返回的 24h 内结果大多是无关内容（如 \"StockQ 指数\"、\"GlobalCatalog.FindOne\" 等非新闻页），真正的财经新闻反而日期较旧。 解决方案：**加 relevance 预过滤**，在日期过滤前先剔除明显非新闻的 URL/标题，再做日期过滤。这样既保24h新鲜度，又避免误杀好新闻：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "globalcatalog.findone",
+        "url/标题",
+        "assistant",
+        "看了",
+        "代码",
+        "结构",
+        "核心",
+        "问题"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:37:37": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:37:37",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 37,
+      "endLine": 37,
+      "source": "memory",
+      "snippet": "Assistant: 同样给 DuckDuckGo 加上 relevance 预过滤：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "同样",
+        "duckduckgo",
+        "加上",
+        "relevance",
+        "过滤"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:38:38": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:38:38",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 38,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "Assistant: 运行一下完整测试看看美股数据和问题：",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "运行",
+        "一下",
+        "完整",
+        "测试",
+        "看看",
+        "数据",
+        "问题"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:39:39": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:39:39",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 39,
+      "endLine": 39,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] 修复完成，向你汇报： --- ## 🔧 修复内容 ### 问题1：热点资讯日期过旧 ✅ 已修复 **根因：** `_mini_max_web_search` 的 Tavily/MiniMax API 返回的结果相关性参差不齐——比如 \"StockQ 國際股市指數\"（不是新闻）、\"GlobalCatalog.FindOne\"（开发者文档）、\"令人惊艳的十年\"（2022年的老文章）——这些虽然日期新或旧，但都不是真正的新闻。 **修复方案：双重过滤** ``` Step 1 相关性预过滤 →",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "mini-max-web-search",
+        "tavily/minimax",
+        "globalcatalog.findone",
+        "assistant",
+        "修复",
+        "完成",
+        "汇报"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:40:40": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:40:40",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 40,
+      "endLine": 40,
+      "source": "memory",
+      "snippet": "User: System: [2026-04-16 16:11:49 GMT+8] Exec completed (cool-slu, code 0) :: Market Today: Dow, S&P 500, and Nasdaq Futures Rise AmidTariff C [2024-12-03 09:12:44] 纳斯达克中国指数 === A股新闻 === [Adapter] MiniMax Web Search: 3 条结果 for 'A股市场 今日热点新闻 板块 概念股' [Adapter]… Sender (untrusted me",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "cool-slu",
+        "user",
+        "system",
+        "gmt",
+        "exec",
+        "completed",
+        "cool",
+        "slu"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:41:41": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:41:41",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 41,
+      "endLine": 41,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] 在的！刚才在调试修复代码。已经修好了两个问题： 1. ✅ **热点资讯日期过滤** - 旧闻过滤机制已加（相关性好坏两步判断） 2. ✅ **美股指数数据** - 测试时正常返回 你今天早上收到的日报里，美股指数是**完全空白**还是只是某几个字段缺失？这样我能判断是数据源问题还是展示问题。",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "刚才",
+        "修复",
+        "代码",
+        "已经",
+        "修好",
+        "问题"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:42:42": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:42:42",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 42,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "User: [Queued messages while agent was busy] --- Queued #1 Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513dd08ef8b8b22d3e7ece0a59d\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "queued",
+        "messages",
+        "while",
+        "was",
+        "busy"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:43:43": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:43:43",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 43,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "Assistant: The AI service is temporarily overloaded. Please try again in a moment.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "assistant",
+        "the",
+        "service",
+        "temporarily",
+        "overloaded",
+        "please",
+        "try",
+        "moment"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-16.txt:44:44": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-16.txt:44:44",
+      "path": "memory/.dreams/session-corpus/2026-04-16.txt",
+      "startLine": 44,
+      "endLine": 44,
+      "source": "memory",
+      "snippet": "User: Conversation info (untrusted metadata): ```json { \"message_id\": \"om_x100b513d9d6304f8b329162bdd8da8d\", \"sender_id\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"sender\": \"ou_c7f4932a466fd0b2d8eb43da6c383b32\", \"timestamp\": \"Thu 2026-04-16 16:26 GMT+8\" } ``` Sender (untrusted meta",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-16T19:00:00.977Z",
+      "lastRecalledAt": "2026-04-16T19:00:00.977Z",
+      "queryHashes": [
+        "33f679d35d02"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "message-id",
+        "sender-id",
+        "user",
+        "conversation",
+        "info",
+        "untrusted",
+        "metadata",
+        "sender"
+      ]
+    }
+  }
+}
