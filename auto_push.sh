@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/pascal/.openclaw/workspace
+cd /home/pascal/.openclaw/workspace-yquant
 git add -A
 if git diff --cached --quiet; then
     echo "No changes to commit"
