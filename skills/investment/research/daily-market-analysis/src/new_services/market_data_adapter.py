@@ -725,8 +725,8 @@ class MarketDataAdapter:
             return []
 
         topic_map = {
-            "global": "business",
-            "crypto": "business",
+            "global": "world",
+            "crypto": "technology",
             "us": "business",
         }
         topic = topic_map.get(category, "business")
