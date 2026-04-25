@@ -20,6 +20,7 @@
 - **量化框架**：VeighNa / NautilusTrader / Hummingbot / QUANTAXIS
 - **数据源**：Tushare Pro / AKshare / Binance API / Finnhub 等
 - **智能体框架**：OpenClaw 多智能体框架
+- **AI编程**：Claude Code（MiniMax M2.7 API）— **默认编程方式**，除非用户明确不使用
 
 ## 子智能体团队
 
