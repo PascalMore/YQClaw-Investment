@@ -35,7 +35,9 @@ def _get_project_root() -> str:
 def _get_dsa_root() -> str:
     """获取 daily_stock_analysis 项目根目录"""
     root = _get_project_root()
-    return os.path.join(os.path.dirname(root), 'daily_stock_analysis')
+    # 需要向上两级（从 daily-market-analysis 到 skills/），再进入 research/daily_stock_analysis
+    skills_dir = os.path.dirname(os.path.dirname(root))
+    return os.path.join(skills_dir, 'research', 'daily_stock_analysis')
 
 def _setup_import_paths():
     """
