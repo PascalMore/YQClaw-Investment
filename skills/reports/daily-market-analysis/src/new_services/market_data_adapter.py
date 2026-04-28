@@ -427,7 +427,7 @@ class MarketDataAdapter:
         """加载本项目 .env（代理 + API Keys）"""
         env_file = self._get_project_env_path()
         if os.path.exists(env_file):
-            with open(env_file) as f:
+            with open(env_file, encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith('#') and '=' in line:
@@ -960,7 +960,7 @@ class MarketDataAdapter:
         try:
             env_path = self._get_project_env_path()
             if os.path.exists(env_path):
-                with open(env_path) as f:
+                with open(env_path, encoding='utf-8') as f:
                     for line in f:
                         line = line.strip()
                         if line and not line.startswith('#') and '=' in line:
