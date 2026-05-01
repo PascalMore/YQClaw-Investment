@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-04-16T19:01:14.741Z",
+  "updatedAt": "2026-04-30T23:32:09.793Z",
   "entries": {
     "memory:memory/2026-04-05.md:1:38": {
       "key": "memory:memory/2026-04-05.md:1:38",
@@ -203,18 +203,20 @@
       "endLine": 68,
       "source": "memory",
       "snippet": "2. **功能**：全球宏观、A股、港股、美股、数字货币、大宗商品各3条 3. **⚠️ 网络问题**：akshare 新闻接口全部超时（WSL环境网络配置问题） ### WSL 网络问题 1. **现象**：curl 可以访问外网，但 Python requests 超时 2. **原因**：可能是 WSL 网络代理配置问题 3. **影响**：akshare 新闻、baidu 新闻等都无法获取 4. **状态**：邮件报告已能正常推送（使用缓存/备用数据） ### 待办事项 - [ ] 解决 WSL 网络配置问题（让 Python 能访问外网） - [ ] 配置 NO_PROXY 使 Binance API 直连 - [ ] 为 BNB、PEPE 找到合适的数据源 - [ ] 确认飞书 Webhook URL - [ ] 确认自选股完整列表",
-      "recallCount": 1,
+      "recallCount": 2,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 0.6700407919158532,
-      "maxScore": 0.6700407919158532,
+      "totalScore": 1.670040791915853,
+      "maxScore": 1,
       "firstRecalledAt": "2026-04-14T14:30:30.497Z",
-      "lastRecalledAt": "2026-04-14T14:30:30.497Z",
+      "lastRecalledAt": "2026-04-30T23:32:09.793Z",
       "queryHashes": [
-        "e148f44c2197"
+        "e148f44c2197",
+        "16b59d3b628a"
       ],
       "recallDays": [
-        "2026-04-14"
+        "2026-04-14",
+        "2026-05-01"
       ],
       "conceptTags": [
         "网络",
@@ -4976,6 +4978,130 @@
         "untrusted",
         "metadata",
         "sender"
+      ]
+    },
+    "memory:memory/2026-04-17.md:225:247": {
+      "key": "memory:memory/2026-04-17.md:225:247",
+      "path": "memory/2026-04-17.md",
+      "startLine": 225,
+      "endLine": 247,
+      "source": "memory",
+      "snippet": "- evidence: memory/.dreams/session-corpus/2026-04-15.txt:17-17 - recalls: 0 - status: staged - Candidate: Assistant: 语法 OK。快速验证 CoinGecko 能否正常抓取 crypto 数据： - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-15.txt:18-18 - recalls: 0 - status: staged - Candidate: Assistant: 网络问题清楚了——WSL2 环境下代理 `172.25.240.1:7897` 对国际 API（Binance/CoinGecko）不通。Crypto 数据在当前架构下无法获取。 **热点资讯**问题可以这样解决：GNews API 不走代理，直接请求就行。让我测试一下： - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-15.txt:19-19 - recalls: 0 - status: staged - Candidate: Assistant: GNews 也被 SSL EOF 了——这是 WSL2 的网络问题，所有对国际 API 的 HTTPS 请求都失败了。先查一下 `.env` 里代理和 GNews 的配置： - confidence: 0.58 - e",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-30T23:32:09.793Z",
+      "lastRecalledAt": "2026-04-30T23:32:09.793Z",
+      "queryHashes": [
+        "16b59d3b628a"
+      ],
+      "recallDays": [
+        "2026-05-01"
+      ],
+      "conceptTags": [
+        "网络",
+        "17-17",
+        "0.58",
+        "18-18",
+        "172.25.240.1",
+        "binance/coingecko",
+        "19-19",
+        "evidence"
+      ]
+    },
+    "memory:memory/2026-04-17.md:200:232": {
+      "key": "memory:memory/2026-04-17.md:200:232",
+      "path": "memory/2026-04-17.md",
+      "startLine": 200,
+      "endLine": 232,
+      "source": "memory",
+      "snippet": "- evidence: memory/.dreams/session-corpus/2026-04-15.txt:12-12 - recalls: 0 - status: staged - Candidate: Assistant: 现在给国际新闻增加 **GNews.io** 备用源，并优化 MiniMax 的重试逻辑： - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-15.txt:13-13 - recalls: 0 - status: staged - Candidate: Assistant: 现在更新 `get_international_news` 把 GNews 加入备用链，同时把 MiniMax 重试从 1 次改为 3 次： - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-15.txt:14-14 - recalls: 0 - status: staged - Candidate: Assistant: 现在修复 MiniMax 调用——增加 520 错误重试和更长的退避等待： - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-15.txt:15-15 - recalls: 0 - status: staged - Candidate: A",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-30T23:32:09.793Z",
+      "lastRecalledAt": "2026-04-30T23:32:09.793Z",
+      "queryHashes": [
+        "16b59d3b628a"
+      ],
+      "recallDays": [
+        "2026-05-01"
+      ],
+      "conceptTags": [
+        "12-12",
+        "gnews.io",
+        "0.58",
+        "13-13",
+        "get-international-news",
+        "14-14",
+        "15-15",
+        "evidence"
+      ]
+    },
+    "memory:memory/2026-04-17.md:313:317": {
+      "key": "memory:memory/2026-04-17.md:313:317",
+      "path": "memory/2026-04-17.md",
+      "startLine": 313,
+      "endLine": 317,
+      "source": "memory",
+      "snippet": "- Candidate: 2. **功能**：全球宏观、A股、港股、美股、数字货币、大宗商品各3条 3. **⚠️ 网络问题**：akshare 新闻接口全部超时（WSL环境网络配置问题） ### WSL 网络问题 1. **现象**：curl 可以访问外网，但 Python requests 超时 2. **原因**：可能是 WSL 网络代理配置问题 3. **影响**：akshare 新闻、baidu 新闻等都无法获取 4. **状态**：邮件报告已能正常推送（使用缓存/备用数据） ### 待办事项 - [ ] 解决 WSL 网络配置问题（让 Python 能访问外网） - [ ] 配置 NO_PROXY 使 Binance API 直连 - [ ] 为 BNB、PEPE 找到合适的数据源 - [ ] 确认飞书 Webhook URL - [ ] 确认自选股完整列表 - confidence: 0.67 - evidence: memory/2026-04-08.md:53-68 - recalls: 1 - status: staged",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-30T23:32:09.793Z",
+      "lastRecalledAt": "2026-04-30T23:32:09.793Z",
+      "queryHashes": [
+        "16b59d3b628a"
+      ],
+      "recallDays": [
+        "2026-05-01"
+      ],
+      "conceptTags": [
+        "网络",
+        "使用缓存/备用数据",
+        "no-proxy",
+        "0.67",
+        "memory/2026-04-08.md",
+        "53-68",
+        "candidate",
+        "功能"
+      ]
+    },
+    "memory:memory/2026-04-17.md:308:313": {
+      "key": "memory:memory/2026-04-17.md:308:313",
+      "path": "memory/2026-04-17.md",
+      "startLine": 308,
+      "endLine": 313,
+      "source": "memory",
+      "snippet": "- Candidate: - [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 # 2026-04-06 Daily Memory ## Session Summary ### Investment System Setup - Working on OpenClaw investment skills: `daily_stock_analysis` and `daily-market-analysis` - Configured `litellm_config.yaml` with MiniMax + Gemini models - Set up `.env` with API keys and LITELLM_CONFIG path ### Technical Issues 1. **Network proxy issue** - 系统环境有 `socks5h://127.0.0.1:20170` 代理，导致 litellm API 调用失败 (SSL handshake failed) 2. **Module import issue** - `daily-stock-analysis` 有 `analyzer_service` 缺失问题 3. **Template mode works** - 基础数据获取（",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-30T23:32:09.793Z",
+      "lastRecalledAt": "2026-04-30T23:32:09.793Z",
+      "queryHashes": [
+        "16b59d3b628a"
+      ],
+      "recallDays": [
+        "2026-05-01"
+      ],
+      "conceptTags": [
+        "network",
+        "网络",
+        "analyzer-service",
+        "tools.md",
+        "daily-stock-analysis",
+        "daily-market-analysis",
+        "litellm-config.yaml",
+        "litellm-config"
       ]
     }
   }
