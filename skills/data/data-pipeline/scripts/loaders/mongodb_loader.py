@@ -1,108 +1,249 @@
 """
-MongoDB Loader — 将数据写入 MongoDB
+MongoDB Loader — Portfolio Pipeline
 
-支持 upsert（存在则更新，不存在则插入），
-通过指定唯一索引字段（symbol + date 或 symbol + report_period）实现去重。
+Upserts portfolio data into MongoDB with compound unique keys per collection.
 """
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
 from pymongo import MongoClient, ReplaceOne
 from pymongo.database import Database
 
-from .base import BaseLoader, LoadResult
-
 logger = logging.getLogger(__name__)
 
 
-class MongoDBLoader(BaseLoader):
+class PortfolioMongoLoader:
     """
-    MongoDB 数据写入节点
+    MongoDB data loader for portfolio pipeline.
 
-    Args:
-        connection_string: MongoDB 连接串
-        db_name: 数据库名
-        collection_name: 集合名
-        unique_keys: 用于 upsert 判断的唯一键列表，默认 ["symbol", "report_period"]
+    Connects to a remote MongoDB and upserts:
+      - portfolio_basic_info  (UK: product_code)
+      - portfolio_nav          (UK: nav_date + product_code)
+      - portfolio_position    (UK: position_date + product_code + asset_wind_code)
+
+    Config can be passed as a dict or loaded from environment variables:
+      MONGODB_HOST, MONGODB_PORT, MONGODB_USERNAME, MONGODB_PASSWORD, MONGODB_DATABASE
     """
 
-    def __init__(
-        self,
-        connection_string: str,
-        db_name: str,
-        collection_name: str,
-        unique_keys: list[str] = None,
-    ):
-        self.connection_string = connection_string
-        self.db_name = db_name
-        self.collection_name = collection_name
-        self.unique_keys = unique_keys or ["symbol", "report_period"]
+    def __init__(self, config: Optional[dict] = None):
+        if config:
+            self.host = config.get("host", os.getenv("MONGODB_HOST", "localhost"))
+            self.port = config.get("port", int(os.getenv("MONGODB_PORT", "27017")))
+            self.username = config.get("username", os.getenv("MONGODB_USERNAME", ""))
+            self.password = config.get("password", os.getenv("MONGODB_PASSWORD", ""))
+            self.database = config.get("database", os.getenv("MONGODB_DATABASE", "tradingagents"))
+        else:
+            self.host = os.getenv("MONGODB_HOST", "172.25.240.1")
+            self.port = int(os.getenv("MONGODB_PORT", "27017"))
+            self.username = os.getenv("MONGODB_USERNAME", "myq")
+            self.password = os.getenv("MONGODB_PASSWORD", "6812345")
+            self.database = os.getenv("MONGODB_DATABASE", "tradingagents")
+
         self._client: Optional[MongoClient] = None
 
-    @property
-    def target_type(self) -> str:
-        return "mongodb"
-
-    def _get_collection(self):
+    def _get_client(self) -> MongoClient:
         if self._client is None:
-            self._client = MongoClient(self.connection_string)
-        db: Database = self._client[self.db_name]
-        return db[self.collection_name]
-
-    async def load(self, records: list[dict]) -> LoadResult:
-        """批量 upsert 写入 MongoDB"""
-        if not records:
-            return LoadResult()
-
-        result = LoadResult()
-        now = datetime.now(timezone.utc)
-
-        # 准备 upsert 操作
-        operations = []
-        for record in records:
-            # 添加元数据
-            record["updated_at"] = now
-            if "created_at" not in record:
-                record["created_at"] = now
-
-            # 构建 filter（唯一键匹配）
-            filter_dict = {k: record.get(k) for k in self.unique_keys if record.get(k) is not None}
-            if not filter_dict:
-                result.skipped += 1
-                result.add_error(record, "缺少唯一键字段")
-                continue
-
-            operations.append(
-                ReplaceOne(
-                    filter_dict,
-                    record,
-                    upsert=True,
+            if self.username and self.password:
+                uri = (
+                    f"mongodb://{self.username}:{self.password}"
+                    f"@{self.host}:{self.port}/"
+                    f"?authSource=admin"
                 )
+            else:
+                uri = f"mongodb://{self.host}:{self.port}/"
+            self._client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+            logger.info(f"MongoDB connected to {self.host}:{self.port}/{self.database}")
+        return self._client
+
+    def _db(self) -> Database:
+        return self._get_client()[self.database]
+
+    def _now(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+    # -------------------------------------------------------------------------
+    # Public upsert methods
+    # -------------------------------------------------------------------------
+
+    def upsert_basic_info(self, records: list[dict]) -> int:
+        """
+        Bulk upsert portfolio_basic_info by product_code.
+
+        Each record should contain: product_code, product_name, and optionally
+        latest_nav, latest_share, latest_aum (from most recent NAV).
+
+        Returns count of upserted documents.
+        """
+        if not records:
+            return 0
+
+        coll = self._db()["portfolio_basic_info"]
+        now = self._now()
+
+        ops = [
+            ReplaceOne(
+                {"product_code": r["product_code"]},
+                {**r, "updated_at": now},
+                upsert=True,
             )
+            for r in records
+            if r.get("product_code")
+        ]
 
-        if not operations:
-            return result
+        if not ops:
+            return 0
 
-        # 执行批量写入
-        collection = self._get_collection()
-        try:
-            response = collection.bulk_write(operations, ordered=False)
-            result.inserted = response.upserted_count
-            result.updated = response.modified_count
-            result.skipped += len(operations) - result.inserted - result.updated
-            logger.info(
-                f"MongoDB bulk write: upserted={result.inserted}, "
-                f"modified={result.updated}, skipped={result.skipped}"
+        result = coll.bulk_write(ops, ordered=False)
+        total = (result.upserted_count or 0) + (result.modified_count or 0)
+        logger.info(
+            f"[portfolio_basic_info] upserted={result.upserted_count}, "
+            f"modified={result.modified_count}"
+        )
+        return total
+
+    def upsert_nav(self, records: list[dict]) -> int:
+        """
+        Bulk upsert portfolio_nav by compound key (nav_date, product_code).
+
+        Each record should contain: nav_date (YYYY-MM-DD), product_code, nav, aum, share.
+
+        Returns count of upserted documents.
+        """
+        if not records:
+            return 0
+
+        coll = self._db()["portfolio_nav"]
+        now = self._now()
+
+        ops = [
+            ReplaceOne(
+                {"nav_date": r["nav_date"], "product_code": r["product_code"]},
+                {**r, "updated_at": now},
+                upsert=True,
             )
-        except Exception as e:
-            logger.error(f"MongoDB bulk write error: {e}")
-            for record in records:
-                result.add_error(record, str(e))
+            for r in records
+            if r.get("nav_date") and r.get("product_code")
+        ]
 
-        return result
+        if not ops:
+            return 0
+
+        result = coll.bulk_write(ops, ordered=False)
+        logger.info(
+            f"[portfolio_nav] upserted={result.upserted_count}, "
+            f"modified={result.modified_count}"
+        )
+        return (result.upserted_count or 0) + (result.modified_count or 0)
+
+    def upsert_position(self, records: list[dict]) -> int:
+        """
+        Bulk upsert portfolio_position by compound key
+        (position_date, product_code, asset_wind_code).
+
+        Each record should contain: position_date (YYYY-MM-DD), product_code,
+        asset_wind_code, asset_name, holding_ratio, shares, market_value.
+
+        Returns count of upserted documents.
+        """
+        if not records:
+            return 0
+
+        coll = self._db()["portfolio_position"]
+        now = self._now()
+
+        ops = [
+            ReplaceOne(
+                {
+                    "position_date": r["position_date"],
+                    "product_code": r["product_code"],
+                    "asset_wind_code": r["asset_wind_code"],
+                },
+                {**r, "updated_at": now},
+                upsert=True,
+            )
+            for r in records
+            if r.get("position_date") and r.get("product_code") and r.get("asset_wind_code")
+        ]
+
+        if not ops:
+            return 0
+
+        result = coll.bulk_write(ops, ordered=False)
+        logger.info(
+            f"[portfolio_position] upserted={result.upserted_count}, "
+            f"modified={result.modified_count}"
+        )
+        return (result.upserted_count or 0) + (result.modified_count or 0)
+
+    def load_all(self, data: dict) -> dict:
+        """
+        Load all normalized portfolio data into MongoDB.
+
+        Args:
+            data: Dict with optional keys:
+                  - basic_info: list[dict] for portfolio_basic_info
+                  - nav: list[dict] for portfolio_nav
+                  - position: list[dict] for portfolio_position
+
+        Returns:
+            Dict with counts: {basic_info: int, nav: int, position: int}
+        """
+        counts = {
+            "basic_info": 0,
+            "nav": 0,
+            "position": 0,
+        }
+
+        if data.get("basic_info"):
+            counts["basic_info"] = self.upsert_basic_info(data["basic_info"])
+
+        if data.get("nav"):
+            counts["nav"] = self.upsert_nav(data["nav"])
+
+        if data.get("position"):
+            counts["position"] = self.upsert_position(data["position"])
+
+        logger.info(f"[load_all] completed: {counts}")
+        return counts
 
     def close(self):
         if self._client:
             self._client.close()
             self._client = None
+            logger.info("MongoDB connection closed")
+
+
+# -----------------------------------------------------------------------------
+# Test / demo
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+    import json, sys, os
+
+    # Add project root to path so normalizer can be imported
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+    from transformers.image_portfolio_normalizer import normalize_all
+
+    # Load mock data
+    mock_path = os.path.join(os.path.dirname(__file__), "..", "..", "examples", "mock_3days_decoded.json")
+    with open(mock_path) as f:
+        decoded = json.load(f)
+
+    normalized = normalize_all(decoded)
+
+    print("=== Normalized Record Summary ===")
+    print(f"basic_info : {len(normalized['basic_info'])} records")
+    print(f"nav        : {len(normalized['nav'])} records")
+    print(f"position   : {len(normalized['position'])} records")
+
+    # Connect and upsert
+    loader = PortfolioMongoLoader()
+    counts = loader.load_all(normalized)
+    print(f"\n=== MongoDB Upsert Results ===")
+    print(f"basic_info : {counts['basic_info']} upserted")
+    print(f"nav        : {counts['nav']} upserted")
+    print(f"position   : {counts['position']} upserted")
+    print("\n✅ MongoDB upsert completed successfully.")
+    loader.close()

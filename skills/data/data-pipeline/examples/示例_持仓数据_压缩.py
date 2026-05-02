@@ -24,47 +24,20 @@ try:
 except ImportError:
     _HAS_ZLIB = False
 
+# 复用 transformers.portfolio_normalizer 中的通用实现
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+from transformers.portfolio_normalizer import flatten_to_nested
+
 
 def normalize_portfolio(df: pd.DataFrame) -> dict:
-    """
-    将扁平持仓表转为嵌套 JSON
-    产品级字段不重复，positions 数组内只保留持仓相关字段
-    """
-    # 产品级字段（每只产品一行，持仓行重复）
-    product_fields = ["截止日期", "产品名称", "产品代码", "Wind代码", "最新净值", "最新份额", "最新规模"]
-    position_fields = ["Wind代码", "资产名称", "持仓比例", "数量", "市值(本币)"]
-
-    records = []
-    for _, row in df.iterrows():
-        record = {}
-        for col in df.columns:
-            val = row[col]
-            # 处理日期
-            if str(val).startswith("202"):
-                val = str(val)[:10]  # 去掉时间部分
-            record[col] = val
-        records.append(record)
-
-    # 按产品分组
-    grouped = {}
-    for rec in records:
-        product_key = rec["产品名称"]
-        if product_key not in grouped:
-            grouped[product_key] = {
-                "截止日期": rec["截止日期"],
-                "产品名称": rec["产品名称"],
-                "产品代码": rec["产品代码"],
-                "Wind代码": rec["Wind代码"],
-                "最新净值": rec["最新净值"],
-                "最新份额": rec["最新份额"],
-                "最新规模": rec["最新规模"],
-                "positions": [],
-            }
-        # 持仓
-        pos = {k: rec[k] for k in position_fields if k in rec}
-        grouped[product_key]["positions"].append(pos)
-
-    return {"截止日期": records[0]["截止日期"], "products": list(grouped.values())}
+    """将扁平持仓表转为嵌套 JSON（委托给 portfolio_normalizer）。"""
+    return flatten_to_nested(
+        df,
+        date_field="截止日期",
+        product_fields=["产品名称", "产品代码", "最新净值", "最新份额", "最新规模"],
+        position_fields=["Wind代码", "资产名称", "持仓比例", "数量", "市值(本币)"],
+        group_key="产品名称",
+    )
 
 
 def compress_lzstring(data: dict) -> str:
@@ -151,7 +124,10 @@ def main():
         print(f"📖 读取 {len(df)} 行 × {len(df.columns)} 列", file=sys.stderr)
 
         data = normalize_portfolio(df)
-        print(f"🔧 范式化完成: {len(data['products'])} 只产品", file=sys.stderr)
+        meta = data["metadata"]
+        total_products = meta["total_products"]
+        total_days = meta["total_days"]
+        print(f"🔧 范式化完成: {total_days} 天, {total_products} 只产品, {meta['total_records']} 条持仓记录", file=sys.stderr)
 
         method = args.method
         if method == "lzstring":

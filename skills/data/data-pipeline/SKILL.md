@@ -35,6 +35,12 @@ data-pipeline 是 YQuant 的**统一数据摄入框架**，负责将各种来源
   ┌─────────────┐
   │   Loader    │  ← 写入 MongoDB / 文件 / 推送通知
   └─────────────┘
+        ↓
+  ┌─────────────┐
+  │   Codec     │  ← 序列化传输编码（JSON↔Base64，可选 zlib 压缩）
+  └─────────────┘
+        ↓
+  存储 / 跨系统传输
 ```
 
 ## 目录结构
@@ -60,10 +66,13 @@ data-pipeline/
 │   │   ├── __init__.py
 │   │   ├── base.py            ← Validator 基类
 │   │   └── schema_validator.py ← Schema 校验
-│   └── loaders/
+│   ├── loaders/
+│   │   ├── __init__.py
+│   │   ├── base.py             ← Loader 基类
+│   │   └── mongodb_loader.py   ← MongoDB 写入
+│   └── serializers/
 │       ├── __init__.py
-│       ├── base.py             ← Loader 基类
-│       └── mongodb_loader.py   ← MongoDB 写入
+│       └── base64_codec.py     ← JSON↔Base64 序列化（Transport 层）
 └── references/
     └── schemas/                ← 各数据类型 Schema 定义
         ├── financial.yaml       ← 财务数据 Schema
@@ -230,6 +239,60 @@ result = await pipeline.run(source="/path/to/screenshot.png")
 | `FileExtractor` | 待实现 | 从 CSV/Excel 导入 |
 | `MessageExtractor` | 待实现 | 从聊天消息解析结构化数据 |
 
+## 已有 Codec
+
+| Codec | 状态 | 说明 |
+|-------|------|------|
+| `Base64Codec` | ✅ 已完成 | JSON↔Base64，支持嵌套结构聚合 + zlib level=9 压缩 |
+
+### Base64Codec 使用
+
+```python
+from serializers.base64_codec import Base64Codec, encode_json, decode_base64
+
+# 嵌套结构 + zlib 压缩（默认，推荐，用于传输/存储）
+codec = Base64Codec(
+    compress=True,             # zlib level=9 压缩
+    data_layout="nested",     # 按 group_key 分组聚合
+    group_key="产品名称",     # 分组字段
+    position_fields=[        # positions 内保留的字段
+        "Wind代码", "资产名称", "持仓比例", "数量", "市值(本币)"
+    ]
+)
+b64 = codec.encode(records)   # list[dict] → Base64
+data = codec.decode(b64)       # Base64 → nested dict
+
+# 扁平结构 + 无压缩（调试场景）
+codec_flat = Base64Codec(compress=False, data_layout="flat")
+
+# 便捷函数（单行调用，默认嵌套+压缩）
+b64_str = encode_json(records, compress=True,
+                      group_key="产品名称",
+                      position_fields=["Wind代码","资产名称","持仓比例","数量","市值(本币)"])
+data = decode_base64(b64_str)
+```
+
+### 嵌套结构说明
+
+| 模式 | Base64 长度 | 适用场景 |
+|------|-------------|----------|
+| **nested + gzip** | ~5,700 chars | ✅ **生产/传输**（默认） |
+| flat + plain | ~89,000 chars | 调试/可读性要求高 |
+
+嵌套结构将每行重复的产品级字段提取到外层，只在 positions 数组内保留持仓字段，zlib 压缩前就消除了大量冗余文本。
+
+### 定位说明
+
+JSON↔Base64 不属于传统 ETL 的 Extract/Transform/Load 步骤，而是 **Transport / Serialization 层**：
+
+
+```
+数据输入 → Extract → Transform → [Codec: JSON↔Base64] → Load → 存储/传输
+                                              ↑
+                                   用于跨边界传输
+                          （HTTP Header / JSON 字段 / 文件存储 / 消息队列）
+```
+
 ## 开发进度
 
 - [ ] SKILL.md（本文档）
@@ -240,3 +303,45 @@ result = await pipeline.run(source="/path/to/screenshot.png")
 - [ ] ImageParserExtractor
 - [ ] 飞书消息接入
 - [ ] Telegram 消息接入
+
+## Message Portfolio Pipeline（消息直接输入）
+
+用户提供 TSV/CSV 文本，无需 OCR，直接解析 → Excel → normalize → MongoDB。
+
+### 入口脚本
+
+```bash
+python scripts/run_message_pipeline.py -i "raw text..." -d 2026-05-03
+python scripts/run_message_pipeline.py -f /path/to/data.txt -d 2026-05-03 --dry-run
+```
+
+### Python API
+
+```python
+import asyncio
+from scripts.run_message_pipeline import run_pipeline
+
+result = asyncio.run(run_pipeline(
+    raw_text="截止日期\t产品名称\t...",
+    date_str="2026-05-03",
+    source_root=Path("skills/data/source/smart-money"),
+    dry_run=False,
+))
+```
+
+### 流程
+
+- Step 1: 文本解析 → Excel → `source/smart-money/{date}/portfolio_{YYYYMMDD}.xlsx`
+- Step 2: Excel → `PaddleOCRExcelTransformer` → `normalize_all()` → basic_info / nav / position
+- Step 3: validate + MongoDB（复用现有模块）
+
+### Extractor
+
+`extractors/MessagePortfolioExtractor` 读取已保存的 Excel：
+
+```python
+from extractors import MessagePortfolioExtractor
+ext = MessagePortfolioExtractor()
+records = await ext.extract("2026-05-03")  # 传入日期字符串
+# → [{"df": DataFrame, "source_path": "..."}]
+```
