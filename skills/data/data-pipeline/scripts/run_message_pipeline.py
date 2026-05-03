@@ -44,7 +44,7 @@ COLUMN_ALIASES = {
     "资产名称": ["资产名称", "资产", "asset", "股票名称"],
     "持仓比例": ["持仓比例", "比例", "ratio", "持有比例"],
     "数量": ["数量", "qty", "shares", "股数"],
-    "市值（本币）": ["市值（本币）", "市值", "mkt", "market_value"],
+    "市值（本币）": ["市值（本币）", "市值(本币)", "市值", "mkt", "market_value"],
     "最新净值": ["最新净值", "净值", "nav"],
     "最新份额": ["最新份额", "份额", "share"],
     "最新规模": ["最新规模", "规模", "aum"],
@@ -117,12 +117,39 @@ def parse_text_to_df(text: str) -> pd.DataFrame:
     return df
 
 
-def save_excel(df: pd.DataFrame, date_str: str, source_root: Path) -> Path:
-    """保存 Excel 到 source/smart-money/{date}/"""
-    date_dir = source_root / date_str
-    date_dir.mkdir(parents=True, exist_ok=True)
-    date_clean = date_str.replace("-", "")
-    excel_path = date_dir / f"portfolio_{date_clean}.xlsx"
+def save_excel(df: pd.DataFrame, date_str: str, source_root: Path, input_filename: str = None) -> Path:
+    """保存 Excel 到 source/smart-money/{date}/message/
+    
+    Args:
+        input_filename: 输入的原始文件完整路径，用于生成同名的 xlsx
+    """
+    from datetime import datetime
+    
+    message_dir = source_root / date_str / "message"
+    message_dir.mkdir(parents=True, exist_ok=True)
+    
+    if input_filename:
+        # 从输入文件完整路径提取 base name，只改后缀
+        base = Path(input_filename).stem  # 去掉扩展名
+        filename = f"{base}.xlsx"
+        
+        # 避免重名，加序号
+        counter = 1
+        original_filename = filename
+        while (message_dir / filename).exists():
+            filename = f"{base}_{counter:02d}.xlsx"
+            counter += 1
+    else:
+        date_clean = date_str.replace("-", "")
+        time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"portfolio_{date_clean}_{time_stamp}.xlsx"
+        
+        counter = 1
+        while (message_dir / filename).exists():
+            filename = f"portfolio_{date_clean}_{time_stamp}_{counter:02d}.xlsx"
+            counter += 1
+    
+    excel_path = message_dir / filename
     df.to_excel(excel_path, index=False, sheet_name="Sheet1")
     return excel_path
 
@@ -132,6 +159,7 @@ async def run_pipeline(
     date_str: str,
     source_root: Path,
     dry_run: bool = False,
+    input_filename: str = None,
 ) -> dict:
     """
     完整流程：消息文本 → Excel → normalize → validate → MongoDB
@@ -143,7 +171,7 @@ async def run_pipeline(
     if df.empty:
         raise ValueError("解析后无有效数据")
 
-    excel_path = save_excel(df, date_str, source_root)
+    excel_path = save_excel(df, date_str, source_root, input_filename=input_filename)
     print(f"[Step1] Excel → {excel_path}  ({len(df)} rows)")
 
     if dry_run:
@@ -175,7 +203,7 @@ async def run_pipeline(
     loader = PortfolioMongoLoader()
     result = loader.load_all(normalized)
 
-    print(f"[Step4] MongoDB: basic_info={result["basic_info"]}, nav={result["nav"]}, position={result["position"]}")
+    print(f'[Step4] MongoDB: basic_info={result["basic_info"]}, nav={result["nav"]}, position={result["position"]}')
 
     return {
         "excel_path": str(excel_path),
@@ -189,9 +217,9 @@ async def run_pipeline(
             "warnings": merged.warnings,
         },
         "mongodb": {
-            "inserted": result.inserted,
-            "updated": result.updated,
-            "skipped": result.skipped,
+            "inserted": result.get("inserted", 0),
+            "updated": result.get("updated", 0),
+            "skipped": result.get("skipped", 0),
         },
     }
 
@@ -212,11 +240,12 @@ def main():
         print("请使用 -i '文本' 或 -f /path/to/file.txt 提供数据")
         sys.exit(1)
 
-    # source_root: 向上两级到 workspace-yquant
-    source_root = Path(__file__).resolve().parents[2] / "skills" / "data" / "source" / "smart-money"
+    # source_root: 向上两级到 workspace-yquant/skills/data/source/smart-money
+    source_root = Path(__file__).resolve().parents[2] / "source" / "smart-money"
 
     import asyncio
-    result = asyncio.run(run_pipeline(raw_text, args.date, source_root, dry_run=args.dry_run))
+    input_fn = args.file if args.file else None
+    result = asyncio.run(run_pipeline(raw_text, args.date, source_root, dry_run=args.dry_run, input_filename=input_fn))
     print(f"\n✅ 完成：{result}")
 
 

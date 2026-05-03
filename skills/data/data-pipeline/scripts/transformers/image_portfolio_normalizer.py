@@ -31,6 +31,17 @@ def normalize_basic_info(daily_data: list[dict]) -> list[dict]:
                     "latest_aum": product.get("最新规模"),
                 }
 
+    # Second pass: fill missing latest_aum with nav * share
+    for code, info in latest_by_product.items():
+        if info["latest_aum"] is None or info["latest_aum"] == "":
+            nav = info["latest_nav"]
+            share = info["latest_share"]
+            if nav is not None and share is not None:
+                try:
+                    info["latest_aum"] = float(nav) * float(share)
+                except (ValueError, TypeError):
+                    pass
+
     # Return in insertion order (first seen)
     for day in daily_data:
         for product in day.get("products", []):
@@ -55,12 +66,23 @@ def normalize_nav(daily_data: list[dict]) -> list[dict]:
     for day in daily_data:
         date = day.get("date")
         for product in day.get("products", []):
+            nav = product.get("最新净值")
+            share = product.get("最新份额")
+            aum = product.get("最新规模")
+            
+            # 填充缺失的 aum: nav * share
+            if (aum is None or aum == "") and nav is not None and share is not None:
+                try:
+                    aum = float(nav) * float(share)
+                except (ValueError, TypeError):
+                    pass
+            
             records.append({
                 "nav_date": date,
                 "product_code": product.get("产品代码"),
-                "nav": product.get("最新净值"),
-                "aum": product.get("最新规模"),
-                "share": product.get("最新份额"),
+                "nav": nav,
+                "aum": aum,
+                "share": share,
             })
     return records
 
@@ -88,7 +110,7 @@ def normalize_position(daily_data: list[dict]) -> list[dict]:
                     "asset_name": pos.get("资产名称"),
                     "holding_ratio": pos.get("持仓比例"),
                     "shares": pos.get("数量"),
-                    "market_value": pos.get("市值(本币)"),
+                    "market_value": pos.get("市值（本币）"),
                 })
     return records
 
