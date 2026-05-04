@@ -177,6 +177,53 @@ class PortfolioMongoLoader:
         )
         return (result.upserted_count or 0) + (result.modified_count or 0)
 
+    def _update_basic_info_latest_from_nav(self, product_codes: list[str]) -> None:
+        """
+        For each product_code, compute latest_nav/share/aum from portfolio_nav
+        (max nav_date row) and upsert into portfolio_basic_info.
+
+        This replaces the stale approach of reading latest_* directly from OCR payload.
+        """
+        db = self._db()
+        now = self._now()
+
+        for code in product_codes:
+            # Get the latest NAV row by max(nav_date)
+            row = db["portfolio_nav"].find_one(
+                {"product_code": code},
+                sort=[("nav_date", -1)],
+                projection={"nav": 1, "share": 1, "aum": 1},
+            )
+
+            if not row:
+                continue
+
+            # Fallback: compute aum from nav * share if missing
+            aum = row.get("aum")
+            if (aum is None or aum == "") and row.get("nav") and row.get("share"):
+                try:
+                    aum = float(row["nav"]) * float(row["share"])
+                except (ValueError, TypeError):
+                    aum = None
+
+            db["portfolio_basic_info"].update_one(
+                {"product_code": code},
+                {
+                    "$set": {
+                        "latest_nav": row.get("nav"),
+                        "latest_share": row.get("share"),
+                        "latest_aum": aum,
+                        "updated_at": now,
+                    },
+                    "$setOnInsert": {
+                        "product_code": code,
+                    },
+                },
+                upsert=True,
+            )
+
+        logger.info(f"[_update_basic_info_latest_from_nav] updated {len(product_codes)} products")
+
     def load_all(self, data: dict) -> dict:
         """
         Load all normalized portfolio data into MongoDB.
@@ -196,14 +243,21 @@ class PortfolioMongoLoader:
             "position": 0,
         }
 
-        if data.get("basic_info"):
-            counts["basic_info"] = self.upsert_basic_info(data["basic_info"])
-
         if data.get("nav"):
             counts["nav"] = self.upsert_nav(data["nav"])
 
         if data.get("position"):
             counts["position"] = self.upsert_position(data["position"])
+
+        # Always upsert basic_info first (product_code + product_name from OCR),
+        # then overwrite latest_nav/share/aum from the actual max(nav_date) row.
+        if data.get("basic_info"):
+            counts["basic_info"] = self.upsert_basic_info(data["basic_info"])
+
+        # Sync latest_* fields from portfolio_nav (most recent nav_date per product)
+        if data.get("nav"):
+            codes_in_batch = list({r["product_code"] for r in data["nav"] if r.get("product_code")})
+            self._update_basic_info_latest_from_nav(codes_in_batch)
 
         logger.info(f"[load_all] completed: {counts}")
         return counts

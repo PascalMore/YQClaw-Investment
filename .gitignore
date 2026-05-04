@@ -64,3 +64,4 @@ temp/
 # Memory and transient files
 memory/*.md
 !memory/.gitkeep
+skills/data/source/

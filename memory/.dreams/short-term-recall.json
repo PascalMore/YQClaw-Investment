@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-04-30T23:32:09.793Z",
+  "updatedAt": "2026-05-04T15:27:25.167Z",
   "entries": {
     "memory:memory/2026-04-05.md:1:38": {
       "key": "memory:memory/2026-04-05.md:1:38",
@@ -5102,6 +5102,440 @@
         "daily-market-analysis",
         "litellm-config.yaml",
         "litellm-config"
+      ]
+    },
+    "memory:memory/2026-04-29.md:82:105": {
+      "key": "memory:memory/2026-04-29.md:82:105",
+      "path": "memory/2026-04-29.md",
+      "startLine": 82,
+      "endLine": 105,
+      "source": "memory",
+      "snippet": "- 目标：修复 `save_financial_data` 中 `raw_data` 未写入的问题，对全市场股票进行全量历史回补 - 数据库现状：`stock_financial_data` 中约 5,422 只股票 income 条数 < 50，需要从 1990 年起回补 ### 脚本 - 路径：`~/.openclaw/workspace-yquant/skills/apps/TradingAgents-CN/scripts/sync_financial_history.py` - 核心逻辑：直接使用 `TushareProvider.get_financial_data()` 获取数据（含 raw_data），按 `symbol + report_period + data_source` 做 upsert ### 关键修复 1. **raw_data 问题**：`save_financial_data` 的 `_standardize_tushare_data` 把 raw_data 放入了 `exclude_fields`，导致写入文档的 `raw_data.income_statement` 为空 2. **去重**：从 `stock_financial_data` 而非 `stock_basic_info` 获取股票列表，避免已退市/重复股票干扰 3. **分批执行**：分成 20 批，每批约 271 只，每批完成后暂停等用户确认 ### 当前进度 - 已完成：第 1 批（000001~001268，272只），100% 验证通过 - 运行中：第 2 批（0",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T00:57:21.481Z",
+      "lastRecalledAt": "2026-05-04T00:57:21.481Z",
+      "queryHashes": [
+        "8b17ba53562a"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "save-financial-data",
+        "raw-data",
+        "stock-financial-data",
+        "report-period",
+        "data-source",
+        "standardize-tushare-data",
+        "exclude-fields",
+        "raw-data.income-statement"
+      ]
+    },
+    "memory:memory/2026-04-29.md:1:27": {
+      "key": "memory:memory/2026-04-29.md:1:27",
+      "path": "memory/2026-04-29.md",
+      "startLine": 1,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "# 2026-04-29 工作日志 ## 财务数据历史补全 ### 背景 - 目标：修复 `save_financial_data` 中 `raw_data` 未写入的问题，对全市场股票进行全量历史回补 - 数据库现状：`stock_financial_data` 中约 5,422 只股票 income 条数 < 50，需要从 1990 年起回补 ### 脚本 - 路径：`~/.openclaw/workspace-yquant/skills/apps/TradingAgents-CN/scripts/sync_financial_history.py` - 核心逻辑：直接使用 `TushareProvider.get_financial_data()` 获取数据（含 raw_data），按 `symbol + report_period + data_source` 做 upsert ### 关键修复 1. **raw_data 问题**：`save_financial_data` 的 `_standardize_tushare_data` 把 raw_data 放入了 `exclude_fields`，导致写入文档的 `raw_data.income_statement` 为空 2. **去重**：从 `stock_financial_data` 而非 `stock_basic_info` 获取股票列表，避免已退市/重复股票干扰 3. **分批执行**：分成 20 批，每批约 271 只，每批完成后暂停等用户确认 ### 当前进度 - 已完成：第 1 批（0000",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T00:57:21.481Z",
+      "lastRecalledAt": "2026-05-04T00:57:21.481Z",
+      "queryHashes": [
+        "8b17ba53562a"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "save-financial-data",
+        "raw-data",
+        "stock-financial-data",
+        "report-period",
+        "data-source",
+        "standardize-tushare-data",
+        "exclude-fields",
+        "raw-data.income-statement"
+      ]
+    },
+    "memory:memory/2026-04-29.md:21:54": {
+      "key": "memory:memory/2026-04-29.md:21:54",
+      "path": "memory/2026-04-29.md",
+      "startLine": 21,
+      "endLine": 54,
+      "source": "memory",
+      "snippet": "- 速率：约 2 秒/只（含 API 限速），每批约 9 分钟 - 断点文件：`~/.openclaw/workspace-yquant/skills/apps/TradingAgents-CN/scripts/.sync_checkpoint.txt` ### Tushare 2000积分 API 限制 - 档位：basic tier = 200次/分钟 - 安全边际：160次/分钟 - 每只股票：4 次 API 调用 - 每分钟可同步：约 40 只 ## 全量回补完成（2026-04-29 上午） ### 最终结果 - **20批次全部完成**：5,405只股票同步成功，0失败，79只已跳过（已有≥50条income） - **所有20批次验证**：270/270 (100%) 通过 ✅ - **去重修复**：827个文档按end_date去重保留第一条（income_statement去重后） - **None period清理**：删除22条report_period=None的旧文档 ### 关键文件修改 - `tradingagents/dataflows/providers/china/tushare.py`（约1585-1610行） - `_standardize_tushare_financial_data`：新增 `_deduplicate_by_end_date()` - 字段映射修复：`oper_profit` ← `operate_profit` - 新增 `find_by_end_date()` 辅助函数 - `scripts/s",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T00:57:21.481Z",
+      "lastRecalledAt": "2026-05-04T00:57:21.481Z",
+      "queryHashes": [
+        "8b17ba53562a"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "秒/只",
+        "sync-checkpoint.txt",
+        "200次/分钟",
+        "160次/分钟",
+        "270/270",
+        "827个文档按end-date去重保留第一条",
+        "income-statement去重后",
+        "删除22条report-period"
+      ]
+    },
+    "memory:memory/2026-04-29.md:97:130": {
+      "key": "memory:memory/2026-04-29.md:97:130",
+      "path": "memory/2026-04-29.md",
+      "startLine": 97,
+      "endLine": 130,
+      "source": "memory",
+      "snippet": "- 速率：约 2 秒/只（含 API 限速），每批约 9 分钟 - 断点文件：`~/.openclaw/workspace-yquant/skills/apps/TradingAgents-CN/scripts/.sync_checkpoint.txt` ### Tushare 2000积分 API 限制 - 档位：basic tier = 200次/分钟 - 安全边际：160次/分钟 - 每只股票：4 次 API 调用 - 每分钟可同步：约 40 只 ## 全量回补完成（2026-04-29 上午） ### 最终结果 - **20批次全部完成**：5,405只股票同步成功，0失败，79只已跳过（已有≥50条income） - **所有20批次验证**：270/270 (100%) 通过 ✅ - **去重修复**：827个文档按end_date去重保留第一条（income_statement去重后） - **None period清理**：删除22条report_period=None的旧文档 ### 关键文件修改 - `tradingagents/dataflows/providers/china/tushare.py`（约1585-1610行） - `_standardize_tushare_financial_data`：新增 `_deduplicate_by_end_date()` - 字段映射修复：`oper_profit` ← `operate_profit` - 新增 `find_by_end_date()` 辅助函数 - `scripts/s",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T00:57:21.481Z",
+      "lastRecalledAt": "2026-05-04T00:57:21.481Z",
+      "queryHashes": [
+        "8b17ba53562a"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "秒/只",
+        "sync-checkpoint.txt",
+        "200次/分钟",
+        "160次/分钟",
+        "270/270",
+        "827个文档按end-date去重保留第一条",
+        "income-statement去重后",
+        "删除22条report-period"
+      ]
+    },
+    "memory:memory/2026-05-03.md:1:30": {
+      "key": "memory:memory/2026-05-03.md:1:30",
+      "path": "memory/2026-05-03.md",
+      "startLine": 1,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "# 2026-05-03 Daily Memory ## Smart Money Portfolio Pipeline 上线 ### 目录结构 ``` data/source/smart-money/{日期}/ ├── image/ # 图片截图（OCR处理） └── message/ # 文本/CSV数据 ``` ### 核心文件 - `skills/data/data-pipeline/scripts/smart_money_watcher.py` — 自动监控新文件并触发 pipeline - `start_smart_money_watcher.sh` — 启动脚本（start/stop/status） ### Pipeline 流程 - **Image**: OCR (PaddleOCR) → Excel → Normalize → Validate → MongoDB - **Message**: Parse → Excel → Normalize → Validate → MongoDB ### 今日数据（2026-05-03） - 收到 4 张持仓截图（21:30 ~ 21:42） - 处理结果：47 → 46 → 46 → 46 条记录 - 所有数据已入库 MongoDB（tradingagents 数据库） - 目录已创建：`data/source/smart-money/2026-05-03/image/` ### 待完成 - [ ] 将 smart_money_watcher 注册为 systemd 服务（开机自启） - [ ] 持仓对比",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "queryHashes": [
+        "3e91dd63304e"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "data/source/smart-money",
+        "文本/csv数据",
+        "start-smart-money-watcher.sh",
+        "start/stop/status",
+        "smart-money-watcher",
+        "smart",
+        "money",
+        "portfolio"
+      ]
+    },
+    "memory:memory/2026-05-04.md:1:32": {
+      "key": "memory:memory/2026-05-04.md:1:32",
+      "path": "memory/2026-05-04.md",
+      "startLine": 1,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "# 2026-05-04 工作记录 ## Smart Money Pipeline 修复 ### 1. 市值（本币）列为空的问题 - **根因**：输入文件列名 `市值(本币)`（半角括号）与 COLUMN_ALIASES 中的 `市值（本币）`（全角括号）不匹配 - **修复**：在 `run_message_pipeline.py` 的 COLUMN_ALIASES 中添加半角版本映射 - **结果**：48/48 行市值全部正确填充 ### 2. 目录结构问题 - **问题**：之前 `source_root` 路径设置错误，导致 `skills/data/data/source/...` 多了一层 - **修复**：改为 `parents[2] / \"source\" / \"smart-money\"`，正确指向 `skills/data/source/` - **清理**：删除了残留的 `skills/data/data/` 目录 ### 3. 文件命名格式统一 - **Image 目录**：`portfolio_YYYYMMDD_HHMM.jpg`（时间戳 4 位，如 `2130`） - **Message 目录原始文件**：`portfolio_YYYYMMDD_HHMM.txt` - **Message 目录 Excel 输出**：与原始 txt 文件名完全一致，仅扩展名变为 `.xlsx` - **格式**：`portfolio_{日期}_{时分}.{ext}`，避免重名时加序号 `_01`, `_02` ### 4. 残留文件清理 清理了 `smart",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "queryHashes": [
+        "3e91dd63304e"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "column-aliases",
+        "run-message-pipeline.py",
+        "48/48",
+        "source-root",
+        "skills/data/data/source",
+        "smart-money",
+        "skills/data/source",
+        "skills/data/data"
+      ]
+    },
+    "memory:memory/2026-05-02.md:66:90": {
+      "key": "memory:memory/2026-05-02.md:66:90",
+      "path": "memory/2026-05-02.md",
+      "startLine": 66,
+      "endLine": 90,
+      "source": "memory",
+      "snippet": "- ratio 正则：`\\b[01]\\.\\d{4,}\\b`（4位小数，避免误匹配 1.1） - 冻结窗格问题：header row（含列标题）和 data row 交错排列，需过滤列标题关键词 ### 12. 已知精度问题 - ✅ 产品代码、持仓比例、Wind代码、资产名称、最新规模：正确识别 - ⚠️ 数量字段（4-6位整数）与 Wind 代码（6位数字）可能混淆 - ⚠️ 冻结窗格导致 header row 文本干扰 data row 解析（\"持仓比例\"被误判为资产名称） - ⚠️ 部分行：数量和市值互串位（如 0291 vs 002594） ### 13. 使用方式 ```bash cd skills/common/paddleocr_table2excel .venv/bin/python scripts/table_ocr.py -i /path/to/image.jpg -o /tmp/result.xlsx ``` ### 14. 测试图片 - `source/smart-money/2026-05-02/portfolio_008.jpg`（主测试图，裁剪后 2591×5612px，表格区域 [978,73,3569,5685]） - 共 14 张图片在 `source/smart-money/2026-05-02/` 目录下 ### 15. 正则表达式 - `PCT_RE = r'\\b[01]\\.\\d{4,}\\b'`（持仓比例/净值/份额，4位小数） - `NUM_RE = r'\\b(\\d+)\\b'`（所有整数） - `SZ_RE = r'\\b(\\d{",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "queryHashes": [
+        "3e91dd63304e"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "1.1",
+        "4-6位整数",
+        "venv/bin/python",
+        "scripts/table-ocr.py",
+        "path/to/image.jpg",
+        "tmp/result.xlsx",
+        "source/smart-money/2026-05-02",
+        "pct-re"
+      ]
+    },
+    "memory:memory/2026-05-04.md:22:46": {
+      "key": "memory:memory/2026-05-04.md:22:46",
+      "path": "memory/2026-05-04.md",
+      "startLine": 22,
+      "endLine": 46,
+      "source": "memory",
+      "snippet": "清理了 `smart-money/2026-05-03/` 目录下的残留文件，最终结构： ``` 2026-05-03/ ├── image/ │ ├── portfolio_20260503_2130.jpg │ ├── portfolio_20260503_2136.jpg │ ├── portfolio_20260503_2139.jpg │ ├── portfolio_20260503_2142.jpg │ └── portfolio_20260503_2143.jpg └── message/ ├── portfolio_20260423_2340.txt/.xlsx (80PF11234 景顺灵活1号) ├── portfolio_20260423_2345.txt/.xlsx (80PF11242 易方达均衡配置) └── portfolio_20260423_2350.txt/.xlsx (80PF11238 常春藤优选3号) ``` ### 5. Message Pipeline 数据验证 - 80PF11234：48 行 ✅ - 80PF11242：46 行 ✅ - 80PF11238：47 行 ✅（注意原始数据中有 `GOOOG.US` 多了一个 O） ## 修改的文件 - `skills/data/data-pipeline/scripts/run_message_pipeline.py`： - COLUMN_ALIASES 添加半角括号映射 - `save_excel()` 函数改为使",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "queryHashes": [
+        "3e91dd63304e"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "smart-money/2026-05-03",
+        "portfolio-20260503-2130.jpg",
+        "portfolio-20260503-2136.jpg",
+        "portfolio-20260503-2139.jpg",
+        "portfolio-20260503-2142.jpg",
+        "portfolio-20260503-2143.jpg",
+        "portfolio-20260423-2340.txt",
+        "portfolio-20260423-2345.txt"
+      ]
+    },
+    "memory:memory/2026-05-02.md:23:57": {
+      "key": "memory:memory/2026-05-02.md:23:57",
+      "path": "memory/2026-05-02.md",
+      "startLine": 23,
+      "endLine": 57,
+      "source": "memory",
+      "snippet": "Excel → flatten_to_nested() → nested JSON → image_portfolio_normalizer → normalized → MongoDB ``` ### 5. 测试数据 - `示例_5产品_250持仓.xlsx`: 1天×5产品×236持仓 → MongoDB ✅ - `示例_5产品_250持仓_base64.txt`: zlib+base64 压缩版 (740 chars) - `mock_3days_decoded.json`: 3天×5产品×708持仓（手动修复版） ### 6. 文件传输 - 建议通过文件传输而非聊天复制传递 base64（聊天复制会导致字符损坏） - 图片保存路径: `skills/data/source/smart-money/YYYY-MM-DD/` ### 7. 目录清理 - 已删除冗余 `workspace-yquant/data/` 目录 - 已删除 `skills/data/data/` 目录 ## MongoDB 连接信息 - Host: 172.25.240.1:27017 - Database: tradingagents - Collections: portfolio_basic_info, portfolio_nav, portfolio_position ## PaddleOCR Table-to-Excel Skill 新增 ### 8. 新增技能：paddleocr_table2excel - **目录**：`skills/common/paddleocr_tab",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "queryHashes": [
+        "3e91dd63304e"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "flatten-to-nested",
+        "image-portfolio-normalizer",
+        "示例-5产品-250持仓.xlsx",
+        "示例-5产品-250持仓-base64.txt",
+        "mock-3days-decoded.json",
+        "workspace-yquant/data",
+        "skills/data/data",
+        "172.25.240.1"
+      ]
+    },
+    "memory:memory/2026-04-16.md:1:41": {
+      "key": "memory:memory/2026-04-16.md:1:41",
+      "path": "memory/2026-04-16.md",
+      "startLine": 1,
+      "endLine": 41,
+      "source": "memory",
+      "snippet": "# 2026-04-16 日记 ## 今日事件 ### 飞书问题排查（晚间） - **现象**：飞书发消息小Q无响应，提示 \"AI service is temporarily overloaded\" - **诊断过程**： 1. Context 满（99.9%）→ 重启 Gateway 后解决 2. 重启后飞书仍然无响应 3. dedup 文件显示 20:11 后就没有收到任何消息 4. 检查 `feishu-pairing.json` 发现是空的 `\"requests\": []` 5. Gateway status 显示 Feishu: OK，但实际消息接收断开 - **权限配置**（已确认正确）： - `contact:user.base:readonly` - `m:chat`, `m:message` - `im:message.group_at_msg:readonly` - `im:message.p2p_msg:readonly` - `im:message:send_as_bot` - `im:resource` - 事件订阅：`im.message.receive_v1` - 机器人能力：已开启 - **可能原因**： 1. 应用是「开发中」状态，只有管理员自己能找到 2. 需要发布应用才能让其他用户使用 3. 或者需要确认找的是正确的机器人（应用名而非\"小Q\"） - **待确认**：应用发布状态 + 是否找对了机器人 ## 系统状态 | 组件 | 状态 | 备注 | |-----",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T15:27:25.167Z",
+      "lastRecalledAt": "2026-05-04T15:27:25.167Z",
+      "queryHashes": [
+        "9c35c9cb8382"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "gateway",
+        "99.9",
+        "feishu-pairing.json",
+        "user.base",
+        "message.group-at-msg",
+        "message.p2p-msg",
+        "send-as-bot",
+        "im.message.receive-v1"
+      ]
+    },
+    "memory:memory/2026-04-17.md:1:27": {
+      "key": "memory:memory/2026-04-17.md:1:27",
+      "path": "memory/2026-04-17.md",
+      "startLine": 1,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "## Light Sleep <!-- openclaw:dreaming:light:start --> - Candidate: 飞书问题排查（晚间）: **现象**：飞书发消息小Q无响应，提示 \"AI service is temporarily overloaded\"; **诊断过程**：; Context 满（99.9%）→ 重启 Gateway 后解决; 重启后飞书仍然无响应 - confidence: 0.62 - evidence: memory/2026-04-16.md:6-9 - recalls: 0 - status: staged - Candidate: 飞书问题排查（晚间）: dedup 文件显示 20:11 后就没有收到任何消息; 检查 `feishu-pairing.json` 发现是空的 `\"requests\": []`; Gateway status 显示 Feishu: OK，但实际消息接收断开 - confidence: 0.62 - evidence: memory/2026-04-16.md:10-12 - recalls: 0 - status: staged - Candidate: 飞书问题排查（晚间）: **权限配置**（已确认正确）：; `contact:user.base:readonly`; `m:chat`, `m:message`; `im:message.group_at_msg:readonly` - confidence: 0.62 - evidence: memory",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T15:27:25.167Z",
+      "lastRecalledAt": "2026-05-04T15:27:25.167Z",
+      "queryHashes": [
+        "9c35c9cb8382"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "gateway",
+        "99.9",
+        "0.62",
+        "memory/2026-04-16.md",
+        "6-9",
+        "feishu-pairing.json",
+        "10-12",
+        "user.base"
+      ]
+    },
+    "memory:memory/2026-04-07.md:1:42": {
+      "key": "memory:memory/2026-04-07.md:1:42",
+      "path": "memory/2026-04-07.md",
+      "startLine": 1,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "# 2026-04-07 Daily Memory ## Daily Stock Analysis 项目配置 ### 环境变量 (.env) 路径 `~/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env` ### 当前自选股配置 `STOCK_LIST=002594,00981,01801` ⚠️ **已知问题：** 00981 和 01801 不是有效股票代码，只有 002594 能正常解析。需要确认正确的股票代码。 ### 已修复 Bug - **main.py AI分析器检查**：改为 `GeminiAnalyzer(config=config)` 统一 LiteLLM 管理（原来只检查 gemini_api_key/openai_api_key，漏掉 deepseek） - **socksio**：安装 `httpx[socks]` 解决 SOCKS 代理兼容问题 ### 代理配置 ``` USE_PROXY=true PROXY_HOST=172.25.240.1 # WSL2 Windows宿主机IP（Clash代理） PROXY_PORT=7897 ``` ### LLM 多渠道配置 ``` LLM_CHANNELS=minimax,deepseek,gemini LITELLM_MODEL=minimax/MiniMax-M2.7 LITELLM_FALLBACK_MODELS=deepseek/deepseek-chat,gemini/gemini-2",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T15:27:25.167Z",
+      "lastRecalledAt": "2026-05-04T15:27:25.167Z",
+      "queryHashes": [
+        "9c35c9cb8382"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "openai",
+        "stock-list",
+        "main.py",
+        "gemini-api-key/openai-api-key",
+        "use-proxy",
+        "proxy-host",
+        "172.25.240.1",
+        "proxy-port"
+      ]
+    },
+    "memory:memory/2026-04-17.md:336:338": {
+      "key": "memory:memory/2026-04-17.md:336:338",
+      "path": "memory/2026-04-17.md",
+      "startLine": 336,
+      "endLine": 338,
+      "source": "memory",
+      "snippet": "- 上证指数: 3880.10 (↓1.00%) 深证成指: 13352.90 (↓0.99%) 创业板指: 3149.60 (↓0.73%) 科创50: 1256.21 (↓0.47%) 上涨 716 / 下跌 4746 涨停 38 / 跌停 46 成交额 16689亿 ``` ### 待完成 - [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 --- ## 夜间调试记录 (2026-04-06 01:20-02:08) ### litellm/MiniMax 兼容性问题 ✅ 根因确认 **问题描述：** litellm 调用 MiniMax API 失败，报 `invalid api key (2049)` **根本原因：** - litellm MiniMax provider 使用 OpenAI 兼容端点 `/v1/chat/completions` - MiniMax 实际使用 Anthropic 兼容端点 `/v1/messages` - 即使配置了正确的 `base_url: \"https://api.minimaxi.com/anthropic\"`，litellm 内部仍然拼接错误路径 **测试验证：** - ✅ 直接用 `requests.post` 调用 MiniMax `/v1/me [con",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T15:27:25.167Z",
+      "lastRecalledAt": "2026-05-04T15:27:25.167Z",
+      "queryHashes": [
+        "9c35c9cb8382"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "openai",
+        "网络",
+        "3880.10",
+        "1.00",
+        "13352.90",
+        "0.99",
+        "3149.60",
+        "0.73"
+      ]
+    },
+    "memory:memory/2026-04-17.md:298:302": {
+      "key": "memory:memory/2026-04-17.md:298:302",
+      "path": "memory/2026-04-17.md",
+      "startLine": 298,
+      "endLine": 302,
+      "source": "memory",
+      "snippet": "- Candidate: 上证指数: 3880.10 (↓1.00%) 深证成指: 13352.90 (↓0.99%) 创业板指: 3149.60 (↓0.73%) 科创50: 1256.21 (↓0.47%) 上涨 716 / 下跌 4746 涨停 38 / 跌停 46 成交额 16689亿 ``` ### 待完成 - [ ] 解决 litellm 代理问题（可能需要配置代理凭据或切换网络） - [ ] 补充 `analyzer_service` 模块 - [ ] 配置邮件推送（TOOLS.md 中已有 SMTP 配置） - [ ] 飞书 Webhook URL 待确认 - [ ] Tavily API Key（新闻搜索）待配置 --- ## 夜间调试记录 (2026-04-06 01:20-02:08) ### litellm/MiniMax 兼容性问题 ✅ 根因确认 **问题描述：** litellm 调用 MiniMax API 失败，报 `invalid api key (2049)` **根本原因：** - litellm MiniMax provider 使用 OpenAI 兼容端点 `/v1/chat/completions` - MiniMax 实际使用 Anthropic 兼容端点 `/v1/messages` - 即使配置了正确的 `base_url: \"https://api.minimaxi.com/anthropic\"`，litellm 内部仍然拼接错误路径 **测试验证：** - ✅ 直接用 `requests.post` 调用 MiniMax `",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-04T15:27:25.167Z",
+      "lastRecalledAt": "2026-05-04T15:27:25.167Z",
+      "queryHashes": [
+        "9c35c9cb8382"
+      ],
+      "recallDays": [
+        "2026-05-04"
+      ],
+      "conceptTags": [
+        "openai",
+        "网络",
+        "3880.10",
+        "1.00",
+        "13352.90",
+        "0.99",
+        "3149.60",
+        "0.73"
       ]
     }
   }

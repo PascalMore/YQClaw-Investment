@@ -117,39 +117,49 @@ def parse_text_to_df(text: str) -> pd.DataFrame:
     return df
 
 
-def save_excel(df: pd.DataFrame, date_str: str, source_root: Path, input_filename: str = None) -> Path:
-    """保存 Excel 到 source/smart-money/{date}/message/
-    
-    Args:
-        input_filename: 输入的原始文件完整路径，用于生成同名的 xlsx
+def save_raw_txt(raw_text: str, date_str: str, source_root: Path) -> Path:
+    """
+    保存原始消息文本到 source/smart-money/{date}/message/。
+    文件名格式：portfolio_YYYYMMDD_HHMM.txt（HHMM 为系统收到消息的时间，4位）
     """
     from datetime import datetime
-    
+
     message_dir = source_root / date_str / "message"
     message_dir.mkdir(parents=True, exist_ok=True)
-    
-    if input_filename:
-        # 从输入文件完整路径提取 base name，只改后缀
-        base = Path(input_filename).stem  # 去掉扩展名
-        filename = f"{base}.xlsx"
-        
-        # 避免重名，加序号
-        counter = 1
-        original_filename = filename
-        while (message_dir / filename).exists():
-            filename = f"{base}_{counter:02d}.xlsx"
-            counter += 1
-    else:
-        date_clean = date_str.replace("-", "")
-        time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"portfolio_{date_clean}_{time_stamp}.xlsx"
-        
-        counter = 1
-        while (message_dir / filename).exists():
-            filename = f"portfolio_{date_clean}_{time_stamp}_{counter:02d}.xlsx"
-            counter += 1
-    
-    excel_path = message_dir / filename
+
+    receive_time = datetime.now()
+    date_clean = receive_time.strftime("%Y%m%d")      # YYYYMMDD
+    time_clean = receive_time.strftime("%H%M%S")         # HHMMSS，6位精确到秒
+    base = f"portfolio_{date_clean}_{time_clean}"
+
+    txt_path = message_dir / f"{base}.txt"
+    counter = 1
+    while txt_path.exists():
+        txt_path = message_dir / f"{base}_{counter:02d}.txt"
+        counter += 1
+
+    txt_path.write_text(raw_text, encoding="utf-8")
+    return txt_path
+
+
+def save_excel(df: pd.DataFrame, date_str: str, source_root: Path, base_name: str) -> Path:
+    """
+    保存 Excel 到 source/smart-money/{date}/message/。
+    文件名与同时间生成的 raw txt 文件名一致（仅扩展名不同）。
+
+    Args:
+        base_name: 对应的 raw txt 文件名（不含扩展名），
+                   由 save_raw_txt 根据收到时间生成。
+    """
+    message_dir = source_root / date_str / "message"
+    message_dir.mkdir(parents=True, exist_ok=True)
+
+    excel_path = message_dir / f"{base_name}.xlsx"
+    counter = 1
+    while excel_path.exists():
+        excel_path = message_dir / f"{base_name}_{counter:02d}.xlsx"
+        counter += 1
+
     df.to_excel(excel_path, index=False, sheet_name="Sheet1")
     return excel_path
 
@@ -159,7 +169,6 @@ async def run_pipeline(
     date_str: str,
     source_root: Path,
     dry_run: bool = False,
-    input_filename: str = None,
 ) -> dict:
     """
     完整流程：消息文本 → Excel → normalize → validate → MongoDB
@@ -171,8 +180,13 @@ async def run_pipeline(
     if df.empty:
         raise ValueError("解析后无有效数据")
 
-    excel_path = save_excel(df, date_str, source_root, input_filename=input_filename)
-    print(f"[Step1] Excel → {excel_path}  ({len(df)} rows)")
+    # Step 1: 保存原始消息 + 生成 Excel
+    # 收到时间作为文件名时间戳（区分多批次消息）
+    txt_path = save_raw_txt(raw_text, date_str, source_root)
+    base_name = txt_path.stem  # portfolio_YYYYMMDD_HHMM 或 portfolio_YYYYMMDD_HHMM_NN
+    excel_path = save_excel(df, date_str, source_root, base_name)
+    print(f"[Step1] Raw TXT → {txt_path}")
+    print(f"[Step1] Excel  → {excel_path}  ({len(df)} rows)")
 
     if dry_run:
         return {"excel_path": str(excel_path), "rows": len(df), "dry_run": True}
@@ -241,11 +255,10 @@ def main():
         sys.exit(1)
 
     # source_root: 向上两级到 workspace-yquant/skills/data/source/smart-money
-    source_root = Path(__file__).resolve().parents[2] / "source" / "smart-money"
+    source_root = Path(__file__).resolve().parents[3] / "data" / "source" / "smart-money"
 
     import asyncio
-    input_fn = args.file if args.file else None
-    result = asyncio.run(run_pipeline(raw_text, args.date, source_root, dry_run=args.dry_run, input_filename=input_fn))
+    result = asyncio.run(run_pipeline(raw_text, args.date, source_root, dry_run=args.dry_run))
     print(f"\n✅ 完成：{result}")
 
 

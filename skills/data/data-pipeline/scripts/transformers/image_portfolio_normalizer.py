@@ -12,44 +12,24 @@ def normalize_basic_info(daily_data: list[dict]) -> list[dict]:
         daily_data: List of daily data dicts from decoded image JSON.
 
     Returns:
-        List of basic info records with product_code, product_name,
-        and latest nav/share/aum from the most recent date.
+        List of basic info records with product_code, product_name.
+        NOTE: latest_nav/share/aum are NOT included here — they are computed
+        by the DB layer from portfolio_nav (max nav_date per product) to avoid
+        the risk of OCR的历史日期覆盖最新值.
     """
     seen: set = set()
-    latest_by_product: dict = {}
+    records = []
 
-    # First pass: collect latest nav/share/aum per product (from last date)
-    for day in daily_data:
-        for product in day.get("products", []):
-            code = product.get("产品代码")
-            if code:
-                latest_by_product[code] = {
-                    "product_code": code,
-                    "product_name": product.get("产品名称", ""),
-                    "latest_nav": product.get("最新净值"),
-                    "latest_share": product.get("最新份额"),
-                    "latest_aum": product.get("最新规模"),
-                }
-
-    # Second pass: fill missing latest_aum with nav * share
-    for code, info in latest_by_product.items():
-        if info["latest_aum"] is None or info["latest_aum"] == "":
-            nav = info["latest_nav"]
-            share = info["latest_share"]
-            if nav is not None and share is not None:
-                try:
-                    info["latest_aum"] = float(nav) * float(share)
-                except (ValueError, TypeError):
-                    pass
-
-    # Return in insertion order (first seen)
     for day in daily_data:
         for product in day.get("products", []):
             code = product.get("产品代码")
             if code and code not in seen:
                 seen.add(code)
+                records.append({
+                    "product_code": code,
+                    "product_name": product.get("产品名称", ""),
+                })
 
-    records = [latest_by_product[code] for code in seen if code in latest_by_product]
     return records
 
 
