@@ -87,6 +87,7 @@ class MarketDataAdapter:
     
     def __init__(self, config=None):
         self.config = config
+        # reports 在 daily-market-analysis 自身目录下
         self._reports_root = os.path.join(_get_dsa_root(), 'reports')
         self._fetcher = None
     
@@ -308,14 +309,14 @@ class MarketDataAdapter:
             return None
         
         today = date.today()
-        # 优先找 market_review_*.md（来自 daily_stock_analysis）
+        # market_review 文件（daily_stock_analysis 生成的 A股+美股复盘）
         for days_ago in range(3):
             check_date = today - timedelta(days=days_ago)
             report_name = f"market_review_{check_date.strftime('%Y%m%d')}.md"
             report_path = os.path.join(self._reports_root, report_name)
             if os.path.exists(report_path):
                 return report_path
-        # Fallback: 找 daily_report_*.md
+        # Fallback: daily_market_analysis 自身生成的全球日报
         for days_ago in range(3):
             check_date = today - timedelta(days=days_ago)
             report_name = f"daily_report_{check_date.strftime('%Y-%m-%d')}.md"
@@ -359,10 +360,19 @@ class MarketDataAdapter:
                 if marker in cn_part:
                     sections['cn'] = cn_part.split(marker)[1].strip() if marker in cn_part else cn_part.strip()
                     break
-            # 美股部分（### 3.2 之后到下一个 ### 之前）
+            # 美股部分（### 3.2 之后到下一个 ## 三、 之前，### 只是小标题）
             if us_part:
-                next_section = us_part.split("###")[0]
-                sections['us'] = next_section.strip()
+                # 找下一个顶级章节 ## 三、 各市场复盘（A股章节的起点）
+                marker = "## 三、"
+                if marker in us_part:
+                    sections['us'] = us_part.split(marker)[0].strip()
+                else:
+                    # 兜底：用 1. Market Summary 之后的完整内容（去掉"美股市场复盘"小标题）
+                    parts_us = us_part.split("### 1. Market Summary")
+                    if len(parts_us) > 1:
+                        sections['us'] = "### 1. Market Summary" + parts_us[1]
+                    else:
+                        sections['us'] = us_part.strip()
         # 方式3: 旧格式 # 美股大盘复盘 / # A股大盘复盘
         elif "# 美股大盘复盘" in content:
             sections['us'] = content.split("# 美股大盘复盘")[1].strip()

@@ -186,6 +186,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .card-header {{ padding:10px 16px; display:flex; align-items:flex-start; gap:10px; border-bottom:1px solid #e8e8e8 }}
         .card-header .card-title {{ font-size:14px; font-weight:700; color:#1a1a1a; line-height:1.35 }}
         .card-header .card-summary {{ font-size:12px; color:#555; line-height:1.55; margin-top:1px; word-break:break-all }}
+        .card-hk     .card-header {{ background:#fafafa }}
+        .card-crypto .card-header {{ background:#fafafa }}
+        .card-comm   .card-header {{ background:#fafafa }}
+        .card-bond   .card-header {{ background:#fafafa }}
+
         .card-cn  .card-header {{ background:#fafafa }}
         .card-us  .card-header {{ background:#fafafa }}
         .card-body {{ padding:13px 16px; height:300px; overflow-y:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:#bbb transparent }}
@@ -314,18 +319,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }}
 
         /* ========== 热点资讯 Grid ========== */
-        .news-grid {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        .news-grid {
+            display: flex;
+            flex-wrap: wrap;
             gap: 12px;
-        }}
+        }
 
-        .news-card {{
+        .news-card {
             background: #fff;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-        }}
+            flex: 0 0 calc(50% - 6px);
+            max-width: calc(50% - 6px);
+        }
 
         .news-card-header {{
             padding: 6px 10px;

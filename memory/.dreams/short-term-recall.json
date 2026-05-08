@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-04T15:27:25.167Z",
+  "updatedAt": "2026-05-08T13:06:09.122Z",
   "entries": {
     "memory:memory/2026-04-05.md:1:38": {
       "key": "memory:memory/2026-04-05.md:1:38",
@@ -5235,18 +5235,20 @@
       "endLine": 30,
       "source": "memory",
       "snippet": "# 2026-05-03 Daily Memory ## Smart Money Portfolio Pipeline 上线 ### 目录结构 ``` data/source/smart-money/{日期}/ ├── image/ # 图片截图（OCR处理） └── message/ # 文本/CSV数据 ``` ### 核心文件 - `skills/data/data-pipeline/scripts/smart_money_watcher.py` — 自动监控新文件并触发 pipeline - `start_smart_money_watcher.sh` — 启动脚本（start/stop/status） ### Pipeline 流程 - **Image**: OCR (PaddleOCR) → Excel → Normalize → Validate → MongoDB - **Message**: Parse → Excel → Normalize → Validate → MongoDB ### 今日数据（2026-05-03） - 收到 4 张持仓截图（21:30 ~ 21:42） - 处理结果：47 → 46 → 46 → 46 条记录 - 所有数据已入库 MongoDB（tradingagents 数据库） - 目录已创建：`data/source/smart-money/2026-05-03/image/` ### 待完成 - [ ] 将 smart_money_watcher 注册为 systemd 服务（开机自启） - [ ] 持仓对比",
-      "recallCount": 1,
+      "recallCount": 2,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 1,
+      "totalScore": 2,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-04T13:53:18.981Z",
-      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-08T13:06:09.122Z",
       "queryHashes": [
-        "3e91dd63304e"
+        "3e91dd63304e",
+        "185e33bb39ec"
       ],
       "recallDays": [
-        "2026-05-04"
+        "2026-05-04",
+        "2026-05-08"
       ],
       "conceptTags": [
         "data/source/smart-money",
@@ -5266,18 +5268,20 @@
       "endLine": 32,
       "source": "memory",
       "snippet": "# 2026-05-04 工作记录 ## Smart Money Pipeline 修复 ### 1. 市值（本币）列为空的问题 - **根因**：输入文件列名 `市值(本币)`（半角括号）与 COLUMN_ALIASES 中的 `市值（本币）`（全角括号）不匹配 - **修复**：在 `run_message_pipeline.py` 的 COLUMN_ALIASES 中添加半角版本映射 - **结果**：48/48 行市值全部正确填充 ### 2. 目录结构问题 - **问题**：之前 `source_root` 路径设置错误，导致 `skills/data/data/source/...` 多了一层 - **修复**：改为 `parents[2] / \"source\" / \"smart-money\"`，正确指向 `skills/data/source/` - **清理**：删除了残留的 `skills/data/data/` 目录 ### 3. 文件命名格式统一 - **Image 目录**：`portfolio_YYYYMMDD_HHMM.jpg`（时间戳 4 位，如 `2130`） - **Message 目录原始文件**：`portfolio_YYYYMMDD_HHMM.txt` - **Message 目录 Excel 输出**：与原始 txt 文件名完全一致，仅扩展名变为 `.xlsx` - **格式**：`portfolio_{日期}_{时分}.{ext}`，避免重名时加序号 `_01`, `_02` ### 4. 残留文件清理 清理了 `smart",
-      "recallCount": 1,
+      "recallCount": 2,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 1,
+      "totalScore": 2,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-04T13:53:18.981Z",
-      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-08T13:06:09.122Z",
       "queryHashes": [
-        "3e91dd63304e"
+        "3e91dd63304e",
+        "185e33bb39ec"
       ],
       "recallDays": [
-        "2026-05-04"
+        "2026-05-04",
+        "2026-05-08"
       ],
       "conceptTags": [
         "column-aliases",
@@ -5328,18 +5332,20 @@
       "endLine": 46,
       "source": "memory",
       "snippet": "清理了 `smart-money/2026-05-03/` 目录下的残留文件，最终结构： ``` 2026-05-03/ ├── image/ │ ├── portfolio_20260503_2130.jpg │ ├── portfolio_20260503_2136.jpg │ ├── portfolio_20260503_2139.jpg │ ├── portfolio_20260503_2142.jpg │ └── portfolio_20260503_2143.jpg └── message/ ├── portfolio_20260423_2340.txt/.xlsx (80PF11234 景顺灵活1号) ├── portfolio_20260423_2345.txt/.xlsx (80PF11242 易方达均衡配置) └── portfolio_20260423_2350.txt/.xlsx (80PF11238 常春藤优选3号) ``` ### 5. Message Pipeline 数据验证 - 80PF11234：48 行 ✅ - 80PF11242：46 行 ✅ - 80PF11238：47 行 ✅（注意原始数据中有 `GOOOG.US` 多了一个 O） ## 修改的文件 - `skills/data/data-pipeline/scripts/run_message_pipeline.py`： - COLUMN_ALIASES 添加半角括号映射 - `save_excel()` 函数改为使",
-      "recallCount": 1,
+      "recallCount": 2,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 1,
+      "totalScore": 2,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-04T13:53:18.981Z",
-      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-08T13:06:09.122Z",
       "queryHashes": [
-        "3e91dd63304e"
+        "3e91dd63304e",
+        "185e33bb39ec"
       ],
       "recallDays": [
-        "2026-05-04"
+        "2026-05-04",
+        "2026-05-08"
       ],
       "conceptTags": [
         "smart-money/2026-05-03",
@@ -5359,18 +5365,20 @@
       "endLine": 57,
       "source": "memory",
       "snippet": "Excel → flatten_to_nested() → nested JSON → image_portfolio_normalizer → normalized → MongoDB ``` ### 5. 测试数据 - `示例_5产品_250持仓.xlsx`: 1天×5产品×236持仓 → MongoDB ✅ - `示例_5产品_250持仓_base64.txt`: zlib+base64 压缩版 (740 chars) - `mock_3days_decoded.json`: 3天×5产品×708持仓（手动修复版） ### 6. 文件传输 - 建议通过文件传输而非聊天复制传递 base64（聊天复制会导致字符损坏） - 图片保存路径: `skills/data/source/smart-money/YYYY-MM-DD/` ### 7. 目录清理 - 已删除冗余 `workspace-yquant/data/` 目录 - 已删除 `skills/data/data/` 目录 ## MongoDB 连接信息 - Host: 172.25.240.1:27017 - Database: tradingagents - Collections: portfolio_basic_info, portfolio_nav, portfolio_position ## PaddleOCR Table-to-Excel Skill 新增 ### 8. 新增技能：paddleocr_table2excel - **目录**：`skills/common/paddleocr_tab",
-      "recallCount": 1,
+      "recallCount": 2,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 1,
+      "totalScore": 2,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-04T13:53:18.981Z",
-      "lastRecalledAt": "2026-05-04T13:53:18.981Z",
+      "lastRecalledAt": "2026-05-08T13:06:09.122Z",
       "queryHashes": [
-        "3e91dd63304e"
+        "3e91dd63304e",
+        "185e33bb39ec"
       ],
       "recallDays": [
-        "2026-05-04"
+        "2026-05-04",
+        "2026-05-08"
       ],
       "conceptTags": [
         "flatten-to-nested",
