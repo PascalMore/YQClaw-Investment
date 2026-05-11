@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-10T14:32:16.315Z",
+  "updatedAt": "2026-05-11T00:32:05.167Z",
   "entries": {
     "memory:memory/2026-04-05.md:1:38": {
       "key": "memory:memory/2026-04-05.md:1:38",
@@ -5467,22 +5467,24 @@
       "endLine": 42,
       "source": "memory",
       "snippet": "# 2026-04-07 Daily Memory ## Daily Stock Analysis 项目配置 ### 环境变量 (.env) 路径 `~/.openclaw/workspace/skills/investment/research/daily_stock_analysis/.env` ### 当前自选股配置 `STOCK_LIST=002594,00981,01801` ⚠️ **已知问题：** 00981 和 01801 不是有效股票代码，只有 002594 能正常解析。需要确认正确的股票代码。 ### 已修复 Bug - **main.py AI分析器检查**：改为 `GeminiAnalyzer(config=config)` 统一 LiteLLM 管理（原来只检查 gemini_api_key/openai_api_key，漏掉 deepseek） - **socksio**：安装 `httpx[socks]` 解决 SOCKS 代理兼容问题 ### 代理配置 ``` USE_PROXY=true PROXY_HOST=172.25.240.1 # WSL2 Windows宿主机IP（Clash代理） PROXY_PORT=7897 ``` ### LLM 多渠道配置 ``` LLM_CHANNELS=minimax,deepseek,gemini LITELLM_MODEL=minimax/MiniMax-M2.7 LITELLM_FALLBACK_MODELS=deepseek/deepseek-chat,gemini/gemini-2",
-      "recallCount": 4,
+      "recallCount": 5,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 4,
+      "totalScore": 5,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-04T15:27:25.167Z",
-      "lastRecalledAt": "2026-05-10T14:31:16.466Z",
+      "lastRecalledAt": "2026-05-11T00:32:05.167Z",
       "queryHashes": [
         "9c35c9cb8382",
         "ea73516fae01",
         "9644cd8a478a",
-        "0b2c88928e9f"
+        "0b2c88928e9f",
+        "9931a4e2a553"
       ],
       "recallDays": [
         "2026-05-04",
-        "2026-05-10"
+        "2026-05-10",
+        "2026-05-11"
       ],
       "conceptTags": [
         "openai",
@@ -5570,19 +5572,21 @@
       "endLine": 213,
       "source": "memory",
       "snippet": "## 重大事件：工作区状态丢失事故 ### 问题根因 1. **Apr 8 全天修改未提交** - market_data_adapter.py 的港股/美股修复保存在 .backup 文件中，但从未合并 2. **.backup 文件从未被使用** - Apr 9 的 commit 直接写了新版本，覆盖了修复 3. **无 git stash 习惯** - 大量更改游离于版本控制之外 ### 修复措施 1. ✅ 已将 .backup 中的港股/美股修复合并到 market_data_adapter.py 2. ✅ 已删除 .backup 文件 3. ✅ 已推送 git commit ### 预防规范 - 每完成一个功能模块立即 commit - 不用 .backup 文件，用 git stash 或分支 - 阶段性提交，不要等到一天结束 --- ## 技术修复记录 ### 1. MiniMax 端点配置错误 - **问题**: api.minimax.chat → 正确为 api.minimaxi.com - **修复**: 更新 .env 中 LLM_MINIMAX_BASE_URL - **相关文件**: ~/.openclaw/workspace/.env ### 2. MiniMax 协议未注册 - **问题**: SUPPORTED_LLM_CHANNEL_PROTOCOLS 不含 \"minimax\" - **修复**: 添加 \"minimax\" 到 src/config.py - **相关文件**: skills/investment/researc",
-      "recallCount": 2,
+      "recallCount": 3,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 2,
+      "totalScore": 3,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-10T14:26:06.634Z",
-      "lastRecalledAt": "2026-05-10T14:26:17.499Z",
+      "lastRecalledAt": "2026-05-11T00:32:05.167Z",
       "queryHashes": [
         "ea73516fae01",
-        "9644cd8a478a"
+        "9644cd8a478a",
+        "9931a4e2a553"
       ],
       "recallDays": [
-        "2026-05-10"
+        "2026-05-10",
+        "2026-05-11"
       ],
       "conceptTags": [
         "backup",
@@ -5624,6 +5628,130 @@
         "18-21",
         "22-22",
         "24-27"
+      ]
+    },
+    "memory:memory/2026-04-09.md:1:40": {
+      "key": "memory:memory/2026-04-09.md:1:40",
+      "path": "memory/2026-04-09.md",
+      "startLine": 1,
+      "endLine": 40,
+      "source": "memory",
+      "snippet": "# 2026-04-09 Daily Memory ## 重大事件：工作区状态丢失事故 ### 问题根因 1. **Apr 8 全天修改未提交** - market_data_adapter.py 的港股/美股修复保存在 .backup 文件中，但从未合并 2. **.backup 文件从未被使用** - Apr 9 的 commit 直接写了新版本，覆盖了修复 3. **无 git stash 习惯** - 大量更改游离于版本控制之外 ### 修复措施 1. ✅ 已将 .backup 中的港股/美股修复合并到 market_data_adapter.py 2. ✅ 已删除 .backup 文件 3. ✅ 已推送 git commit ### 预防规范 - 每完成一个功能模块立即 commit - 不用 .backup 文件，用 git stash 或分支 - 阶段性提交，不要等到一天结束 --- ## 技术修复记录 ### 1. MiniMax 端点配置错误 - **问题**: api.minimax.chat → 正确为 api.minimaxi.com - **修复**: 更新 .env 中 LLM_MINIMAX_BASE_URL - **相关文件**: ~/.openclaw/workspace/.env ### 2. MiniMax 协议未注册 - **问题**: SUPPORTED_LLM_CHANNEL_PROTOCOLS 不含 \"minimax\" - **修复**: 添加 \"minimax\" 到 src/config.py - **相关文件**",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-11T00:32:05.167Z",
+      "lastRecalledAt": "2026-05-11T00:32:05.167Z",
+      "queryHashes": [
+        "9931a4e2a553"
+      ],
+      "recallDays": [
+        "2026-05-11"
+      ],
+      "conceptTags": [
+        "backup",
+        "market-data-adapter.py",
+        "的港股/美股修复保存在",
+        "中的港股/美股修复合并到",
+        "api.minimax.chat",
+        "api.minimaxi.com",
+        "llm-minimax-base-url",
+        "openclaw/workspace"
+      ]
+    },
+    "memory:memory/2026-04-09.md:138:178": {
+      "key": "memory:memory/2026-04-09.md:138:178",
+      "path": "memory/2026-04-09.md",
+      "startLine": 138,
+      "endLine": 178,
+      "source": "memory",
+      "snippet": "**解决**: 需要从 `on` 数组中移除 `\"start\"`，只保留 `\"cron:08_30\"` **修改位置**: `/home/pascal/.openclaw/agents/main.json` 第5行 **当前**: `\"on\": [\"start\", \"cron:08_30\"]` **目标**: `\"on\": [\"cron:08_30\"]` **注意**: 沙盒限制无法直接编辑该文件，需要使用其他方式修改 ## Daily-Stock-Analysis 启动自动执行问题 **问题**: cron job 配置为 `\"on\": [\"start\", \"cron:08_30\"]`，gateway 启动时会自动执行分析 **解决**: 需从 `on` 数组中移除 `\"start\"`，只保留 `\"cron:08_30\"` **修改文件**: `~/.openclaw/agents/main.json` 第5行 **当前**: `\"on\": [\"start\", \"cron:08_30\"]` **目标**: `\"on\": [\"cron:08_30\"]` **命令**: ```bash sed -i 's/\"on\": \\[\"start\", \"cron:08_30\"\\]/\"on\": [\"cron:08_30\"]/' ~/.openclaw/agents/main.json ``` ## 待执行任务 ### 修改 daily_stock_analysis .env 关闭启动自动执行 **文件**: `~/.openclaw/workspace/skills/i",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-11T00:32:05.167Z",
+      "lastRecalledAt": "2026-05-11T00:32:05.167Z",
+      "queryHashes": [
+        "9931a4e2a553"
+      ],
+      "recallDays": [
+        "2026-05-11"
+      ],
+      "conceptTags": [
+        "gateway",
+        "08-30",
+        "home/pascal",
+        "openclaw/agents/main.json",
+        "daily-stock-analysis",
+        "openclaw/workspace/skills/i",
+        "解决",
+        "需要"
+      ]
+    },
+    "memory:memory/2026-04-09.md:309:353": {
+      "key": "memory:memory/2026-04-09.md:309:353",
+      "path": "memory/2026-04-09.md",
+      "startLine": 309,
+      "endLine": 353,
+      "source": "memory",
+      "snippet": "**解决**: 需要从 `on` 数组中移除 `\"start\"`，只保留 `\"cron:08_30\"` **修改位置**: `/home/pascal/.openclaw/agents/main.json` 第5行 **当前**: `\"on\": [\"start\", \"cron:08_30\"]` **目标**: `\"on\": [\"cron:08_30\"]` **注意**: 沙盒限制无法直接编辑该文件，需要使用其他方式修改 ## Daily-Stock-Analysis 启动自动执行问题 **问题**: cron job 配置为 `\"on\": [\"start\", \"cron:08_30\"]`，gateway 启动时会自动执行分析 **解决**: 需从 `on` 数组中移除 `\"start\"`，只保留 `\"cron:08_30\"` **修改文件**: `~/.openclaw/agents/main.json` 第5行 **当前**: `\"on\": [\"start\", \"cron:08_30\"]` **目标**: `\"on\": [\"cron:08_30\"]` **命令**: ```bash sed -i 's/\"on\": \\[\"start\", \"cron:08_30\"\\]/\"on\": [\"cron:08_30\"]/' ~/.openclaw/agents/main.json ``` ## 待执行任务 ### 修改 daily_stock_analysis .env 关闭启动自动执行 **文件**: `~/.openclaw/workspace/skills/i",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-11T00:32:05.167Z",
+      "lastRecalledAt": "2026-05-11T00:32:05.167Z",
+      "queryHashes": [
+        "9931a4e2a553"
+      ],
+      "recallDays": [
+        "2026-05-11"
+      ],
+      "conceptTags": [
+        "gateway",
+        "08-30",
+        "home/pascal",
+        "openclaw/agents/main.json",
+        "daily-stock-analysis",
+        "openclaw/workspace/skills/i",
+        "解决",
+        "需要"
+      ]
+    },
+    "memory:memory/2026-04-17.md:303:308": {
+      "key": "memory:memory/2026-04-17.md:303:308",
+      "path": "memory/2026-04-17.md",
+      "startLine": 303,
+      "endLine": 308,
+      "source": "memory",
+      "snippet": "- Candidate: # 2026-04-06 Daily Memory ## Session Summary ### Investment System Setup - Working on OpenClaw investment skills: `daily_stock_analysis` and `daily-market-analysis` - Configured `litellm_config.yaml` with MiniMax + Gemini models - Set up `.env` with API keys and LITELLM_CONFIG path ### Technical Issues 1. **Network proxy issue** - 系统环境有 `socks5h://127.0.0.1:20170` 代理，导致 litellm API 调用失败 (SSL handshake failed) 2. **Module import issue** - `daily-stock-analysis` 有 `analyzer_service` 缺失问题 3. **Template mode works** - 基础数据获取（akshare）和报告生成正常 ### What's Working - ✅ akshare 数据获取正常 - ✅ 报告模板生成正常 - ✅ 股票数据复盘功能正常（上证/深证/创业板/科创50） - ❌ AI 分析未启用（litellm 网络问题） ### Daily Stock Analysis 测试结果 ``` 上",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-11T00:32:05.167Z",
+      "lastRecalledAt": "2026-05-11T00:32:05.167Z",
+      "queryHashes": [
+        "9931a4e2a553"
+      ],
+      "recallDays": [
+        "2026-05-11"
+      ],
+      "conceptTags": [
+        "network",
+        "网络",
+        "daily-stock-analysis",
+        "daily-market-analysis",
+        "litellm-config.yaml",
+        "litellm-config",
+        "127.0.0.1",
+        "analyzer-service"
       ]
     }
   }

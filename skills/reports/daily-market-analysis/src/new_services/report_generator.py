@@ -319,20 +319,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }}
 
         /* ========== 热点资讯 Grid ========== */
-        .news-grid {
+        .news-grid {{
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
-        }
+        }}
 
-        .news-card {
+        .news-card {{
             background: #fff;
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
             flex: 0 0 calc(50% - 6px);
             max-width: calc(50% - 6px);
-        }
+        }}
 
         .news-card-header {{
             padding: 6px 10px;

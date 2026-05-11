@@ -428,7 +428,7 @@ class MarketDataAdapter:
     # ========================================
     
     def _get_project_env_path(self) -> str:
-        """获取本项目 .env 文件路径"""
+        """获取本项目 .env 文件路径（skill 目录下自用的 .env）"""
         current = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(os.path.dirname(current))
         return os.path.join(project_root, '.env')

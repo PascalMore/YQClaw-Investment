@@ -16,8 +16,7 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from openpyxl import load_workbook
-from openpyxl.styles import numbers
+from openpyxl import Workbook
 
 # ============== 配置 ==============
 MONGODB_URI = "mongodb://myq:6812345@172.25.240.1:27017/tradingagents"
@@ -35,7 +34,7 @@ TRADE_COLUMNS = [
 ]
 
 # 默认 .env 路径
-DEFAULT_ENV_PATH = str(Path(__file__).parent.parent / "daily-market-analysis" / ".env")
+DEFAULT_ENV_PATH = str(Path(__file__).parents[4] / ".env")
 
 
 def load_config(env_path: str = None) -> dict:
@@ -50,6 +49,9 @@ def load_config(env_path: str = None) -> dict:
         "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN", ""),
         "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", ""),
         "daily_happy_chat_id": os.getenv("DAILY_HAPPY_GROUP_CHAT_ID", ""),
+        "use_proxy": os.getenv("USE_PROXY", "false").lower() == "true",
+        "proxy_host": os.getenv("PROXY_HOST", ""),
+        "proxy_port": os.getenv("PROXY_PORT", ""),
     }
 
 
@@ -69,13 +71,32 @@ def get_latest_date(db, collection_name: str) -> str:
     """获取指定表的最新日期"""
     try:
         collection = db[collection_name]
-        result = collection.find_one(sort=[("date", -1)])
-        if result and "date" in result:
-            return result["date"]
+        date_field = "position_date" if collection_name == "portfolio_position" else "trade_date"
+        result = collection.find_one(sort=[(date_field, -1)], projection={date_field: 1})
+        if result and date_field in result:
+            return result[date_field]
         return None
     except Exception as e:
         print(f"⚠️ 查询 {collection_name} 最新日期失败: {e}")
         return None
+
+
+def get_product_info_map(db) -> dict:
+    """获取产品代码到产品名称/净值/规模的映射"""
+    try:
+        collection = db["portfolio_basic_info"]
+        cursor = collection.find()
+        return {
+            doc["product_code"]: {
+                "product_name": doc.get("product_name", ""),
+                "latest_nav": doc.get("latest_nav", 0),
+                "latest_aum": doc.get("latest_aum", 0),
+            }
+            for doc in cursor
+        }
+    except Exception as e:
+        print(f"⚠️ 查询产品基础信息失败: {e}")
+        return {}
 
 
 def query_positions(db, latest_date: str, min_holding_ratio: float = 0.04) -> pd.DataFrame:
@@ -83,24 +104,29 @@ def query_positions(db, latest_date: str, min_holding_ratio: float = 0.04) -> pd
     try:
         collection = db["portfolio_position"]
         query = {
-            "date": latest_date,
+            "position_date": latest_date,
             "holding_ratio": {"$gte": min_holding_ratio}
         }
-        cursor = collection.find(query).sort("holding_ratio", -1)
+        cursor = collection.find(query).sort([("product_code", 1), ("holding_ratio", -1)])
+        
+        # 获取产品基础信息
+        product_info = get_product_info_map(db)
         
         data = []
         for doc in cursor:
+            pc = doc.get("product_code", "")
+            info = product_info.get(pc, {})
             data.append({
-                "日期": doc.get("date", ""),
-                "产品代码": doc.get("product_code", ""),
-                "产品名称": doc.get("product_name", ""),
+                "日期": doc.get("position_date", ""),
+                "产品代码": pc,
+                "产品名称": info.get("product_name", ""),
                 "资产名称": doc.get("asset_name", ""),
-                "Wind代码": doc.get("wind_code", ""),
+                "Wind代码": doc.get("asset_wind_code", ""),
                 "持仓比例": doc.get("holding_ratio", 0),
-                "数量": doc.get("quantity", 0),
+                "数量": doc.get("shares", 0),
                 "市值(本币)": doc.get("market_value", 0),
-                "最新净值": doc.get("nav", 0),
-                "最新规模": doc.get("aum", 0),
+                "最新净值": info.get("latest_nav", 0),
+                "最新规模": info.get("latest_aum", 0),
             })
         
         return pd.DataFrame(data)
@@ -113,17 +139,22 @@ def query_trades(db, latest_date: str) -> pd.DataFrame:
     """查询交易数据"""
     try:
         collection = db["portfolio_trade"]
-        query = {"date": latest_date}
-        cursor = collection.find(query)
+        query = {"trade_date": latest_date}
+        cursor = collection.find(query).sort([("product_code", 1), ("change_amount", -1)])
+        
+        # 获取产品基础信息
+        product_info = get_product_info_map(db)
         
         data = []
         for doc in cursor:
+            pc = doc.get("product_code", "")
+            info = product_info.get(pc, {})
             data.append({
-                "日期": doc.get("date", ""),
-                "产品代码": doc.get("product_code", ""),
-                "产品名称": doc.get("product_name", ""),
+                "日期": doc.get("trade_date", ""),
+                "产品代码": pc,
+                "产品名称": info.get("product_name", ""),
                 "资产名称": doc.get("asset_name", ""),
-                "Wind代码": doc.get("wind_code", ""),
+                "Wind代码": doc.get("asset_wind_code", ""),
                 "变化比例": doc.get("change_ratio", 0),
                 "变化金额": doc.get("change_amount", 0),
                 "方向": doc.get("direction", ""),
@@ -149,32 +180,57 @@ def format_percentage(df: pd.DataFrame, columns: list) -> pd.DataFrame:
 def create_excel(positions_df: pd.DataFrame, trades_df: pd.DataFrame, 
                  output_path: str, position_date: str) -> bool:
     """生成 Excel 文件"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    
     try:
-        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-            # Sheet1: 交易记录
-            trades_df.to_excel(writer, sheet_name="业绩前五交易", index=False)
-            
-            # Sheet2: 持仓记录
-            positions_df.to_excel(writer, sheet_name="业绩前五持仓", index=False)
+        wb = Workbook()
         
-        # 格式化百分比列
-        wb = load_workbook(output_path)
+        # ========== Sheet1: 交易记录（组间空行）==========
+        ws_trades = wb.active
+        ws_trades.title = "业绩前五交易"
         
-        # 格式化交易表的百分比列
-        ws_trades = wb["业绩前五交易"]
-        for col_idx, col_name in enumerate(trades_df.columns, 1):
+        headers = list(trades_df.columns)
+        for col_idx, h in enumerate(headers, 1):
+            cell = ws_trades.cell(row=1, column=col_idx, value=h)
+            cell.font = Font(bold=True)
+        
+        row_idx = 2
+        current_product = None
+        for _, row in trades_df.iterrows():
+            product = row.get("产品代码", "")
+            if current_product is not None and product != current_product:
+                row_idx += 1  # 组间空行
+            current_product = product
+            for col_idx, col in enumerate(headers, 1):
+                ws_trades.cell(row=row_idx, column=col_idx, value=row.get(col, ""))
+            row_idx += 1
+        
+        # 格式化交易表百分比列
+        for col_idx, col_name in enumerate(headers, 1):
             if col_name == "变化比例":
-                for row in range(2, ws_trades.max_row + 1):
-                    cell = ws_trades.cell(row=row, column=col_idx)
+                for r in range(2, ws_trades.max_row + 1):
+                    cell = ws_trades.cell(row=r, column=col_idx)
                     if isinstance(cell.value, (int, float)):
                         cell.number_format = '0.00%'
         
-        # 格式化持仓表的百分比列
-        ws_positions = wb["业绩前五持仓"]
-        for col_idx, col_name in enumerate(positions_df.columns, 1):
+        # ========== Sheet2: 持仓记录（无空行）==========
+        ws_positions = wb.create_sheet("业绩前五持仓")
+        
+        pos_headers = list(positions_df.columns)
+        for col_idx, h in enumerate(pos_headers, 1):
+            cell = ws_positions.cell(row=1, column=col_idx, value=h)
+            cell.font = Font(bold=True)
+        
+        for row_idx, (_, row) in enumerate(positions_df.iterrows(), 2):
+            for col_idx, col in enumerate(pos_headers, 1):
+                ws_positions.cell(row=row_idx, column=col_idx, value=row.get(col, ""))
+        
+        # 格式化持仓表百分比列
+        for col_idx, col_name in enumerate(pos_headers, 1):
             if col_name == "持仓比例":
-                for row in range(2, ws_positions.max_row + 1):
-                    cell = ws_positions.cell(row=row, column=col_idx)
+                for r in range(2, ws_positions.max_row + 1):
+                    cell = ws_positions.cell(row=r, column=col_idx)
                     if isinstance(cell.value, (int, float)):
                         cell.number_format = '0.00%'
         
@@ -192,11 +248,20 @@ def send_telegram_file(token: str, chat_id: str, file_path: str,
     """通过 Telegram Bot 发送文件"""
     try:
         url = f"https://api.telegram.org/bot{token}/sendDocument"
+        proxies = None
+        if os.getenv("USE_PROXY", "false").lower() == "true":
+            proxy_host = os.getenv("PROXY_HOST", "")
+            proxy_port = os.getenv("PROXY_PORT", "")
+            if proxy_host and proxy_port:
+                proxies = {
+                    "http": f"http://{proxy_host}:{proxy_port}",
+                    "https": f"http://{proxy_host}:{proxy_port}",
+                }
         
         with open(file_path, "rb") as f:
             files = {"document": f}
             data = {"chat_id": chat_id, "caption": caption}
-            response = requests.post(url, data=data, files=files, timeout=30)
+            response = requests.post(url, data=data, files=files, timeout=30, proxies=proxies)
         
         result = response.json()
         if result.get("ok"):
@@ -235,6 +300,7 @@ def get_chat_id_by_name(token: str, group_name: str = "DailyHappyGroup") -> str:
 def main():
     parser = argparse.ArgumentParser(description="每日导出持仓和交易报告")
     parser.add_argument("--env", default=DEFAULT_ENV_PATH, help="环境变量文件路径")
+    parser.add_argument("--test", action="store_true", help="测试模式：发送到 Pascal 个人账号而非群组")
     args = parser.parse_args()
     
     print("=" * 50)
@@ -289,6 +355,11 @@ def main():
     
     # 确定发送目标
     target_chat_id = config.get("daily_happy_chat_id", "")
+    
+    # 测试模式：发送到 Pascal 个人账号
+    if args.test:
+        target_chat_id = config.get("telegram_chat_id", "6805320916")
+        print("   🧪 测试模式：发送到 Pascal 个人账号")
     
     # 如果没有配置 DailyHappyGroup chat_id，尝试获取或使用占位符
     if not target_chat_id:

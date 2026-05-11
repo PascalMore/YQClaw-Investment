@@ -17,12 +17,13 @@ import json
 import os
 import smtplib
 import sys
-from datetime import datetime
+from datetime import datetime, date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 from email.header import Header
 from pathlib import Path
+from pymongo import MongoClient
 
 # 添加父目录到路径
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -117,11 +118,86 @@ def send_email(report: str, config: dict, report_date: str, is_html=None):
         server.quit()
         
         print("✅ 邮件推送成功")
+        # 标记今日已发送
+        marker = Path(os.path.expanduser('~/.openclaw/workspace-yquant/skills/reports/daily-market-analysis/.last_sent'))
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
         return True
         
     except Exception as e:
         print(f"❌ 邮件推送失败：{e}")
         return False
+
+
+def _get_mongo_client():
+    """获取 MongoDB 客户端"""
+    host = os.environ.get('MONGODB_HOST', '172.25.240.1')
+    port = int(os.environ.get('MONGODB_PORT', '27017'))
+    username = os.environ.get('MONGODB_USERNAME', 'myq')
+    password = os.environ.get('MONGODB_PASSWORD', '6812345')
+    client = MongoClient(host, port, username=username, password=password,
+                         serverSelectionTimeoutMS=5000)
+    # 验证连接
+    client.server_info()
+    return client
+
+
+def _get_portfolio_latest_date():
+    """获取组合持仓数据最新日期（从 portfolio_trade）"""
+    try:
+        client = _get_mongo_client()
+        db = client[os.environ.get('MONGODB_DATABASE', 'tradingagents')]
+        latest = db['portfolio_trade'].find_one(
+            sort=[('trade_date', -1)],
+            projection={'trade_date': 1}
+        )
+        client.close()
+        if latest and 'trade_date' in latest:
+            td = latest['trade_date']
+            if isinstance(td, datetime):
+                return td.date()
+            if isinstance(td, str) and td:
+                return datetime.strptime(td[:10], '%Y-%m-%d').date()
+            return td
+    except Exception as e:
+        print(f"[警告] 无法获取组合最新日期: {e}")
+    return None
+
+
+def _should_skip_report(report_date: date) -> bool:
+    """
+    检查今日是否应该跳过报告生成。
+    逻辑：
+    - 获取组合持仓数据的最新日期（portfolio_trade）
+    - 如果组合最新日期 < 报告日期，说明组合数据未更新今日内容，不发送报告
+    - 如果组合最新日期 >= 报告日期，正常发送
+    - 如果无法连接 MongoDB，不跳过（不阻断报告）
+    """
+    marker = Path(os.path.expanduser('~/.openclaw/workspace-yquant/skills/reports/daily-market-analysis/.last_sent'))
+    today = date.today()
+
+    # 非当日报告不检查
+    if report_date != today:
+        return False
+
+    # 检查是否已发送
+    if marker.exists():
+        try:
+            last_sent = datetime.fromtimestamp(marker.stat().st_mtime).date()
+            if last_sent == today:
+                print(f"[跳过检查] 今日报告已发送（标记文件）")
+                return True
+        except Exception:
+            pass
+
+    # 检查组合数据日期
+    portfolio_date = _get_portfolio_latest_date()
+    if portfolio_date is not None:
+        print(f"[跳过检查] 组合数据最新日期: {portfolio_date}, 报告日期: {report_date}")
+        if portfolio_date < report_date:
+            return True  # 组合数据未更新，跳过
+
+    return False
 
 
 def main():
@@ -132,12 +208,19 @@ def main():
     parser.add_argument("--output", type=str, choices=["markdown", "email", "both"],
                         default="markdown", help="输出方式")
     parser.add_argument("--debug", action="store_true", help="调试模式")
+    parser.add_argument("--force", action="store_true", help="强制执行（跳过组合数据日期检查）")
     
     args = parser.parse_args()
     
     print(f"🚀 开始生成 {args.date} 的市场报告...")
     print("=" * 60)
     
+    # ── 检查是否需要跳过（基于组合实际数据日期）────────────────────────
+    report_date = datetime.strptime(args.date, "%Y-%m-%d").date()
+    if not args.force and _should_skip_report(report_date):
+        print(f"⏭️  今日报告已发送（组合数据未更新），跳过报告生成")
+        return
+
     # 加载配置
     config = load_config()
     
