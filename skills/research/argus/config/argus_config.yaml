@@ -1,0 +1,57 @@
+# skills/research/argus/config/argus_config.yaml
+# Argus main configuration
+
+# Credibility scoring thresholds
+credibility:
+  high_threshold: 0.8
+  medium_threshold: 0.6
+  low_threshold: 0.4
+
+# Signal confidence thresholds
+signal:
+  high_confidence: 0.7
+  medium_confidence: 0.5
+  low_confidence: 0.3
+
+# Pool zones
+pool_zones:
+  conviction:
+    min_confidence: 0.75
+    min_contributing_products: 3
+  candidate:
+    min_confidence: 0.60
+    min_contributing_products: 2
+  watch:
+    min_confidence: 0.45
+  scan:
+    min_confidence: 0.30
+
+# Rebalancing detection
+rebalancing:
+  holding_ratio_change_threshold: 0.05  # 5% change threshold
+  lookback_days: 5
+
+# Darwin moment detection
+darwin:
+  crowding_threshold: 0.6
+  momentum_threshold: 0.03
+
+# C8 four-layer crowding analysis
+crowding:
+  default_macro_score: 0.5
+  level_thresholds:
+    low: 0.35
+    high: 0.70
+  layer_weights:
+    L1: 0.20  # macro liquidity
+    L2: 0.25  # sector crowding / rotation
+    L3: 0.35  # micro position concentration / turnover
+    L4: 0.20  # event-driven consensus
+
+# MongoDB output collections for Argus Phase 2
+mongo:
+  database: tradingagents
+  collections:
+    credential_score: 08_research_argus_credential_score
+    signal: 08_research_argus_signal
+    stock_pool: 08_research_argus_stock_pool

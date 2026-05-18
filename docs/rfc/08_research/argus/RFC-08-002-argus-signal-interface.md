@@ -1,0 +1,192 @@
+# RFC-08-002：Argus 信号接口标准
+## 元数据（Metadata）
+| 项 | 值|
+|---|---|
+| 状态 | 已采纳（Accepted） |
+| 作者 | YQuant |
+| 创建日期 | 2026-05-18 |
+| 最后更新 | 2026-05-18 |
+| 版本号 | V0.2 |
+| 所属模块 | 08_research（投研分析） |
+| 依赖RFC | RFC-00-001-yqclaw-investment-global-architecture, RFC-08-001-argus-integration |
+| 替代RFC | 无 |
+| 适配AI工具 | OpenClaw、Claude Code |
+| 标签 | #argus #接口 #信号 #portfolio #标准化 |
+
+### 版本历史（Changelog）
+| 版本号 | 日期 | 更新内容 | 负责人 |
+|---|---|---|---|
+| V0.2 | 2026-05-18 | 状态更新：Draft → Accepted；集合名称更新为 tradingagents.08_research_argus_signal | YQuant |
+| V0.1 | 2026-05-18 | 初始创建，定义 Argus 信号接口标准 | YQuant |
+
+## 1. 执行摘要
+本文档定义 Argus 系统输出的机构资金行为信号（argus_signal）的标准格式、以及与 portfolio/strategy/trading 模块的消费接口契约。本 RFC 是 RFC-08-001 的接口层面补充，专注于信号格式、订阅机制和消费规范。
+
+## 2. 背景与动机
+### 2.1 为什么要单独定义接口标准
+- Argus 输出的信号需要被 portfolio、strategy、trading 等多个模块消费
+- 信号格式必须全局统一，才能实现模块解耦
+- 置信度阈值、降级策略需要显式声明，避免误用
+
+### 2.2 与 RFC-08-001 的关系
+- RFC-08-001：定义 Argus 如何纳入 YQClaw 体系、数据源选择、模块定位
+- **RFC-08-002**：定义 Argus 输出信号的格式和消费接口契约
+- 两者共同构成 Argus 与其他模块的完整接口规范
+
+## 3. argus_signal 信号格式
+
+### 3.1 标准 JSON Schema
+```json
+{
+  "signal_id": "uuid-v4",
+  "source": "argus",
+  "version": "1.0.0",
+  "product_code": "SM001",
+  "product_name": "JS-001",
+  "signal_type": "BUY | SELL | HOLD",
+  "confidence": 0.85,
+  "direction": "LONG | SHORT | FLAT",
+  "target_stocks": [
+    {
+      "wind_code": "603737.SH",
+      "stock_name": "三棵树",
+      "action": "BUY | SELL | HOLD",
+      "holding_ratio_change": 0.023,
+      "market_value_change": 520000.00
+    }
+  ],
+  "reason": "机构资金大幅流入，持仓比例增加2.3%，目标股票进入CONVICTION池",
+  "generated_at": "2026-03-11T08:00:00+08:00",
+  "valid_until": "2026-03-12",
+  "metadata": {
+    "credibility_score": 0.85,
+    "crowding_level": "LOW | MEDIUM | HIGH",
+    "time_horizon": "FAST | MEDIUM | SLOW",
+    "pool_zone": "SCAN | WATCH | CANDIDATE | CONVICTION",
+    "contributing_products_count": 3,
+    "darwin_moment": false,
+    "consensus_direction": "BULLISH | BEARISH | NEUTRAL"
+  }
+}
+```
+
+### 3.2 字段定义
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| signal_id | UUID | 是 | 信号唯一标识 |
+| source | String | 是 | 信号来源，固定为 "argus" |
+| version | String | 是 | 信号格式版本，如 "1.0.0" |
+| product_code | String | 是 | 产品代码 |
+| product_name | String | 是 | 产品名称 |
+| signal_type | Enum | 是 | 信号类型：BUY/SELL/HOLD |
+| confidence | Float | 是 | 置信度，0.0-1.0 |
+| direction | Enum | 是 | 方向：LONG/SHORT/FLAT |
+| target_stocks | Array | 是 | 目标股票列表 |
+| reason | String | 是 | 信号生成原因简述 |
+| generated_at | DateTime | 是 | 信号生成时间（ISO 8601） |
+| valid_until | Date | 是 | 信号有效期（当日有效） |
+| metadata | Object | 是 | 扩展元数据 |
+
+### 3.3 metadata 字段定义
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| credibility_score | Float | 贝叶斯信誉评分，0.0-1.0 |
+| crowding_level | Enum | 拥挤度：LOW/MEDIUM/HIGH |
+| time_horizon | Enum | 时间视野：FAST/MEDIUM/SLOW |
+| pool_zone | Enum | 所属股票池区域 |
+| contributing_products_count | Integer | 贡献信号的产品数量 |
+| darwin_moment | Boolean | 是否为达尔文时刻 |
+| consensus_direction | Enum | 共识方向 |
+
+## 4. Portfolio 模块消费接口
+
+### 4.1 数据订阅机制
+```python
+# 订阅 Argus 信号
+class ArgusSignalSubscriber:
+    """Portfolio 模块订阅 Argus 信号的接口"""
+    
+    def __init__(self, signal_dir: str = "logs/research/"):
+        self.signal_dir = signal_dir
+    
+    def get_latest_signals(
+        self, 
+        min_confidence: float = 0.7,
+        pool_zone: Optional[str] = None
+    ) -> List[Dict]:
+        """
+        获取最新信号
+        
+        Args:
+            min_confidence: 最低置信度阈值，默认0.7
+            pool_zone: 可选，按股票池区域过滤
+        
+        Returns:
+            List[Dict]: 符合条件的信号列表
+        """
+        pass
+    
+    def get_stock_signals(
+        self, 
+        wind_code: str,
+        days: int = 7
+    ) -> List[Dict]:
+        """
+        获取特定股票最近N天的信号
+        
+        Args:
+            wind_code: Wind代码
+            days: 天数，默认7天
+        
+        Returns:
+            List[Dict]: 信号列表
+        """
+        pass
+```
+
+### 4.2 置信度阈值规则
+
+| 置信度 | 处理规则 |
+|--------|----------|
+| ≥ 0.8 | 高置信度信号，直接纳入组合权重计算 |
+| 0.6 - 0.8 | 中置信度信号，降权纳入（×0.5） |
+| 0.4 - 0.6 | 低置信度信号，仅供观察，不纳入组合 |
+| < 0.4 | 忽略，不处理 |
+
+### 4.3 降级策略
+
+| 异常场景 | 降级处理 |
+|----------|----------|
+| argus_signal 文件不存在 | 返回空列表，日志 WARNING |
+| signal_id 重复 | 取最新时间戳，忽略旧信号 |
+| 字段缺失 | 拒绝该信号，日志 ERROR |
+| 置信度异常（非0-1） | 拒绝该信号，日志 ERROR |
+
+## 5. 与 portfolio 模块的数据交换
+
+### 5.1 文件交换格式
+- **路径**：`logs/research/argus_signal_{YYYYMMDD}.json`
+- **频率**：日度 T+1（每日 08:00 前生成）
+- **格式**：JSON Lines（每行一个 signal）
+
+### 5.2 可选：直接写入 MongoDB
+```python
+# Argus 信号也可直接写入 MongoDB（由 Argus 自建集合）
+# 集合名：tradingagents.08_research_argus_signal
+# 写入时机：日度 signal 生成后
+```
+
+## 6. 验收标准
+- [ ] argus_signal JSON 格式符合 Schema
+- [ ] ArgusSignalSubscriber 接口可通过单元测试
+- [ ] 置信度阈值规则正确执行
+- [ ] 降级策略正确处理异常场景
+- [ ] 与 portfolio 模块联调通过
+
+## 7. 开放问题
+| 问题 | 状态 | 说明 |
+|---|---|---|
+| 是否需要实时信号推送（而非文件） | 待讨论 | 当前设计为日度 T+1 文件 |
+| 信号有效期精确到小时还是日 | 待定 | 当前设计为当日有效 |

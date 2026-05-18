@@ -2,11 +2,11 @@
 ## 元数据（Metadata）
 | 项 | 值|
 |---|---|
-| 状态 | 草稿（Draft） |
+| 状态 | Accepted |
 | 作者 | PascalMao |
 | 创建日期 | 2026-05-17 |
-| 最后更新 | 2026-05-17 |
-| 版本号 | V0.1 |
+| 最后更新 | 2026-05-18 |
+| 版本号 | V0.3 |
 | 所属模块 | 08_research（投研分析） |
 | 依赖RFC | RFC-00-001-yqclaw-investment-global-architecture |
 | 替代RFC | 无 |
@@ -16,6 +16,8 @@
 ### 版本历史（Changelog）
 | 版本号 | 日期 | 更新内容 | 负责人 |
 |---|---|---|---|
+| V0.3 | 2026-05-18 | 数据存储方案：删除独立SQLite，改用MongoDB新建集合（08_research_argus_*）；目录结构更新为skills/data + skills/infra + skills/research/argus；删除db/目录相关描述 | YQuant |
+| V0.2 | 2026-05-18 | 状态更新：Draft → Accepted，Phase 0 完成 | YQuant |
 | V0.1 | 2026-05-17 | 初始创建，纳入 YQClaw RFC 体系方案 | PascalMao |
 
 ## 1. 执行摘要
