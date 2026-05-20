@@ -13,8 +13,8 @@ from .models import PoolZone, StockPoolEntry, validate_patch
 
 DEFAULT_MONGO_URI = "mongodb://myq:6812345@172.25.240.1:27017/"
 DEFAULT_DATABASE = "tradingagents"
-STOCK_POOL_COLLECTION = "portfolio_stock_pool"
-AUDIT_COLLECTION = "portfolio_stock_pool_audit"
+STOCK_POOL_COLLECTION = "05_portfolio_stock_pool"
+AUDIT_COLLECTION = "05_portfolio_stock_pool_audit"
 
 
 class StockPoolRepository:

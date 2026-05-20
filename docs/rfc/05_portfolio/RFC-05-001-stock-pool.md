@@ -30,7 +30,7 @@ Portfolio 股票池提供 research 信号、人工研究结论与组合管理之
 | 重点池 | CONVICTION | 高置信度重点跟踪标的 | 多维证据强、研究结论明确 | 进入组合候选、强化风控与复盘 |
 
 ## 4. 数据模型
-### 4.1 Collection: portfolio_stock_pool
+### 4.1 Collection: 05_portfolio_stock_pool
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
 | _id | ObjectId | 是 | MongoDB 主键 |
@@ -48,11 +48,11 @@ Portfolio 股票池提供 research 信号、人工研究结论与组合管理之
 | audit | object | 是 | created_at、updated_at、created_by、updated_by |
 | pending_transition | object/null | 否 | 待审批迁移请求，Phase 3 完成 approve/reject |
 
-### 4.2 Collection: portfolio_stock_pool_audit
+### 4.2 Collection: 05_portfolio_stock_pool_audit
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
 | _id | ObjectId | 是 | 审计记录 ID |
-| pool_id | string | 是 | portfolio_stock_pool 记录 ID |
+| pool_id | string | 是 | 05_portfolio_stock_pool 记录 ID |
 | action | string | 是 | create/update/deactivate/request_transition |
 | before | object/null | 否 | 变更前快照 |
 | after | object/null | 否 | 变更后快照 |
@@ -61,11 +61,11 @@ Portfolio 股票池提供 research 信号、人工研究结论与组合管理之
 
 ### 4.3 索引
 \`\`\`javascript
-db.portfolio_stock_pool.createIndex({ pool_zone: 1, status: 1 }, { name: "idx_stock_pool_zone_status" });
-db.portfolio_stock_pool.createIndex({ wind_code: 1 }, { name: "idx_stock_pool_wind_code" });
-db.portfolio_stock_pool.createIndex({ source: 1, entry_date: -1 }, { name: "idx_stock_pool_source_entry_date" });
-db.portfolio_stock_pool.createIndex({ status: 1, entry_date: -1 }, { name: "idx_stock_pool_status_entry_date" });
-db.portfolio_stock_pool_audit.createIndex({ pool_id: 1, created_at: -1 }, { name: "idx_stock_pool_audit_pool_created" });
+db.getCollection("05_portfolio_stock_pool").createIndex({ pool_zone: 1, status: 1 }, { name: "idx_stock_pool_zone_status" });
+db.getCollection("05_portfolio_stock_pool").createIndex({ wind_code: 1 }, { name: "idx_stock_pool_wind_code" });
+db.getCollection("05_portfolio_stock_pool").createIndex({ source: 1, entry_date: -1 }, { name: "idx_stock_pool_source_entry_date" });
+db.getCollection("05_portfolio_stock_pool").createIndex({ status: 1, entry_date: -1 }, { name: "idx_stock_pool_status_entry_date" });
+db.getCollection("05_portfolio_stock_pool_audit").createIndex({ pool_id: 1, created_at: -1 }, { name: "idx_stock_pool_audit_pool_created" });
 \`\`\`
 
 ## 5. API 接口

@@ -149,7 +149,7 @@ class ArgusSignalSubscriber:
 
 Phase 2 后 Portfolio 侧使用 `ArgusPortfolioSubscriber` 作为 Argus 项目内的对接层。该接口直接读取
 MongoDB `tradingagents.08_research_argus_signal`，并只输出 Portfolio ingestion 所需 payload，
-不直接写入 `portfolio_stock_pool`。
+不直接写入 `05_portfolio_stock_pool`。
 
 ```python
 class ArgusPortfolioSubscriber:
@@ -202,7 +202,7 @@ class ArgusPortfolioSubscriber:
 ### 5.1 MongoDB-only 交换格式
 - **数据库**：`tradingagents`
 - **Argus 信号集合**：`08_research_argus_signal`
-- **Portfolio 股票池集合**：`portfolio_stock_pool`
+- **Portfolio 股票池集合**：`05_portfolio_stock_pool`
 - **频率**：日度 T+1（每日 08:00 前生成）
 - **废弃项**：SQLite 与 JSONL 文件交换均不再作为标准接口；历史描述只保留为迁移参考。
 
@@ -262,7 +262,7 @@ Argus signal (MongoDB 08_research_argus_signal)
   -> ArgusPortfolioSubscriber.to_portfolio_ingest_payload(signals, mode)
   -> StockPoolService.ingest_signals(source="argus", signals, mode)
   -> StockPoolRepository.create()/update_fields()
-  -> portfolio_stock_pool
+  -> 05_portfolio_stock_pool
 ```
 
 ## 6. 验收标准

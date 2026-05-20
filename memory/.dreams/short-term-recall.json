@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-16T03:39:06.766Z",
+  "updatedAt": "2026-05-20T14:08:15.293Z",
   "entries": {
     "memory:memory/2026-04-05.md:1:38": {
       "key": "memory:memory/2026-04-05.md:1:38",
@@ -5334,20 +5334,22 @@
       "endLine": 57,
       "source": "memory",
       "snippet": "Excel → flatten_to_nested() → nested JSON → image_portfolio_normalizer → normalized → MongoDB ``` ### 5. 测试数据 - `示例_5产品_250持仓.xlsx`: 1天×5产品×236持仓 → MongoDB ✅ - `示例_5产品_250持仓_base64.txt`: zlib+base64 压缩版 (740 chars) - `mock_3days_decoded.json`: 3天×5产品×708持仓（手动修复版） ### 6. 文件传输 - 建议通过文件传输而非聊天复制传递 base64（聊天复制会导致字符损坏） - 图片保存路径: `skills/data/source/smart-money/YYYY-MM-DD/` ### 7. 目录清理 - 已删除冗余 `workspace-yquant/data/` 目录 - 已删除 `skills/data/data/` 目录 ## MongoDB 连接信息 - Host: 172.25.240.1:27017 - Database: tradingagents - Collections: portfolio_basic_info, portfolio_nav, portfolio_position ## PaddleOCR Table-to-Excel Skill 新增 ### 8. 新增技能：paddleocr_table2excel - **目录**：`skills/common/paddleocr_tab",
-      "recallCount": 2,
+      "recallCount": 3,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 2,
+      "totalScore": 3,
       "maxScore": 1,
       "firstRecalledAt": "2026-05-04T13:53:18.981Z",
-      "lastRecalledAt": "2026-05-08T13:06:09.122Z",
+      "lastRecalledAt": "2026-05-20T14:08:15.293Z",
       "queryHashes": [
         "3e91dd63304e",
-        "185e33bb39ec"
+        "185e33bb39ec",
+        "5c75b43594b8"
       ],
       "recallDays": [
         "2026-05-04",
-        "2026-05-08"
+        "2026-05-08",
+        "2026-05-20"
       ],
       "conceptTags": [
         "flatten-to-nested",
@@ -5944,6 +5946,161 @@
         "daily-market-analysis",
         "litellm-config.yaml",
         "litellm-config"
+      ]
+    },
+    "memory:memory/2026-04-06.md:96:141": {
+      "key": "memory:memory/2026-04-06.md:96:141",
+      "path": "memory/2026-04-06.md",
+      "startLine": 96,
+      "endLine": 141,
+      "source": "memory",
+      "snippet": "|-----|----------|------| | MiniMax | `sk-cp-6zYqByU7...` | ❌ 无效 (2049) - 可能已过期/被撤销 | | Gemini | - | ⚠️ Quota exceeded | | DeepSeek | 未知 | ❓ 未配置 | ### litellm Config 位置 ``` /home/pascal/.openclaw/workspace/skills/investment/research/daily_stock_analysis/litellm_config.yaml ``` **配置内容：** ```yaml model_list: - model_name: \"minimax/MiniMax-M2.7\" litellm_params: model: \"minimax/MiniMax-M2.7\" api_key: \"os.environ/MINIMAX_API_KEY\" base_url: \"https://api.minimaxi.com/anthropic\" api_version: \"2024-06-01\" ``` ### 解决方案选项 1. **方案A: DeepSeek** - 需要 Pascal 提供 DeepSeek API Key（推荐） 2. **方案B: MiniMax Direct Client** - 绕过 litellm，直接用 httpx 调用 MiniMax API ### 下一步 - [ ] Pascal",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-20T00:15:16.307Z",
+      "lastRecalledAt": "2026-05-20T00:15:16.307Z",
+      "queryHashes": [
+        "7e401df8fe46"
+      ],
+      "recallDays": [
+        "2026-05-20"
+      ],
+      "conceptTags": [
+        "sk-cp-6zyqbyu7",
+        "可能已过期/被撤销",
+        "home/pascal",
+        "model-list",
+        "model-name",
+        "minimax/minimax-m2.7",
+        "litellm-params",
+        "api-key"
+      ]
+    },
+    "memory:memory/2026-04-09.md:345:377": {
+      "key": "memory:memory/2026-04-09.md:345:377",
+      "path": "memory/2026-04-09.md",
+      "startLine": 345,
+      "endLine": 377,
+      "source": "memory",
+      "snippet": "# 2026-04-09 晚间更新（追加） ## 今日完成的技术工作 ### 1. 黄金/原油成交金额字段（amount）修复 - **文件**: `market_data_adapter.py` 的 `get_commodity_data()` - **操作**: Tushare `fut_daily` 返回 `amount`(元) 和 `vol`(手)，新增 `amount` 字段 - **Commit**: `31f9ba4` ### 2. commodity/bond 数据接入表格 - **文件**: `all_weather_market_report.py` + `market_data_adapter.py` - **新增**: `get_commodity_market_review()`、`get_bond_market_review()` 方法 - **Commit**: `e2ed77d` ### 3. 修复 `generate_html_report()` 参数缺失 - **文件**: `report_generator.py` - **问题**: `generate_html_report(markdown_content, generated_at)` 缺少 `symbol_data` 参数 - **Commit**: `e9f99a4` ### 4. 修复 HTML 邮件格式问题（核心） - **文件**: `scripts/main.py` - **问题**: `main.py` 调用的 `generate_html_report()`",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-20T00:15:16.307Z",
+      "lastRecalledAt": "2026-05-20T00:15:16.307Z",
+      "queryHashes": [
+        "7e401df8fe46"
+      ],
+      "recallDays": [
+        "2026-05-20"
+      ],
+      "conceptTags": [
+        "黄金/原油成交金额字段",
+        "market-data-adapter.py",
+        "get-commodity-data",
+        "fut-daily",
+        "commodity/bond",
+        "all-weather-market-report.py",
+        "get-commodity-market-review",
+        "get-bond-market-review"
+      ]
+    },
+    "memory:memory/2026-05-12.md:1:30": {
+      "key": "memory:memory/2026-05-12.md:1:30",
+      "path": "memory/2026-05-12.md",
+      "startLine": 1,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "# 2026-05-12 Daily Memory ## 项目架构 - RFC 体系初始化 - docs/rfc/ 目录已创建，共 11 个子目录（00_project_overview ~ 10_infra） - 各子目录均已放置 RFC-00-000-rfc-template.md 标准模板 - docs/rfc/00_project_overview/ 下新增 RFC-00-001-yquant-investment-global-architecture.md（项目总架构RFC初稿） - 重要：新增了 06_strategy（策略研发）和 09_reports（报告定制）两个模块 ## Smart Money 数据入库 ### 已处理图片（inbound 目录） - bd2775a1: SM001 portfolio 2026-04-21（35条） - de9cdd2e: SM002 portfolio 2026-04-21（43条） - 489335e7: SM003 portfolio 2026-04-21（28条） - 7c3c1fd1: SM004 portfolio 2026-04-21（31条） - aa5c3fbb: SM012 portfolio 2026-04-21（34条） - 29588b5c: trade 2026-04-20（30条） - 467ddd93: SM012 portfolio 2026-04-16（34条，图片OCR） - 3254d0da: SM004 portfolio 2026-04-16（32条，图片OCR） - b4",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-20T14:08:15.293Z",
+      "lastRecalledAt": "2026-05-20T14:08:15.293Z",
+      "queryHashes": [
+        "5c75b43594b8"
+      ],
+      "recallDays": [
+        "2026-05-20"
+      ],
+      "conceptTags": [
+        "docs/rfc",
+        "00-project-overview",
+        "10-infra",
+        "rfc-00-000-rfc-template.md",
+        "docs/rfc/00-project-overview",
+        "06-strategy",
+        "09-reports",
+        "项目"
+      ]
+    },
+    "memory:memory/2026-05-12.md:27:54": {
+      "key": "memory:memory/2026-05-12.md:27:54",
+      "path": "memory/2026-05-12.md",
+      "startLine": 27,
+      "endLine": 54,
+      "source": "memory",
+      "snippet": "- 2026-04-21: SM001+SM003+SM004 trade（28条）→ portfolio SM001（35条） - 2026-04-20: SM001 portfolio（35条）、SM002 portfolio（43条）、SM004 portfolio（32条）、SM012 portfolio（34条）、SM003 portfolio（33条） - 2026-04-17: trade（23条）、SM001~SM012 portfolio（各产品） - 2026-04-16: SM012+SM004+SM003+SM002+SM001 portfolio（各产品） ### MongoDB 数据范围 - portfolio_position / portfolio_trade: 2026-04-15 ~ 2026-04-28 - SM001, SM002, SM003, SM004, SM012 共5个产品 ## Pipeline 修复记录 1. **文件夹日期 vs 数据日期分离**： - folder_date = 系统日期（图片/消息收到日），用于文件夹路径 - data_date = 数据日期（Excel/消息中的日期），用于OCR和MongoDB记录 - 修复：run_unified_image_pipeline.py 和 run_unified_message_pipeline.py 均已更新 2. **Wind Code 自动纠错**： - A股5位少0：`^\\d{5}\\.(SH|SZ|BJ|CN)$` → 前补0（例",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-20T14:08:15.293Z",
+      "lastRecalledAt": "2026-05-20T14:08:15.293Z",
+      "queryHashes": [
+        "5c75b43594b8"
+      ],
+      "recallDays": [
+        "2026-05-20"
+      ],
+      "conceptTags": [
+        "portfolio-position",
+        "portfolio-trade",
+        "folder-date",
+        "图片/消息收到日",
+        "data-date",
+        "excel/消息中的日期",
+        "run-unified-image-pipeline.py",
+        "run-unified-message-pipeline.py"
+      ]
+    },
+    "memory:memory/2026-05-09.md:54:67": {
+      "key": "memory:memory/2026-05-09.md:54:67",
+      "path": "memory/2026-05-09.md",
+      "startLine": 54,
+      "endLine": 67,
+      "source": "memory",
+      "snippet": "- **根本原因**：MiniMax Vision 模型对交易截图的 OCR 识别质量差 - 第一张（05-06）和第二张（05-07）交易截图都被识别成了\"持仓比例/数量/市值\"等持仓列名 - Vision 模型把\"业绩前五交易\"表格误识别为\"业绩前五持仓\"格式 - `run_unified_image_pipeline.py` 已创建，但 detection 基于列名判断，对 OCR 识别错误无效 ### 待解决 - Image Pipeline 需要找到正确的 OCR 提示词或方法，让 Vision 模型输出正确的交易列名 - 或考虑用其他 OCR 方案（PaddleOCR 对表格支持更好） - 当前 `MiniMaxImageExtractor` 的 `_normalize_columns` 方法（line 270+）只有持仓列名映射，没有交易列名映射 ### 当前数据状态 - Portfolio Position：SM001(70), SM002(83), SM003(55), SM004(72), SM012(68) = 348 条 - Portfolio Trade：`portfolio_trade` 表已建立，Message 测试数据已入库（18条）",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-20T14:08:15.293Z",
+      "lastRecalledAt": "2026-05-20T14:08:15.293Z",
+      "queryHashes": [
+        "5c75b43594b8"
+      ],
+      "recallDays": [
+        "2026-05-20"
+      ],
+      "conceptTags": [
+        "05-06",
+        "05-07",
+        "持仓比例/数量/市值",
+        "run-unified-image-pipeline.py",
+        "normalize-columns",
+        "portfolio-trade",
+        "根本",
+        "原因"
       ]
     }
   }
