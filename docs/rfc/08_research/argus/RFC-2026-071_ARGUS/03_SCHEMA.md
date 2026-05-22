@@ -36,7 +36,7 @@ amendment_level: L2
 | 8 | Proc | `argus_consensus` | 多产品共识事件 | 日度生成 |
 | 9 | Proc | `argus_darwin_event` | 达尔文时刻检测 | 事件驱动 |
 | 10 | Proc | `argus_consensus_direction` | 景气度+信念偏移 | 日度更新 |
-| 11 | Dec | `argus_stock_pool` | 四区动态股票池 | 日度更新 |
+| 11 | Dec | `argus_signal_pool` ⚠️ rename from `argus_stock_pool` | 四区动态股票池 | 日度更新 |
 | 12 | Dec | `argus_stock_pool_history` | 池变更审计轨迹 | 事件驱动 |
 | 13 | Bak | `argus_hf_estimate` | 高频估算 (仅备用) | 按需 |
 
@@ -319,6 +319,12 @@ CREATE INDEX idx_darwin_date   ON argus_darwin_event(trigger_date);
 CREATE INDEX idx_darwin_out    ON argus_darwin_event(outcome_tag);
 ```
 
+> **MongoDB 实现**: `08_research_argus_darwin_event`
+> - 唯一键: `(date, sw1_code)`
+> - 字段映射: `trigger_date`→`date`, `sector_code`→`sw1_code`, `sector_name`→`sw1_name`
+> - 额外字段: `weak_net_action` (float, 净卖出量), `strong_net_action` (float, 净买入量), `strong_add_count` (int)
+> - 状态: **已实现**, 89天历史回补完成（0个事件触发 — 产品信誉在0.51~0.55区间，无强手/弱手分化）
+
 ### 3.6 argus_consensus_direction
 
 ```sql
@@ -345,6 +351,13 @@ CREATE TABLE argus_consensus_direction (
 CREATE INDEX idx_dir_date   ON argus_consensus_direction(calc_date);
 CREATE INDEX idx_dir_signal ON argus_consensus_direction(prosperity_signal);
 ```
+
+> **MongoDB 实现**: `08_research_argus_consensus_direction`
+> - 唯一键: `(date)`
+> - 字段映射: `calc_date`→`date`
+> - 额外字段: `cyclical_weight_delta` (float, 周期组30d变化), `defensive_weight_delta` (float, 防御组30d变化)
+> - **30d = 自然日（calendar days）**
+> - 状态: **已实现**, 89天历史回补完成
 
 ---
 

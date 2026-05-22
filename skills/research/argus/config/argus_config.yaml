@@ -44,10 +44,13 @@ rebalancing:
   holding_ratio_change_threshold: 0.05  # 5% change threshold
   lookback_days: 5
 
-# Darwin moment detection
+# Darwin moment detection (Phase 4B)
 darwin:
-  crowding_threshold: 0.6
-  momentum_threshold: 0.03
+  drawdown_threshold: 0.10    # 行业20日跌幅 >= 10% 触发
+  systemic_threshold: 0.08    # 沪深300同期跌幅 > 8% 时降权
+  weak_threshold: 0.50        # 弱手 cred < 0.5
+  strong_threshold: 0.65      # 强手 cred > 0.65（原为 0.70，降低以增加 Darwin 触发灵敏度）
+  min_strong_add: 2           # 至少2个强手 hold/add
 
 # C8 four-layer crowding analysis
 crowding:
@@ -61,15 +64,58 @@ crowding:
     L3: 0.35  # micro position concentration / turnover
     L4: 0.20  # event-driven consensus
 
-# MongoDB output collections for Argus Phase 2
+# Industry weight aggregation
+industry_weight:
+  sector_info_collection: stock_sector_info
+  classify_system: SW
+  unknown_sw1_code: UNKNOWN
+  unknown_sw1_name: 未映射
+
+# Industry groups for Prosperity Gauge (Phase 4C)
+industry_groups:
+  cyclical:
+    - code: "801050.SI"
+      name: "有色金属"
+    - code: "801040.SI"
+      name: "钢铁"
+    - code: "801030.SI"
+      name: "基础化工"
+    - code: "801890.SI"
+      name: "机械设备"
+    - code: "801880.SI"
+      name: "汽车"
+  defensive:
+    - code: "801120.SI"
+      name: "食品饮料"
+    - code: "801150.SI"
+      name: "医药生物"
+    - code: "801160.SI"
+      name: "公用事业"
+    - code: "801780.SI"
+      name: "银行"
+
+# Prosperity Gauge thresholds (Phase 4C)
+prosperity:
+  bullish_threshold: 2.0     # prosperity_delta > +2pp → BULLISH
+  defensive_threshold: -2.0    # prosperity_delta < -2pp → DEFENSIVE
+
+# MongoDB output collections for Argus Phase 4
 output_collections:
   credential_score: 08_research_argus_credential_score
   signal: 08_research_argus_signal
-  stock_pool: 08_research_argus_stock_pool
+  signal_pool: 08_research_argus_signal_pool
+  industry_weight: 08_research_argus_industry_weight
+  darwin_event: 08_research_argus_darwin_event
+  consensus_direction: 08_research_argus_consensus_direction
 
 mongo:
   database: tradingagents
   collections:
     credential_score: 08_research_argus_credential_score
     signal: 08_research_argus_signal
-    stock_pool: 08_research_argus_stock_pool
+    signal_pool: 08_research_argus_signal_pool
+    industry_weight: 08_research_argus_industry_weight
+    darwin_event: 08_research_argus_darwin_event
+    consensus_direction: 08_research_argus_consensus_direction
+    sector_info: stock_sector_info
+    index_quotes: index_daily_quotes

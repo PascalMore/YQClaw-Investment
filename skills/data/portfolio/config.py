@@ -12,9 +12,22 @@ PORTFOLIO_COLLECTIONS = {
 # Argus output collections (08_research)
 ARGUS_COLLECTIONS = {
     'signal': '08_research_argus_signal',
-    'stock_pool': '08_research_argus_stock_pool',
+    'signal_pool': '08_research_argus_signal_pool',
     'credential_score': '08_research_argus_credential_score',
     'credibility': '08_research_argus_credential_score',
+    'industry_weight': '08_research_argus_industry_weight',
+    'darwin_event': '08_research_argus_darwin_event',
+    'consensus_direction': '08_research_argus_consensus_direction',
+}
+
+# Argus collection unique keys for upsert
+ARGUS_UNIQUE_KEYS = {
+    '08_research_argus_signal': ['date', 'signal_id'],
+    '08_research_argus_signal_pool': ['date', 'wind_code'],
+    '08_research_argus_credential_score': ['date', 'product_code'],
+    '08_research_argus_industry_weight': ['date', 'product_code', 'sw1_code'],
+    '08_research_argus_darwin_event': ['date', 'sw1_code'],
+    '08_research_argus_consensus_direction': ['date'],
 }
 
 # Product alias configuration

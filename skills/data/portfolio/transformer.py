@@ -11,14 +11,14 @@ logger = logging.getLogger(__name__)
 
 class PortfolioTransformer:
     """Transforms portfolio raw data to processed format."""
-    
+
     @staticmethod
     def get_product_alias(product_code: str) -> str:
         """Get full company name from product code alias.
-        
+
         Args:
             product_code: Product code (e.g., 'SM001', 'JS-001')
-        
+
         Returns:
             str: Full company name (e.g., '景顺')
         """
@@ -28,16 +28,16 @@ class PortfolioTransformer:
         else:
             # SM001 -> SM (first two chars for SM series)
             alias = product_code[:2] if product_code.startswith('SM') else product_code[:2]
-        
+
         return PRODUCT_ALIAS.get(alias, alias)
-    
+
     @staticmethod
     def transform_position(raw_positions: List[Dict]) -> List[Dict]:
         """Transform raw position data to processed format.
-        
+
         Args:
             raw_positions: List of raw position records from MongoDB
-        
+
         Returns:
             List[Dict]: Transformed position records
         """
@@ -51,17 +51,17 @@ class PortfolioTransformer:
                 'holding_ratio_pct': round(pos.get('holding_ratio', 0) * 100, 4),
             }
             transformed.append(transformed_pos)
-        
+
         logger.info(f"[PortfolioTransformer] transformed {len(transformed)} position records")
         return transformed
-    
+
     @staticmethod
     def transform_trade(raw_trades: List[Dict]) -> List[Dict]:
         """Transform raw trade data to processed format.
-        
+
         Args:
             raw_trades: List of raw trade records from MongoDB
-        
+
         Returns:
             List[Dict]: Transformed trade records
         """
@@ -75,46 +75,49 @@ class PortfolioTransformer:
                 normalized_direction = 'SELL'
             else:
                 normalized_direction = 'HOLD'
-            
+
             transformed_trade = {
                 **trade,
                 'direction_normalized': normalized_direction,
             }
             transformed.append(transformed_trade)
-        
+
         logger.info(f"[PortfolioTransformer] transformed {len(transformed)} trade records")
         return transformed
-    
+
     @staticmethod
     def calculate_holding_ratio_change(
         current_positions: List[Dict],
         previous_positions: List[Dict]
     ) -> List[Dict]:
         """Calculate holding ratio changes between two dates.
-        
+
         Args:
             current_positions: Current period positions
             previous_positions: Previous period positions
-        
+
         Returns:
             List[Dict]: Position changes with ratio_change field
         """
         # Build previous position lookup by wind_code
         prev_lookup = {
-            pos['asset_wind_code']: pos.get('holding_ratio', 0)
+            pos.get('asset_wind_code') or pos.get('wind_code'): pos.get('holding_ratio', 0)
             for pos in previous_positions
+            if pos.get('asset_wind_code') or pos.get('wind_code')
         }
-        
+
         changes = []
         for curr_pos in current_positions:
-            wind_code = curr_pos['asset_wind_code']
+            wind_code = curr_pos.get('asset_wind_code') or curr_pos.get('wind_code')
+            if not wind_code:
+                continue
             prev_ratio = prev_lookup.get(wind_code, 0)
             curr_ratio = curr_pos.get('holding_ratio', 0)
-            
+
             changes.append({
                 **curr_pos,
                 'holding_ratio_change': curr_ratio - prev_ratio,
                 'previous_holding_ratio': prev_ratio,
             })
-        
+
         return changes

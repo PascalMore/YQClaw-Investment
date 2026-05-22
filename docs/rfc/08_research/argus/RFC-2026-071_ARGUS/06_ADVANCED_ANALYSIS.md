@@ -38,47 +38,70 @@ roadmap_scope: "V1 (Darwin + Consensus Direction + Opportunity Lens) / V2 (Causa
 
 **专家裁决**: INCLUDE_V1 -- 检测逻辑简单、数据需求可满足、回测成本低，V1 性价比最高的高级功能。
 
-### 1.2 检测算法 (Deterministic Pipeline) {#ARGUS-06:darwin-algorithm}
+### 1.2 检测算法 (Python 实现) {#ARGUS-06:darwin-algorithm}
 
+```python
+class DarwinDetector:
+    DRAWDOWN_THRESHOLD = 0.10   # 行业20日跌幅触发阈值
+    SYSTEMIC_THRESHOLD = 0.08   # 沪深300系统性过滤阈值
+    WEAK_THRESHOLD = 0.50       # 弱手信誉上限 (< 0.5)
+    STRONG_THRESHOLD = 0.70     # 强手信誉下限 (> 0.7)
+    MIN_STRONG_ADD = 2           # 触发所需强手加仓最少产品数
+
+    def detect_for_date(self, date, index_quotes, credential_scores, industry_weights):
+        # Step 1: 构建指数价格 Lookup {code: {date: close}}
+        index_lookup = self._build_index_lookup(index_quotes)
+
+        # Step 2: 计算沪深300系统性过滤信号
+        csi300_drawdown = self._calc_drawdown(index_lookup, "000300.SH", date, window=20)
+        is_systemic = csi300_drawdown < -self.SYSTEMIC_THRESHOLD if csi300_drawdown else False
+
+        # Step 3: 构建产品信誉 Map {product_code: credibility_score}
+        credibility_map = {c['product_code']: c['credibility_score'] for c in credential_scores}
+        weak_products   = [p for p,c in credibility_map.items() if c < self.WEAK_THRESHOLD]
+        strong_products = [p for p,c in credibility_map.items() if c > self.STRONG_THRESHOLD]
+
+        # Step 4: 构建行业权重 Lookup {(product, sw1_code, date): weight_pct}
+        weight_lookup = self._build_weight_lookup(industry_weights)
+
+        # Step 5: 遍历所有申万一级行业
+        for sw1_code in SW_LEVEL1_CODES:
+            sector_drawdown = self._calc_drawdown(index_lookup, sw1_code, date, window=20)
+            if sector_drawdown is None or sector_drawdown >= -self.DRAWDOWN_THRESHOLD:
+                continue  # 跌幅<10%，跳过
+
+            weak_action   = self._get_net_action(weak_products, sw1_code, weight_lookup, date, window=20)
+            strong_action = self._get_net_action(strong_products, sw1_code, weight_lookup, date, window=20)
+            strong_add_count = self._count_adds(strong_products, sw1_code, weight_lookup, date, window=20)
+
+            if weak_action < 0 and strong_action >= 0 and strong_add_count >= self.MIN_STRONG_ADD:
+                confidence = min(1.0, abs(weak_action) * max(0, strong_action) * strong_add_count * 0.1)
+                if is_systemic:
+                    confidence *= 0.70  # 系统性风险打7折
+                EMIT DarwinEvent(
+                    date=date, sw1_code=sw1_code,
+                    drawdown_20d=sector_drawdown,
+                    is_systemic=is_systemic,
+                    weak_net_action=weak_action,
+                    strong_net_action=strong_action,
+                    strong_add_count=strong_add_count,
+                    confidence=confidence, status='ACTIVE'
+                )
+
+    def _calc_drawdown(self, index_lookup, code, date, window=20):
+        dates = sorted(index_lookup.get(code, {}).keys())
+        if not dates or date not in dates:
+            return None
+        current_idx = dates.index(date)
+        if current_idx < window:
+            return None
+        start_date = dates[current_idx - window]
+        start_price = index_lookup[code][start_date]
+        end_price = index_lookup[code][date]
+        return (end_price - start_price) / start_price
 ```
-darwin_detector(date) -> list[DarwinEvent]:
 
-  FOR EACH sector IN SW_LEVEL1_SECTORS:
-
-    # Step 1: 扫描行业回调
-    drawdown_20d = calc_sector_drawdown(sector, date, window=20)
-    IF drawdown_20d >= -0.10:
-      CONTINUE  # 跌幅不足, 跳过
-
-    # Step 2: 系统性风险过滤 (芒格建议)
-    market_drawdown = calc_index_drawdown("000300.SH", date, window=20)
-    is_systemic = (market_drawdown < -0.08)
-
-    # Step 3: 按信誉分组
-    weak_products   = products WHERE credibility < 0.50
-    strong_products = products WHERE credibility > 0.70
-
-    # Step 4: 计算行业内净行为 (20日)
-    weak_action   = net_sector_weight_change(weak_products, sector, 20d)
-    strong_action = net_sector_weight_change(strong_products, sector, 20d)
-
-    # Step 5: 分歧检测
-    IF weak_action < 0 AND strong_action >= 0:
-      # 弱手撤退, 强手坚守或加仓
-
-      strength = normalize(
-        abs(weak_action) * strong_action * count_adds(strong_products, sector)
-      )
-
-      confidence = strength * (0.70 IF is_systemic ELSE 1.00)
-      # 系统性风险时打 7 折
-
-      EMIT DarwinEvent(
-        sector, date, drawdown_20d,
-        is_systemic, weak_action, strong_action,
-        strength, confidence
-      )
-```
+> **注**: `window=20`/`30d` 均指**自然日（calendar days）**，对应 `timedelta(days=N)`。这是行业通用惯例，确保跨假期的一致性。
 
 **数据源需求 (REV-035)**:
 达尔文检测器需要以下外部数据:
@@ -206,44 +229,95 @@ CREATE INDEX idx_darwin_date   ON argus_darwin_event(trigger_date);
 
 **行业分组**:
 
-| 组别 | 包含行业 (申万一级) |
+| 组别 | 包含行业 (申万一级代码) |
 |:--|:--|
-| 周期组 (Cyclical) | 有色金属、钢铁、基础化工、机械设备、汽车 |
-| 防御组 (Defensive) | 食品饮料、医药生物、公用事业、银行 |
+| 周期组 (Cyclical) | 801050.SI(有色金属), 801040.SI(钢铁), 801030.SI(基础化工), 801890.SI(机械设备), 801880.SI(汽车) |
+| 防御组 (Defensive) | 801120.SI(食品饮料), 801150.SI(医药生物), 801160.SI(公用事业), 801780.SI(银行) |
 
 **计算公式**:
 
-```
-prosperity_score = SUM(cyclical_weight_change) - SUM(defensive_weight_change)
+```python
+class ProsperityGauge:
+    CYCLICAL_CODES = {"801050.SI", "801040.SI", "801030.SI", "801890.SI", "801880.SI"}
+    DEFENSIVE_CODES = {"801120.SI", "801150.SI", "801160.SI", "801780.SI"}
+    BULLISH_THRESHOLD = 2.0
+    DEFENSIVE_THRESHOLD = -2.0
 
-其中:
-  weight_change = 产品在该行业的 30 日持仓权重变化 (pp)
-  SUM 跨所有追踪产品
+    def calculate(self, date, industry_weights):
+        cyclical_delta = 0.0
+        defensive_delta = 0.0
 
-三级信号:
-  BULLISH:    prosperity_score > +2.0 pp
-  NEUTRAL:    -2.0 pp <= prosperity_score <= +2.0 pp
-  DEFENSIVE:  prosperity_score < -2.0 pp
+        for w in industry_weights:
+            sw1_code = w.get('sw1_code')
+            change_30d = w.get('weight_change_30d') or 0
+
+            if sw1_code in self.CYCLICAL_CODES:
+                cyclical_delta += change_30d
+            elif sw1_code in self.DEFENSIVE_CODES:
+                defensive_delta += change_30d
+
+        prosperity_delta = cyclical_delta - defensive_delta
+
+        if prosperity_delta > self.BULLISH_THRESHOLD:
+            signal = 'BULLISH'
+        elif prosperity_delta < self.DEFENSIVE_THRESHOLD:
+            signal = 'DEFENSIVE'
+        else:
+            signal = 'NEUTRAL'
+        return {
+            'prosperity_signal': signal,
+            'prosperity_delta': prosperity_delta,
+            'cyclical_weight_delta': cyclical_delta,
+            'defensive_weight_delta': defensive_delta,
+        }
 ```
+
+> **注**: 所有 `window=30d` 均指**自然日（calendar days）**，对应 `timedelta(days=30)`。这是行业通用惯例，确保跨假期的一致性。
 
 **Web 展示**: `/analysis` Section B -- 半圆 gauge (DEFENSIVE ~ BULLISH)，服务端 inline SVG。
 
 ### 2.3 信念偏移雷达 / Conviction Shift Radar {#ARGUS-06:conviction-radar}
 
-每周计算各申万一级行业的权重变化矩阵:
+```python
+class ConvictionRadar:
+    def calculate(self, date, industry_weights):
+        """
+        industry_weights: List[Dict]
+            每条记录包含 sw1_code, weight_change_30d, weight_change_60d
+            **30d/60d 均指自然日（calendar days）**
+        """
+        sector_conviction = {}
 
+        for w in industry_weights:
+            sw1_code = w.get('sw1_code')
+            delta_30d = w.get('weight_change_30d')
+            delta_60d = w.get('weight_change_60d')
+            if delta_30d is None:
+                continue
+
+            # 加速度 = 30d变化 - (60d变化 - 30d变化)
+            # 正向加速 = conviction rising（机构加速买入）
+            # 负向加速 = conviction collapsing（机构快速卖出）
+            acceleration = (delta_30d - (delta_60d - delta_30d)) if delta_60d else None
+
+            sector_conviction[sw1_code] = {
+                'delta_30d': delta_30d,
+                'delta_60d': delta_60d,
+                'acceleration': acceleration,
+            }
+
+        sorted_sectors = sorted(
+            [(k, v) for k, v in sector_conviction.items() if v.get('delta_30d')],
+            key=lambda x: x[1]['delta_30d'], reverse=True
+        )
+        return {
+            'sector_conviction': sector_conviction,
+            'top_rising_sectors': [s[0] for s in sorted_sectors[:3]],
+            'top_falling_sectors': [s[0] for s in sorted_sectors[-3:]],
+        }
 ```
-FOR EACH sector IN SW_LEVEL1_SECTORS:
-  delta_30d = avg_weight_now - avg_weight_30d_ago
-  delta_60d = avg_weight_now - avg_weight_60d_ago
 
-  acceleration = delta_30d - (delta_60d - delta_30d)
-  # 正向加速 = conviction rising
-  # 正向减速 = topping
-  # 负向加速 = conviction collapsing
-
-基准: 6 个月滚动均值 (INV-12/Kahneman 建议, 避免锚定效应)
-```
+**基准说明**: 行业权重采用6个月滚动均值作为基线（Kahneman建议），避免锚定效应。
 
 **Web 展示**: 行业 x 时间热力图 (红=增持, 蓝=减持) + 行业权重柱状图。
 

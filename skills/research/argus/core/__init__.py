@@ -8,6 +8,8 @@ from .rebalancing_detector import RebalancingDetector
 from .darwin_detector import DarwinDetector
 from .consensus_engine import ConsensusEngine
 from .crowding import CrowdingAnalyzer
+from .industry_weight_calculator import IndustryWeightCalculator
+from .consensus_direction import ConsensusDirectionEngine, ProsperityGauge, ConvictionRadar
 
 __all__ = [
     'CredibilityScorer',
@@ -17,4 +19,8 @@ __all__ = [
     'DarwinDetector',
     'ConsensusEngine',
     'CrowdingAnalyzer',
+    'IndustryWeightCalculator',
+    'ConsensusDirectionEngine',
+    'ProsperityGauge',
+    'ConvictionRadar',
 ]

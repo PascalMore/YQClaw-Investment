@@ -346,7 +346,7 @@ class MiniMaxImageExtractor(BaseExtractor):
         """
         # Strip whitespace from string columns
         for col in df.columns:
-            if df[col].dtype == object:
+            if df[col].dtypes == object:
                 df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
 
         # Normalize date format

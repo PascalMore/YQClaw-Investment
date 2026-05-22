@@ -1,6 +1,6 @@
 # skills/research/argus/config/__init__.py
 """Argus configuration module."""
 
-from .config import ARGUS_CONFIG, PRODUCT_ALIAS
+from .config import ARGUS_COLLECTIONS, ARGUS_CONFIG, ARGUS_UNIQUE_KEYS, INDUSTRY_GROUPS, PRODUCT_ALIAS
 
-__all__ = ['ARGUS_CONFIG', 'PRODUCT_ALIAS']
+__all__ = ['ARGUS_CONFIG', 'PRODUCT_ALIAS', 'ARGUS_COLLECTIONS', 'ARGUS_UNIQUE_KEYS', 'INDUSTRY_GROUPS']

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 from dotenv import load_dotenv
-from pymongo import MongoClient, UpdateOne
+from pymongo import MongoClient
 
 from .base_writer import IWriter
 
@@ -86,62 +86,88 @@ class MongoWriter(IWriter):
         collection_name = kwargs.get('collection_name', 'portfolio_position')
         unique_keys = kwargs.get('unique_keys', ['product_code', 'position_date'])
         collection = self.db[collection_name]
-        
-        operations = []
-        for record in data:
-            # Build filter from unique keys
-            filter_dict = {k: record[k] for k in unique_keys if k in record}
-            if not filter_dict:
-                continue
-            record = self._with_created_at(record)
-            set_fields = dict(record)
-            created_at = set_fields.pop('created_at')
-            operations.append(
-                UpdateOne(
-                    filter_dict,
-                    {'$set': set_fields, '$setOnInsert': {'created_at': created_at}},
-                    upsert=True,
-                )
-            )
-        
-        if operations:
-            result = collection.bulk_write(operations, ordered=False)
-            count = result.matched_count + result.upserted_count
-            logger.info(f"[MongoWriter] upserted {count} records to {collection_name}")
-            return count
-        
-        return 0
 
-    def write_argus_credential_scores(self, data: List[Dict]) -> int:
-        """Upsert Argus product credibility scores into the Phase 2 raw table."""
+        logger.info(f"[MongoWriter] upserting {len(data)} records to {collection_name}")
+        count = 0
+        for record in data:
+            filter_dict = {k: record[k] for k in unique_keys if k in record}
+            if len(filter_dict) != len(unique_keys):
+                logger.warning(
+                    "[MongoWriter] skip upsert to %s due to missing unique keys %s: %s",
+                    collection_name,
+                    unique_keys,
+                    record,
+                )
+                continue
+            record = self._with_timestamps(record)
+            collection.update_one(filter_dict, {'$set': record}, upsert=True)
+            count += 1
+
+        logger.info(f"[MongoWriter] upserted {count} records to {collection_name}")
+        return count
+
+    def write_argus_credential_scores(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus product credibility scores."""
         return self.upsert(
             data,
             collection_name='08_research_argus_credential_score',
             unique_keys=['date', 'product_code'],
         )
 
-    def write_argus_signals(self, data: List[Dict]) -> int:
-        """Upsert Argus daily signals into the Phase 2 raw signal table."""
+    def write_argus_signals(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus daily signals."""
         return self.upsert(
             data,
             collection_name='08_research_argus_signal',
             unique_keys=['date', 'signal_id'],
         )
 
-    def write_argus_stock_pool(self, data: List[Dict]) -> int:
-        """Upsert Argus four-zone stock pool state into the Phase 2 raw table."""
+    def write_argus_signal_pool(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus four-zone signal pool state."""
         return self.upsert(
             data,
-            collection_name='08_research_argus_stock_pool',
+            collection_name='08_research_argus_signal_pool',
             unique_keys=['date', 'wind_code'],
         )
 
+    # Backward compatibility alias
+    def write_argus_stock_pool(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus four-zone stock pool state (backward compatibility alias)."""
+        return self.write_argus_signal_pool(data, upsert)
+
+    def write_argus_industry_weights(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus product industry weight time series (Phase 4A)."""
+        return self.upsert(
+            data,
+            collection_name='08_research_argus_industry_weight',
+            unique_keys=['date', 'product_code', 'sw1_code'],
+        )
+
+    def write_argus_darwin_events(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus Darwin moment events (Phase 4B)."""
+        return self.upsert(
+            data,
+            collection_name='08_research_argus_darwin_event',
+            unique_keys=['date', 'sw1_code'],
+        )
+
+    def write_argus_consensus_direction(self, data: List[Dict], upsert: bool = True) -> int:
+        """Upsert Argus consensus direction snapshot (Phase 4C)."""
+        return self.upsert(
+            data,
+            collection_name='08_research_argus_consensus_direction',
+            unique_keys=['date'],
+        )
+
     def ensure_argus_indexes(self) -> None:
-        """Create idempotent indexes for Argus Phase 2 output collections."""
+        """Create idempotent indexes for Argus output collections."""
         index_specs = {
             '08_research_argus_credential_score': [('date', 1), ('product_code', 1)],
             '08_research_argus_signal': [('date', 1), ('signal_id', 1)],
-            '08_research_argus_stock_pool': [('date', 1), ('wind_code', 1)],
+            '08_research_argus_signal_pool': [('date', 1), ('wind_code', 1)],
+            '08_research_argus_industry_weight': [('date', 1), ('product_code', 1), ('sw1_code', 1)],
+            '08_research_argus_darwin_event': [('date', 1), ('sw1_code', 1)],
+            '08_research_argus_consensus_direction': [('date', 1)],
         }
         for collection_name, keys in index_specs.items():
             self.db[collection_name].create_index(keys, unique=True)
@@ -150,6 +176,14 @@ class MongoWriter(IWriter):
     def _with_created_at(record: Dict) -> Dict:
         enriched = dict(record)
         enriched.setdefault('created_at', datetime.now().isoformat())
+        return enriched
+
+    @staticmethod
+    def _with_timestamps(record: Dict) -> Dict:
+        enriched = {key: value for key, value in record.items() if key != '_id'}
+        now = datetime.now().isoformat()
+        enriched.setdefault('created_at', now)
+        enriched['updated_at'] = now
         return enriched
     
     @classmethod

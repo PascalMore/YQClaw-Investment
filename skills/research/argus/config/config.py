@@ -23,3 +23,14 @@ PRODUCT_ALIAS = {
     'HTF': '汇添富',
     'YFD': '易方达',
 }
+
+
+ARGUS_COLLECTIONS = ARGUS_CONFIG.get('mongo', {}).get('collections', {})
+INDUSTRY_GROUPS = ARGUS_CONFIG.get('industry_groups', {})
+
+ARGUS_UNIQUE_KEYS = {
+    'credential_score': ['date', 'product_code'],
+    'signal': ['date', 'signal_id'],
+    'stock_pool': ['date', 'wind_code'],
+    'industry_weight': ['date', 'product_code', 'sw1_code'],
+}

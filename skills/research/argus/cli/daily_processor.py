@@ -26,9 +26,11 @@ from skills.research.argus.core import (
     CredibilityScorer,
     CrowdingAnalyzer,
     DarwinDetector,
+    IndustryWeightCalculator,
     PoolManager,
     RebalancingDetector,
     SignalGenerator,
+    ConsensusDirectionEngine,
 )
 
 logger = get_logger('argus', 'research/argus')
@@ -56,15 +58,19 @@ def process_date(
     darwin_detector = DarwinDetector()
     consensus_engine = ConsensusEngine(pool_manager)
     crowding_analyzer = CrowdingAnalyzer()
+    consensus_direction_engine = ConsensusDirectionEngine()
 
     results = {
         'date': date_to_process,
         'previous_date': previous_date,
+        'baseline_30d_date': None,
         'products_processed': 0,
         'signals_generated': 0,
+        'industry_weights_written': 0,
+        'industry_weights_generated': 0,
         'credential_scores_written': 0,
         'signals_written': 0,
-        'stock_pool_written': 0,
+        'signal_pool_written': 0,
         'pool_summary': {},
         'output_file': None,
     }
@@ -76,6 +82,27 @@ def process_date(
 
     trades = reader.read(date_to_process, collection_name='portfolio_trade')
     previous_positions = reader.read(previous_date, collection_name='portfolio_position')
+    baseline_30d_date = _get_baseline_date(date_to_process, 30)
+    results['baseline_30d_date'] = baseline_30d_date
+    baseline_30d_weights = _read_industry_weights(reader, baseline_30d_date)
+    previous_weights = _read_industry_weights(reader, previous_date)
+
+    _attach_product_names(positions, transformer)
+    sector_info = _read_sector_info(reader)
+    industry_weight_records = IndustryWeightCalculator.calculate(
+        date_to_process,
+        positions,
+        sector_info,
+        previous_weights=previous_weights,
+        lookback_30d_weights=baseline_30d_weights,
+        previous_positions=previous_positions,
+    )
+    results['industry_weights_generated'] = len(industry_weight_records)
+
+    if write_mongo:
+        writer = writer or MongoWriter(database=ARGUS_CONFIG.get('mongo', {}).get('database', 'tradingagents'))
+        writer.ensure_argus_indexes()
+        results['industry_weights_written'] = writer.write_argus_industry_weights(industry_weight_records)
 
     product_codes = sorted({p['product_code'] for p in positions if p.get('product_code')})
     positions_by_product = _group_by_product(positions)
@@ -94,7 +121,7 @@ def process_date(
         darwin_moment = darwin_detector.detect_darwin_moment(position_changes, all_product_positions)
         credibility_score = credibility_scorer.calculate_score(product_code, position_changes)
 
-        credential_records.append(_credential_record(date_to_process, product_code, product_name, credibility_score, position_changes))
+        credential_records.append(_credential_record(date_to_process, product_code, product_name, credibility_score, position_changes, credibility_scorer))
 
         signals = signal_generator.generate_signals(
             product_code=product_code,
@@ -135,7 +162,42 @@ def process_date(
         writer.ensure_argus_indexes()
         results['credential_scores_written'] = writer.write_argus_credential_scores(credential_records)
         results['signals_written'] = writer.write_argus_signals(all_signals)
-        results['stock_pool_written'] = writer.write_argus_stock_pool(stock_pool_records)
+
+
+        # Phase 4B: Darwin Moment Detection
+        index_quotes = _read_index_quotes(reader, date_to_process)
+        darwin_events = darwin_detector.detect_for_date(
+            date_to_process,
+            index_quotes=index_quotes,
+            credential_scores=credential_records,
+            industry_weights=industry_weight_records,
+        )
+        results['darwin_events_written'] = writer.write_argus_darwin_events(darwin_events) if darwin_events else 0
+
+        # Phase 4C: Consensus Direction Engine
+        consensus_direction = consensus_direction_engine.calculate_for_date(
+            date_to_process,
+            industry_weight_records,
+        )
+        results['consensus_direction_written'] = writer.write_argus_consensus_direction([consensus_direction])
+        results['consensus_direction_signal'] = consensus_direction.get('prosperity_signal', 'NEUTRAL')
+
+
+        # Build wind_code -> sw1_code mapping for Darwin event matching
+        wind_to_sw1 = _build_windcode_to_sw1_lookup(sector_info)
+
+
+        # Enrich stock pool with Darwin/prosperity info before writing
+        _enrich_stock_pool_with_darwin_prosperity(
+            stock_pool_records, darwin_events, consensus_direction, wind_to_sw1
+        )
+        results['signal_pool_written'] = writer.write_argus_signal_pool(stock_pool_records)
+
+        logger.info(
+            '[Argus] Phase 4B: %d Darwin events, Phase 4C: prosperity=%s',
+            len(darwin_events),
+            consensus_direction.get('prosperity_signal', 'NEUTRAL'),
+        )
 
     output_file = _write_json_output(
         date_to_process,
@@ -145,6 +207,7 @@ def process_date(
         stock_pool_records,
         results,
         output_dir,
+        consensus_direction,
     )
     results['output_file'] = str(output_file)
 
@@ -157,6 +220,31 @@ def _previous_trading_day(date_to_process: str) -> str:
     return get_latest_trading_day(format_date(previous_calendar_day))
 
 
+def _credential_record(
+    date_to_process: str,
+    product_code: str,
+    product_name: str,
+    credibility_score: float,
+    position_changes: List[Dict],
+    credibility_scorer: Optional[CredibilityScorer] = None,
+) -> Dict:
+    if credibility_scorer is None:
+        credibility_scorer = CredibilityScorer()
+    return {
+        'date': date_to_process,
+        'product_code': product_code,
+        'product_name': product_name,
+        'credibility_score': round(credibility_score, 4),
+        'confidence_level': credibility_scorer.get_confidence_level(credibility_score),
+        'positions_count': len(position_changes),
+        'avg_abs_holding_ratio_change': round(
+            sum(abs(p.get('holding_ratio_change', 0) or 0) for p in position_changes) / len(position_changes),
+            6,
+        ) if position_changes else 0.0,
+    }
+
+
+
 def _group_by_product(records: List[Dict]) -> Dict[str, List[Dict]]:
     grouped = defaultdict(list)
     for record in records:
@@ -166,25 +254,116 @@ def _group_by_product(records: List[Dict]) -> Dict[str, List[Dict]]:
     return grouped
 
 
-def _credential_record(
-    date_to_process: str,
-    product_code: str,
-    product_name: str,
-    credibility_score: float,
-    position_changes: List[Dict],
-) -> Dict:
-    return {
-        'date': date_to_process,
-        'product_code': product_code,
-        'product_name': product_name,
-        'credibility_score': round(credibility_score, 4),
-        'confidence_level': CredibilityScorer().get_confidence_level(credibility_score),
-        'positions_count': len(position_changes),
-        'avg_abs_holding_ratio_change': round(
-            sum(abs(p.get('holding_ratio_change', 0) or 0) for p in position_changes) / len(position_changes),
-            6,
-        ) if position_changes else 0.0,
-    }
+def _get_baseline_date(date_to_process: str, days: int) -> str:
+    target = parse_date(date_to_process) - timedelta(days=days + 5)
+    return get_latest_trading_day(format_date(target))
+
+
+
+def _read_sector_info(reader: MongoReader) -> List[Dict]:
+    industry_config = ARGUS_CONFIG.get('industry_weight', {})
+    classify_system = industry_config.get('classify_system', 'SW')
+    collection_name = industry_config.get('sector_info_collection', 'stock_sector_info')
+    if hasattr(reader, 'read_sector_info'):
+        return reader.read_sector_info(classify_system=classify_system, collection_name=collection_name)
+    logger.warning("[Argus] Reader does not support sector info; unmapped stocks will use UNKNOWN")
+    return []
+
+
+
+def _read_industry_weights(reader: MongoReader, date_to_read: Optional[str]) -> List[Dict]:
+    if not date_to_read:
+        return []
+    if hasattr(reader, 'read_industry_weights'):
+        return reader.read_industry_weights(date_to_read)
+    logger.warning("[Argus] Reader does not support industry weights; baseline %s unavailable", date_to_read)
+    return []
+
+
+
+def _read_index_quotes(reader: MongoReader, date_to_read: str) -> List[Dict]:
+    # Read CSI300 + all SW Level1 codes for 20d lookback window
+    end_dt = parse_date(date_to_read)
+    start_dt = end_dt - timedelta(days=25)
+    start_date = format_date(start_dt)
+    end_date = date_to_read
+    
+    codes_to_read = ['000300.SH'] + [
+        '801010.SI', '801030.SI', '801040.SI', '801050.SI', '801080.SI',
+        '801110.SI', '801120.SI', '801130.SI', '801140.SI', '801150.SI',
+        '801160.SI', '801170.SI', '801180.SI', '801200.SI', '801210.SI',
+        '801230.SI', '801710.SI', '801720.SI', '801730.SI', '801740.SI',
+        '801750.SI', '801760.SI', '801770.SI', '801780.SI', '801790.SI',
+        '801880.SI', '801890.SI', '801950.SI', '801960.SI', '801970.SI',
+        '801980.SI',
+    ]
+    all_quotes = []
+    for code in codes_to_read:
+        if hasattr(reader, 'read_index_quotes'):
+            quotes = reader.read_index_quotes(code, start_date, end_date)
+            all_quotes.extend(quotes)
+    if not all_quotes:
+        logger.warning("[Argus] No index quotes loaded; Darwin detection may not work")
+    return all_quotes
+
+
+
+def _attach_product_names(positions: List[Dict], transformer: PortfolioTransformer) -> None:
+    for position in positions:
+        product_code = position.get('product_code')
+        if product_code and not position.get('product_name'):
+            position['product_name'] = transformer.get_product_alias(product_code)
+
+
+def _build_windcode_to_sw1_lookup(sector_info: List[Dict]) -> Dict[str, str]:
+    from skills.research.argus.core.industry_weight_calculator import IndustryWeightCalculator
+    lookup = {}
+    for item in sector_info:
+        sw1_code = IndustryWeightCalculator._normalize_sw1_code(
+            item.get('sw1_code') or item.get('l1_code') or item.get('sector_code')
+        )
+        if not sw1_code:
+            continue
+        for key in (
+            item.get('full_symbol'),
+            item.get('asset_wind_code'),
+            item.get('wind_code'),
+            item.get('symbol'),
+            item.get('code'),
+        ):
+            if key:
+                lookup[str(key)] = sw1_code
+    return lookup
+
+
+def _enrich_stock_pool_with_darwin_prosperity(
+    stock_pool_records: List[Dict],
+    darwin_events: List[Dict],
+    consensus_direction: Dict,
+    wind_to_sw1: Optional[Dict[str, str]] = None,
+) -> None:
+    darwin_by_sector: Dict[str, Dict] = {e.get('sw1_code'): e for e in darwin_events}
+    prosperity_signal = consensus_direction.get('prosperity_signal', 'NEUTRAL')
+
+    for record in stock_pool_records:
+        record['prosperity_signal'] = prosperity_signal
+
+        wind_code = record.get('wind_code')
+        if wind_to_sw1 and wind_code:
+            sw1_code = wind_to_sw1.get(wind_code)
+            if sw1_code and sw1_code in darwin_by_sector:
+                event = darwin_by_sector[sw1_code]
+                record['darwin_moment'] = True
+                record['darwin_confidence'] = event.get('confidence')
+                record['darwin_event_id'] = f"{event.get('date')}_{event.get('sw1_code')}"
+            else:
+                record['darwin_moment'] = False
+                record['darwin_confidence'] = None
+                record['darwin_event_id'] = None
+        else:
+            record['darwin_moment'] = False
+            record['darwin_confidence'] = None
+            record['darwin_event_id'] = None
 
 
 def _build_stock_pool_records(
@@ -272,20 +451,24 @@ def _write_json_output(
     stock_pool_records: List[Dict],
     results: Dict,
     output_dir: Optional[Path],
+    consensus_direction: Optional[Dict] = None,
 ) -> Path:
     output_dir = output_dir or Path('/home/pascal/.openclaw/workspace-yquant/logs/research/argus')
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / f'argus_signal_{date_to_process.replace("-", "")}.json'
+    output_data = {
+        'generated_at': datetime.now().isoformat(),
+        'date': date_to_process,
+        'signals': signals,
+        'consensus': consensus,
+        'crowding': crowding,
+        'stock_pool': stock_pool_records,
+        'pool_summary': results.get('pool_summary', {}),
+    }
+    if consensus_direction:
+        output_data['consensus_direction'] = consensus_direction
     with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump({
-            'generated_at': datetime.now().isoformat(),
-            'date': date_to_process,
-            'signals': signals,
-            'consensus': consensus,
-            'crowding': crowding,
-            'stock_pool': stock_pool_records,
-            'pool_summary': results['pool_summary'],
-        }, f, ensure_ascii=False, indent=2)
+        json.dump(output_data, f, ensure_ascii=False, indent=2)
     return output_file
 
 
@@ -295,14 +478,15 @@ def main():
     logger.info("[Argus CLI] Processing date: %s", target_date)
 
     try:
-        results = process_date(target_date)
+        results = process_date(target_date, write_mongo=True)
         print("\n=== Argus Processing Results ===")
         print(f"Date: {results['date']}")
         print(f"Products: {results['products_processed']}")
         print(f"Signals: {results['signals_generated']}")
         print(f"Credential Scores Written: {results['credential_scores_written']}")
         print(f"Signals Written: {results['signals_written']}")
-        print(f"Stock Pool Written: {results['stock_pool_written']}")
+        print(f"Signal Pool Written: {results['signal_pool_written']}")
+        print(f"Consensus Direction: {results.get('consensus_direction_signal', 'N/A')}")
         print(f"Pool: {results['pool_summary']}")
         print(f"Output: {results['output_file']}")
     except Exception as e:

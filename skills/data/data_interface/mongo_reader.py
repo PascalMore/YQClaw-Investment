@@ -3,6 +3,7 @@
 
 import os
 import logging
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 from dotenv import load_dotenv
@@ -67,6 +68,8 @@ class MongoReader(IReader):
             query = {'trade_date': date}
         elif collection_name == 'portfolio_nav':
             query = {'nav_date': date}
+        elif collection_name.startswith('08_research_argus_'):
+            query = {'date': date}
         else:
             query = {'position_date': date}  # default to position
         
@@ -90,7 +93,83 @@ class MongoReader(IReader):
             List[Dict]: List of data records
         """
         return self.read(date, product_code=product_code)
-    
+
+    def read_sector_info(self, classify_system: str = 'SW', collection_name: str = 'stock_sector_info') -> List[Dict]:
+        """Read stock sector mappings used by Argus industry aggregation."""
+        collection = self.db[collection_name]
+        query = {'classify_system': classify_system} if classify_system else {}
+        results = list(collection.find(query, {'_id': 0}))
+        logger.info(f"[MongoReader] read {len(results)} records from {collection_name}")
+        return results
+
+    def read_industry_weights(
+        self,
+        date: str,
+        product_code: str = None,
+        collection_name: str = '08_research_argus_industry_weight',
+    ) -> List[Dict]:
+        """Read Argus industry weight records for a date and optional product."""
+        query = {'date': date}
+        if product_code:
+            query['product_code'] = product_code
+        results = list(self.db[collection_name].find(query, {'_id': 0}))
+        logger.info(f"[MongoReader] read {len(results)} records from {collection_name} for {date}")
+        return results
+
+    def read_industry_weights_range(
+        self,
+        start_date: str,
+        end_date: str,
+        product_code: str = None,
+        collection_name: str = '08_research_argus_industry_weight',
+    ) -> List[Dict]:
+        """Read Argus industry weight records for a date range."""
+        query = {'date': {'$gte': start_date, '$lte': end_date}}
+        if product_code:
+            query['product_code'] = product_code
+        results = list(self.db[collection_name].find(query, {'_id': 0}))
+        logger.info(f"[MongoReader] read {len(results)} records from {collection_name} for {start_date}~{end_date}")
+        return results
+
+    def read_index_quotes(
+        self,
+        index_code: str,
+        start_date: str,
+        end_date: str,
+        collection_name: str = 'index_daily_quotes',
+    ) -> List[Dict]:
+        """Read index daily quotes for a date range.
+        
+        Args:
+            index_code: Index code (e.g., '000300.SH' for CSI300, '801050.SI' for SW industry)
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+        
+        Returns:
+            List[Dict]: Index quotes with date, close, pct_chg, etc.
+        """
+        # Handle both code and full_symbol
+        query = {
+            '$or': [
+                {'code': index_code.split('.')[0]},
+                {'full_symbol': index_code}
+            ],
+            'trade_date': {'$gte': start_date, '$lte': end_date}
+        }
+        results = list(self.db[collection_name].find(query, {'_id': 0}).sort('trade_date', 1))
+        logger.info(f"[MongoReader] read {len(results)} index quotes for {index_code} from {start_date} to {end_date}")
+        return results
+
+    def read_credential_scores(
+        self,
+        date: str,
+        collection_name: str = '08_research_argus_credential_score',
+    ) -> List[Dict]:
+        """Read Argus credential scores for a date."""
+        results = list(self.db[collection_name].find({'date': date}, {'_id': 0}))
+        logger.info(f"[MongoReader] read {len(results)} credential scores for {date}")
+        return results
+
     @classmethod
     def close(cls):
         """Close MongoDB client connection."""

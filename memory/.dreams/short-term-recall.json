@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-05-21T00:49:05.290Z",
+  "updatedAt": "2026-05-21T23:37:50.765Z",
   "entries": {
     "memory:memory/2026-04-05.md:1:38": {
       "key": "memory:memory/2026-04-05.md:1:38",
@@ -6266,6 +6266,37 @@
         "latest-income.get",
         "记忆",
         "apscheduler"
+      ]
+    },
+    "memory:memory/2026-05-14.md:52:86": {
+      "key": "memory:memory/2026-05-14.md:52:86",
+      "path": "memory/2026-05-14.md",
+      "startLine": 52,
+      "endLine": 86,
+      "source": "memory",
+      "snippet": "├── soul.md / identity.md / agents.md / claude.md ├── HEARTBEAT.md / USER.md / TOOLS.md / MEMORY.md ├── memory/ # 每日记忆文件 ├── skills/ │ ├── common/ # 通用工具 │ ├── data/ # 数据采集 │ ├── research/ # 投研分析 │ ├── strategies/ # 策略回测 │ ├── risk/ # 风险管控 │ ├── portfolio/ # 组合管理 │ ├── reports/ # 复盘报告 │ ├── infra/ # 基础设施 │ └── knowledge/ # 知识库 └── auto_push.sh ``` --- ## 本次会话关键信息（2026-05-14） ### 1. ARGUS RFC 文档解读 用户请求解读了 `docs/rfc/08_research/argus/RFC-2026-071_ARGUS/` 下的 ARGUS 系统 RFC 文档。 **ARGUS 系统概要：** - **全称**：Adaptive Rebalancing & General Underlying Surve",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-05-21T23:37:50.765Z",
+      "lastRecalledAt": "2026-05-21T23:37:50.765Z",
+      "queryHashes": [
+        "51a8dd4e2a96"
+      ],
+      "recallDays": [
+        "2026-05-22"
+      ],
+      "conceptTags": [
+        "soul.md",
+        "identity.md",
+        "agents.md",
+        "claude.md",
+        "heartbeat.md",
+        "user.md",
+        "tools.md",
+        "memory.md"
       ]
     }
   }

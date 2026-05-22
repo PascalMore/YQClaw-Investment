@@ -415,6 +415,34 @@ python migrate_v81.py --source empire_data.db --target argus.db --execute
 | AC-14 | P4 | 达尔文检测器: 历史数据上检测到已知事件 | 回测验证 | P1 |
 | AC-15 | P4 | 系统性风险过滤: 沪深300跌>8%时达尔文信号降权 | 测试用例 | P1 |
 | AC-16 | P4 | 景气度方向计算与手工验算一致 | 对比5个交易日的计算结果 | P1 |
+
+> **Phase 4 实现状态 (2026-05-22)**:
+> - AC-14/AC-15: **已实现** — 89天历史回补完成，0个达尔文事件触发（产品信誉在0.51~0.55 MEDIUM区间，无强手/弱手分化）
+> - AC-16: **已实现** — 89天历史回补完成，Prosperity Gauge 正常输出 BULLISH/NEUTRAL/DEFENSIVE 信号
+
+### S2.5 Backfill 与级联刷新工具 (CLI) {#ARGUS-08:backfill}
+
+`backfill_all.py` 支持从任意日期开始重算，并可在 Raw Data 损坏时进行级联刷新：
+
+```bash
+# 常用场景
+python3 -m skills.research.argus.cli.backfill_all --start 2026-03-01 --end 2026-05-20   # 标准区间重跑
+python3 -m skills.research.argus.cli.backfill_all --from 2026-05-15                   # 修复某天数据后，刷新该天~今天所有受影响日期
+python3 -m skills.research.argus.cli.backfill_all --from 2026-05-15 --end 2026-05-22  # 同上，显式指定end
+python3 -m skills.research.argus.cli.backfill_all --from 2026-05-15 --force-today     # --force-today: 今天无Raw数据也强制处理（cascade刷新场景）
+
+# 单日重跑
+python3 -m skills.research.argus.cli.backfill_all --start 2026-05-15 --end 2026-05-15
+
+# dry-run（不写Mongo）
+python3 -m skills.research.argus.cli.backfill_all --start 2026-05-15 --end 2026-05-15 --dry-run
+```
+
+**设计说明**：
+- `daily_processor` 无状态：每天输出只依赖当天的 Raw Data + 前一天的持仓快照（`portfolio_position`），不依赖前一天的 ARGUS 输出
+- 级联刷新（`--from`）需求场景：若 `portfolio_position[T]` 损坏，则 `T+1`、`T+2`... 所有后续天的 `holding_ratio_change` 都会错误（因为 `change = current − previous`，previous 被污染），必须从损坏日起连续重跑
+- `--force-today`：最新日期 Raw Data 尚未到达时（如盘中），仍强制执行 `process_date`，它会在无持仓数据时提前退出（skip），不阻塞中间日期的处理
+- 数据幂等：所有写入均为 upsert，重复执行不会产生重复记录
 | AC-17 | P5 | 回测精度: 信号发出后30日超额收益计算正确 | 手工计算5条信号的30日回报 | P1 |
 | AC-18 | P5 | JSON导出: 文件格式正确, 包含required字段 | JSON schema validation | P0 |
 | AC-19 | P6 | 纸上交易: 连续10交易日零导入失败 | 运行日志检查 | P0 |

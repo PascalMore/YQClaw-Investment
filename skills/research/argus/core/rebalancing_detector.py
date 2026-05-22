@@ -33,13 +33,13 @@ class RebalancingDetector:
         """
         # Build lookup by wind_code
         prev_lookup = {
-            pos['asset_wind_code']: pos.get('holding_ratio', 0)
+            pos.get('asset_wind_code') or pos.get('wind_code'): pos.get('holding_ratio', 0)
             for pos in previous_positions
         }
         
         events = []
         for curr_pos in current_positions:
-            wind_code = curr_pos['asset_wind_code']
+            wind_code = curr_pos.get('asset_wind_code') or curr_pos.get('wind_code')
             curr_ratio = curr_pos.get('holding_ratio', 0)
             prev_ratio = prev_lookup.get(wind_code, 0)
             change = curr_ratio - prev_ratio
