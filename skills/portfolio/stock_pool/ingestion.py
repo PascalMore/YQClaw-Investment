@@ -150,8 +150,15 @@ class StockPoolIngestionService:
 
     @staticmethod
     def _entry_reason_from_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a rich entry_reason with all metrics from the signal."""
         return {
             "reason": signal.get("reason", ""),
+            "bayesian_score": signal.get("bayesian_score") or signal.get("confidence") or 0,
+            "consensus_confidence": signal.get("consensus_confidence") or 0,
+            "contributing_products": signal.get("contributing_products") or [],
+            "contributing_products_count": signal.get("contributing_products_count") or 0,
+            "crowding_score": signal.get("crowding_score") or 0,
+            "crowding_level": signal.get("crowding_level") or "LOW",
         }
 
     def _upsert_record(self, record: Dict[str, Any], actor: str, summary: Dict[str, Any]) -> None:
