@@ -23,6 +23,52 @@ amendment_level: L2
 
 ---
 
+## 00 当前实现校准 (2026-06-02) {#ARGUS-02:current-implementation}
+
+> 本节为实现状态补充，不删除下方 v2.0.1/v3.0 原始设计。当前代码实现以 `skills/research/argus/` 为准。
+
+### 00.1 实现状态追踪
+
+| 架构项 | 状态 | 当前实现 | 代码依据 |
+|:--|:--:|:--|:--|
+| 日度处理入口 | IMPLEMENTED | `process_date()` 编排读取、计算、写入与 Portfolio 同步 | `cli/daily_processor.py` |
+| 数据存储 | IMPLEMENTED | MongoDB `tradingagents`，`08_research_argus_*` collections | `config/argus_config.yaml`, `MongoWriter` |
+| 行业权重 / Darwin / 共识方向 | IMPLEMENTED | Phase 4A/4B/4C 在 CLI 流程中执行 | `industry_weight_calculator.py`, `darwin_detector.py`, `consensus_direction.py` |
+| Portfolio 订阅 / 同步 | IMPLEMENTED | `daily_processor` 增量同步 signal_pool；另有 `ArgusPortfolioSubscriber` 读取 signal 生成 ingestion payload | `argus_portfolio_subscriber.py`, `skills/portfolio/stock_pool/ingestion.py` |
+| FastAPI / Jinja2 / HTMX | DEFERRED | 当前未发现 Web app/router/template 实现 | 代码目录无对应实现 |
+| SQLite 三层库 | DEFERRED | 当前运行路径不使用 SQLite `argus.db` | `MongoWriter` 写 MongoDB |
+
+### 00.2 当前技术栈
+
+| 层级 | 原始设计 | 当前实现 |
+|:--|:--|:--|
+| 应用形态 | 独立 FastAPI Web 服务 | Python CLI 批处理 |
+| 数据库 | SQLite `argus.db`，Raw/Processed/Decision 三层 | MongoDB `tradingagents` |
+| 输入 | Excel / SQL INSERT / Raw tables | `portfolio_position`, `portfolio_trade`, `stock_sector_info`, `index_daily_quotes` |
+| 输出 | REST API / JSON / SQLite Decision layer | MongoDB `08_research_argus_*` + `logs/research/argus/argus_signal_YYYYMMDD.json` |
+| 组合侧接口 | Empire REST / JSON bridge | Portfolio `StockPoolIngestionService.ingest_signals_incremental()` |
+
+### 00.3 当前实际数据流
+
+```text
+portfolio_position / portfolio_trade (MongoDB)
+    ↓
+daily_processor.process_date()
+    ↓
+credibility -> crowding -> signal_generator -> signal_pool
+    ├─ industry_weight_calculator
+    ├─ darwin_detector
+    └─ consensus_direction
+    ↓
+08_research_argus_* collections
+    ↓
+05_portfolio_stock_pool / 05_portfolio_stock_pool_audit
+```
+
+原始 §2 中 FastAPI/Jinja2/HTMX/Pico CSS 技术栈保留为 Web UI 设计基线；截至 2026-06-02 当前实现未启用。
+
+---
+
 ## 0 v3.0 beta-light 修订说明 (2026-04-22, <sess>) {#ARGUS-02:v3-amendment}
 
 > **v3.0 仅修订数据入口机制**, 不动三层数据库架构 / 技术栈 / 独立部署 / Empire 接口协议.

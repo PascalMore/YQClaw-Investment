@@ -29,6 +29,60 @@ language: "zh-CN / en"
 
 ---
 
+## SS0 当前实现校准 (2026-06-02) {#ARGUS-04:current-implementation}
+
+> 本节补充当前 Phase 4/5 代码实际评分逻辑。下方 Beta 分布贝叶斯、六层架构与多时间框架内容保留为原始设计基线。
+
+### 0.1 实现状态追踪
+
+| 模块 | 状态 | 当前实现 | 代码依据 |
+|:--|:--:|:--|:--|
+| 产品信誉评分 | IMPLEMENTED | `CredibilityScorer.calculate_score()` 基于当日持仓变化计算产品信誉记录 | `core/credibility.py`, `daily_processor._credential_record()` |
+| 信号生成 | IMPLEMENTED | 持仓比例变化 `> 1%` 生成 `BUY`，`< -1%` 生成 `SELL`，否则 `HOLD` | `core/signal_generator.py` |
+| 调仓事件类型推断 | IMPLEMENTED | `NEW_ENTRY`, `FULL_EXIT`, `CONCENTRATED_ADD`, `CONTINUOUS_ADD`, `PARTIAL_EXIT`, `HOLD` | `SignalGenerator._infer_rebalancing_event_type()` |
+| 拥挤度 | IMPLEMENTED | L1-L4 四层代理指标，输出 `LOW/MEDIUM/HIGH` | `core/crowding.py` |
+| Signal Pool 评分 | IMPLEMENTED | `BayesianScorer` 对四个因子加权平均并 clamp 到 `[0,1]` | `core/bayesian_scoring.py` |
+| 真正 Beta 后验 + CI | PARTIAL | 当前 signal-pool score 未执行 Beta posterior/CI；产品 profile 的 `alpha/beta` 仅用于 product credibility 映射 | `BayesianScorer._build_product_credibility()` |
+| 外部 T0/T1/T2 多源融合 | PARTIAL | 当前主要读取 Portfolio Mongo 输入，外部指数用于 Darwin | `daily_processor.py`, `darwin_detector.py` |
+
+### 0.2 当前 signal-pool 评分公式
+
+当前 `BayesianScorer` 名称保留了 RFC 术语，但实现是显式因子加权平均：
+
+```text
+bayesian_score =
+    0.30 * rebalancing_score
+  + 0.25 * product_credibility
+  + 0.25 * consensus_score
+  + 0.20 * direction_score
+
+score = clamp(score, 0.0, 1.0)
+```
+
+因子来源：
+
+| 因子 | 当前计算 |
+|:--|:--|
+| `rebalancing_score` | 对相关 signal 的 `rebalancing_event_type` 映射后取平均。 |
+| `product_credibility` | 对 contributing products 的信誉取平均；若 profile 含 `alpha/beta`，使用 `alpha / (alpha + beta)`；缺省 0.5。 |
+| `consensus_score` | 产品数 `>=5 => 1.0`, `>=3 => 0.7`, `==2 => 0.4`, 否则 0.2。 |
+| `direction_score` | `BUY => 0.8`, `SELL => -0.8`, `HOLD => 0.0`，相关 signal 取平均。 |
+
+### 0.3 当前信号生成输出
+
+`SignalGenerator.generate_signals()` 输出写入 `08_research_argus_signal`。核心字段包括：
+
+```text
+signal_id, source, product_code, product_name, signal_type,
+confidence, direction, direction_score, rebalancing_event_type,
+pool_zone, trade_date, target_stocks, reason, generated_at,
+valid_until, metadata
+```
+
+其中 `target_stocks` 包含 `wind_code`, `stock_name`, `action`, `holding_ratio_change`, `market_value_change`。
+
+---
+
 ## SS1 六层数据流架构 {#ARGUS-04:six-layer}
 
 ### 1.1 架构概览 / Architecture Overview {#ARGUS-04:six-layer-overview}

@@ -99,6 +99,7 @@ def process_date(
     product_name_lookup = _build_product_name_lookup(reader)
     _attach_product_names(positions, product_name_lookup)
     sector_info = _read_sector_info(reader)
+    wind_to_sw1 = _build_windcode_to_sw1_lookup(sector_info)
     industry_weight_records = IndustryWeightCalculator.calculate(
         date_to_process,
         positions,
@@ -158,6 +159,8 @@ def process_date(
         consensus,
         crowding,
         pool_manager,
+        industry_weight_records,
+        wind_to_sw1,
     )
     stock_pool_records = BayesianScorer(product_profiles=product_profiles).score_signal_pool_records(
         stock_pool_records,
@@ -200,10 +203,6 @@ def process_date(
         )
         results['consensus_direction_written'] = writer.write_argus_consensus_direction([consensus_direction])
         results['consensus_direction_signal'] = consensus_direction.get('prosperity_signal', 'NEUTRAL')
-
-
-        # Build wind_code -> sw1_code mapping for Darwin event matching
-        wind_to_sw1 = _build_windcode_to_sw1_lookup(sector_info)
 
 
         # Enrich stock pool with Darwin/prosperity info before writing
@@ -675,6 +674,8 @@ def _build_stock_pool_records(
     consensus: Dict[str, Dict],
     crowding: Dict[str, Dict],
     pool_manager: PoolManager,
+    industry_weight_records: Optional[List[Dict]] = None,
+    wind_to_sw1: Optional[Dict[str, str]] = None,
 ) -> List[Dict]:
     stock_signals = defaultdict(list)
     stock_names = {}

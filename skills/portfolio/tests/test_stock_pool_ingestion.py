@@ -25,6 +25,12 @@ class StockPoolIngestionServiceTest(unittest.TestCase):
             "pool_zone": "SCAN",
             "entry_date": datetime(2026, 5, 19),
             "entry_reason": {"signal_id": "sig-001", "confidence": 0.82},
+            "consensus_confidence": 0.74,
+            "contributing_products": ["SM001", "SM002"],
+            "contributing_products_count": 2,
+            "crowding_level": "MEDIUM",
+            "crowding_score": 0.42,
+            "darwin_moment": True,
             "tags": ["argus", "buy"],
             "memo": "institutional flow increased",
         }
@@ -37,6 +43,20 @@ class StockPoolIngestionServiceTest(unittest.TestCase):
         self.assertEqual(summary["created"], 1)
         self.assertEqual(summary["updated"], 0)
         self.assertEqual(page["items"][0]["pool_zone"], "SCAN")
+        self.assertEqual(page["items"][0]["bayesian_score"], 0.82)
+        self.assertEqual(page["items"][0]["crowding_level"], "MEDIUM")
+        self.assertEqual(page["items"][0]["crowding_score"], 0.42)
+        self.assertEqual(page["items"][0]["consensus_confidence"], 0.74)
+        self.assertEqual(page["items"][0]["contributing_products"], ["SM001", "SM002"])
+        self.assertEqual(page["items"][0]["contributing_products_count"], 2)
+        self.assertNotIn("weight_change_30d", page["items"][0])
+        self.assertTrue(page["items"][0]["darwin_moment"])
+        entry_reason = page["items"][0]["entry_reason"]
+        self.assertEqual(entry_reason["trigger"], "new_entry")
+        self.assertIsNone(entry_reason["from_zone"])
+        self.assertEqual(entry_reason["to_zone"], "SCAN")
+        self.assertIn("New entry", entry_reason["reason"])
+        self.assertNotIn("metrics", entry_reason)
 
     def test_upsert_scan_only_skips_non_scan_zones(self) -> None:
         """Default mode should not write WATCH/CANDIDATE/CONVICTION signals."""
@@ -55,6 +75,9 @@ class StockPoolIngestionServiceTest(unittest.TestCase):
             **self.scan_signal,
             "pool_zone": "WATCH",
             "entry_reason": {"signal_id": "sig-002", "confidence": 0.9},
+            "bayesian_score": 0.9,
+            "contributing_products": ["SM001", "SM002", "SM003"],
+            "contributing_products_count": 3,
             "memo": "stronger evidence",
         }
 
@@ -65,6 +88,10 @@ class StockPoolIngestionServiceTest(unittest.TestCase):
         self.assertEqual(summary["updated"], 1)
         self.assertEqual(page["items"][0]["pool_zone"], "WATCH")
         self.assertEqual(page["items"][0]["memo"], "stronger evidence")
+        self.assertEqual(page["items"][0]["entry_reason"]["trigger"], "new_entry")
+        self.assertEqual(page["items"][0]["bayesian_score"], 0.9)
+        self.assertEqual(page["items"][0]["contributing_products"], ["SM001", "SM002", "SM003"])
+        self.assertEqual(page["items"][0]["contributing_products_count"], 3)
 
     def test_map_focus_zone_to_conviction(self) -> None:
         """Legacy Argus FOCUS zone should map to Portfolio CONVICTION."""
@@ -108,6 +135,10 @@ class StockPoolIngestionServiceTest(unittest.TestCase):
         self.assertIn("update", actions)
         exited = self.stock_pool_service.get_pool(wind_code="600004.SH", source="argus", status="inactive")["items"]
         self.assertEqual(exited[0]["status"], "inactive")
+        promoted = self.stock_pool_service.get_pool(wind_code="600001.SH", source="argus", status="active")["items"][0]
+        self.assertEqual(promoted["entry_reason"]["trigger"], "promote")
+        self.assertEqual(promoted["entry_reason"]["from_zone"], "SCAN")
+        self.assertEqual(promoted["entry_reason"]["to_zone"], "WATCH")
 
 
 if __name__ == "__main__":

@@ -34,7 +34,15 @@ class FakeCursor:
 
     def sort(self, field: str, direction: int) -> "FakeCursor":
         """Sort documents by one field."""
-        self.docs = sorted(self.docs, key=lambda doc: doc[field], reverse=direction < 0)
+        def sort_key(doc: Dict[str, Any]) -> Any:
+            value: Any = doc
+            for part in field.split("."):
+                if not isinstance(value, dict) or part not in value:
+                    return 0
+                value = value[part]
+            return value
+
+        self.docs = sorted(self.docs, key=sort_key, reverse=direction < 0)
         return self
 
     def limit(self, limit: int) -> "FakeCursor":

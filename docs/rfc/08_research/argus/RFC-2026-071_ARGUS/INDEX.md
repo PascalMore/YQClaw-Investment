@@ -87,6 +87,7 @@ profile: "technical-rfc"
 | ARGUS-06 | `06_ADVANCED_ANALYSIS.md` | 高级分析 (达尔文 + 共识 + 机会) | PLANNED | EXTENDED |
 | ARGUS-07 | `07_IMPACT_ALTERNATIVES.md` | 影响评估 + 替代方案 | PLANNED | NORMATIVE |
 | ARGUS-08 | `08_MIGRATION_ACCEPTANCE.md` | 迁移计划 + 验收标准 | PLANNED | NORMATIVE |
+| ARGUS-09 | `09_IMPLEMENTATION_STATUS.md` | 当前实现状态追踪 | CURRENT | NORMATIVE |
 | ARGUS-APP-A | `APPENDIX/A_PARAMETERS.md` | 参数注册表 | PLANNED | INFORMATIVE |
 | ARGUS-APP-B | `APPENDIX/B_RISKS.md` | 风险登记册 | PLANNED | INFORMATIVE |
 
@@ -145,6 +146,11 @@ ARGUS-000 (INDEX)
  |    |
  |    +-- ARGUS-02 ~ ARGUS-06 (全部技术文档)
  |    +-- Expert Panel WG3 MVP定义
+ |
+ +-- ARGUS-09 (IMPLEMENTATION_STATUS)
+ |    |
+ |    +-- ARGUS Phase 4/5 当前代码实现
+ |    +-- MongoDB collections + Portfolio stock-pool sync
  |
  +-- ARGUS-APP-A (PARAMETERS)
  |    +-- ARGUS-04 (评分参数)

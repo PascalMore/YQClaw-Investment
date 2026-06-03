@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, Optional
 
 from bson import ObjectId
@@ -15,6 +15,10 @@ DEFAULT_MONGO_URI = "mongodb://myq:6812345@172.25.240.1:27017/"
 DEFAULT_DATABASE = "tradingagents"
 STOCK_POOL_COLLECTION = "05_portfolio_stock_pool"
 AUDIT_COLLECTION = "05_portfolio_stock_pool_audit"
+
+
+def _format_date(d: date) -> str:  # noqa: N802
+    return d.strftime("%Y-%m-%d")
 
 
 class StockPoolRepository:
@@ -68,7 +72,7 @@ class StockPoolRepository:
             query["_id"] = {"$lt": ObjectId(cursor)}
 
         page_size = max(1, min(limit, 200))
-        sort_field = "entry_reason.bayesian_score" if sort_by == "bayesian" else "entry_date"
+        sort_field = "bayesian_score" if sort_by == "bayesian" else "entry_date"
         docs = list(self.collection.find(query).sort(sort_field, -1).limit(page_size + 1))
         items = [self._serialize(doc) for doc in docs[:page_size]]
         next_cursor = str(docs[page_size]["_id"]) if len(docs) > page_size else None
@@ -150,7 +154,7 @@ class StockPoolRepository:
                 "before": before,
                 "after": after,
                 "actor": actor,
-                "event_date": event_date or format_date(datetime.now().date()),
+                "event_date": event_date or _format_date(datetime.now().date()),
                 "created_at": datetime.utcnow(),
             }
         )

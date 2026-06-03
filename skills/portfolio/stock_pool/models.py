@@ -38,6 +38,16 @@ class StockPoolStatus(str, Enum):
     INACTIVE = "inactive"
 
 
+ENTRY_REASON_FIELDS = ("reason", "trigger", "from_zone", "to_zone")
+
+
+def normalize_entry_reason(entry_reason: Dict[str, Any]) -> Dict[str, Any]:
+    """Return entry_reason without deprecated nested metrics."""
+    if not isinstance(entry_reason, dict):
+        return entry_reason
+    return {field: entry_reason.get(field) for field in ENTRY_REASON_FIELDS if field in entry_reason}
+
+
 @dataclass
 class AuditInfo:
     """Creation and update metadata embedded in stock pool records."""
@@ -68,8 +78,13 @@ class StockPoolEntry:
     source: StockPoolSource
     entry_reason: Dict[str, Any]
     source_project: str = "portfolio"
-    source_detail: Optional[str] = None
-    source_signal_id: Optional[str] = None
+    bayesian_score: Optional[float] = None
+    crowding_level: Optional[str] = None
+    crowding_score: Optional[float] = None
+    consensus_confidence: Optional[float] = None
+    contributing_products: Optional[List[str]] = None
+    contributing_products_count: Optional[int] = None
+    darwin_moment: Optional[bool] = None
     entry_date: datetime = field(default_factory=datetime.utcnow)
     exit_date: Optional[datetime] = None
     status: StockPoolStatus = StockPoolStatus.ACTIVE
@@ -112,10 +127,15 @@ class StockPoolEntry:
             "stock_name": self.stock_name,
             "pool_zone": self.pool_zone.value,
             "source": self.source.value,
-            "source_detail": self.source_detail,
             "source_project": self.source_project,
-            "source_signal_id": self.source_signal_id,
-            "entry_reason": dict(self.entry_reason),
+            "bayesian_score": self.bayesian_score,
+            "crowding_level": self.crowding_level,
+            "crowding_score": self.crowding_score,
+            "consensus_confidence": self.consensus_confidence,
+            "contributing_products": self.contributing_products,
+            "contributing_products_count": self.contributing_products_count,
+            "darwin_moment": self.darwin_moment,
+            "entry_reason": normalize_entry_reason(self.entry_reason),
             "entry_date": self.entry_date,
             "exit_date": self.exit_date,
             "status": self.status.value,
@@ -136,10 +156,15 @@ class StockPoolEntry:
             stock_name=data["stock_name"],
             pool_zone=data["pool_zone"],
             source=data["source"],
-            entry_reason=data["entry_reason"],
-            source_detail=data.get("source_detail"),
+            entry_reason=normalize_entry_reason(data["entry_reason"]),
             source_project=data.get("source_project") or data.get("source") or "portfolio",
-            source_signal_id=data.get("source_signal_id") or data.get("signal_id"),
+            bayesian_score=data.get("bayesian_score"),
+            crowding_level=data.get("crowding_level"),
+            crowding_score=data.get("crowding_score"),
+            consensus_confidence=data.get("consensus_confidence"),
+            contributing_products=data.get("contributing_products"),
+            contributing_products_count=data.get("contributing_products_count"),
+            darwin_moment=data.get("darwin_moment"),
             entry_date=data.get("entry_date", datetime.utcnow()),
             exit_date=data.get("exit_date"),
             status=data.get("status", StockPoolStatus.ACTIVE.value),
@@ -157,14 +182,14 @@ def validate_patch(patch: Dict[str, Any]) -> Dict[str, Any]:
         normalized["pool_zone"] = PoolZone(normalized["pool_zone"]).value
     if "source" in normalized:
         normalized["source"] = StockPoolSource(normalized["source"]).value
-    for field_name in ("source_detail", "source_project", "source_signal_id"):
+    for field_name in ("source_project",):
         if field_name in normalized and normalized[field_name] is not None:
             normalized[field_name] = str(normalized[field_name])
     if "status" in normalized:
         normalized["status"] = StockPoolStatus(normalized["status"]).value
     if "entry_reason" in normalized:
         if isinstance(normalized["entry_reason"], dict):
-            pass  # OK
+            normalized["entry_reason"] = normalize_entry_reason(normalized["entry_reason"])
         elif normalized["entry_reason"] is None or normalized["entry_reason"] == "":
             normalized["entry_reason"] = {}  # Coerce empty/None to empty dict
         else:

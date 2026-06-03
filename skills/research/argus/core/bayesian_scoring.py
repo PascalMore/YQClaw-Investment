@@ -49,10 +49,14 @@ class BayesianScorer:
             'direction_score': self._aggregate_signal_factor(signals, self.direction_score_for_signal),
         }
         score = self.calculate(factors)
+        output_record = {key: value for key, value in record.items() if key != 'weight_change_30d'}
         return {
-            **record,
+            **output_record,
             'bayesian_score': round(score, 4),
             'bayesian_factors': {key: round(value, 4) for key, value in factors.items()},
+            'crowding_level': record.get('crowding_level', 'LOW'),
+            'contributing_products_count': record.get('contributing_products_count', len(products)),
+            'darwin_moment': bool(record.get('darwin_moment', False)),
         }
 
     def score_signal_pool_records(self, records: List[Dict], signals: List[Dict]) -> List[Dict]:

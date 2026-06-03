@@ -30,6 +30,53 @@ language: "zh-CN / en"
 
 ---
 
+## SS0 当前实现校准 (2026-06-02) {#ARGUS-05:current-implementation}
+
+> 本节记录当前四区股票池实际落地方式。下方 Web UI、REST API 与页面规格保留为原始设计基线；截至当前代码审查，未发现 FastAPI/Jinja2/HTMX Web UI 实现。
+
+### 0.1 实现状态追踪
+
+| 功能 | 状态 | 当前实现 | 代码依据 |
+|:--|:--:|:--|:--|
+| 四区分类 | IMPLEMENTED | `SCAN/WATCH/CANDIDATE/CONVICTION` | `core/pool_manager.py` |
+| signal_pool 写入 | IMPLEMENTED | 写入 MongoDB `08_research_argus_signal_pool` | `daily_processor._write_argus_signal_pool()` |
+| Bayesian score 注入 | IMPLEMENTED | 写入前调用 `BayesianScorer.score_signal_pool_records()` | `cli/daily_processor.py` |
+| Darwin / prosperity 注入 | IMPLEMENTED | 写入前补充 `darwin_moment`, `darwin_confidence`, `prosperity_signal` | `daily_processor._enrich_stock_pool_with_darwin_prosperity()` |
+| Portfolio 增量同步 | IMPLEMENTED | `ingest_signals_incremental(current_signals, previous_signals)` | `daily_processor.py`, `StockPoolIngestionService` |
+| 退出/升降级审计 | IMPLEMENTED | 同步至 `05_portfolio_stock_pool_audit` | `StockPoolIngestionService` |
+| Web 页面 `/pool` | NOT_STARTED | 未发现当前实现 | 代码目录无 Web app/router/template |
+| 手动归档 UI | NOT_STARTED | 当前未实现 Web 操作入口 | 代码目录无 Web UI |
+
+### 0.2 当前四区分类规则
+
+当前 `PoolManager.classify_stock()` 使用配置中的 confidence 和 contributing product 数量：
+
+| Zone | 当前规则 |
+|:--|:--|
+| `CONVICTION` | `confidence >= 0.75` 且 contributing products `>= 3` |
+| `CANDIDATE` | `confidence >= 0.60` 且 contributing products `>= 2` |
+| `WATCH` | `confidence >= 0.45` |
+| `SCAN` | 其余情况 |
+
+Darwin moment 会把基础 zone 提升到 `CANDIDATE` 的概念保留在代码中；当前日度信号生成阶段传入的 `darwin_moment` 来自兼容 stub，Phase 4B 真正 Darwin 事件在 signal_pool 写入前再按行业映射补充 `darwin_moment` 与 `darwin_confidence`。
+
+### 0.3 当前 Portfolio 同步路径
+
+```text
+08_research_argus_signal_pool(date, wind_code)
+    ↓
+daily_processor 读取 previous signal_pool
+    ↓
+StockPoolIngestionService.ingest_signals_incremental()
+    ↓
+05_portfolio_stock_pool
+05_portfolio_stock_pool_audit
+```
+
+同步逻辑会比较当前与前序 signal_pool，生成 entry / promote / demote / exit / update 等动作摘要。为了处理节假日缺口，`daily_processor` 会按股票查找该股票最近一次 prior signal_pool 记录，而不只依赖前一交易日。
+
+---
+
 ## SS1 四区动态股票池 {#ARGUS-05:four-zone}
 
 ### 1.1 四区定义 / Zone Definitions {#ARGUS-05:zone-definitions}

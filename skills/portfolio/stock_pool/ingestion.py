@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from .models import PoolZone
 from .service import StockPoolService
@@ -25,10 +25,17 @@ ZONE_RANK = {
 INCREMENTAL_UPDATE_FIELDS = (
     "tags",
     "memo",
-    "source_detail",
     "source_project",
-    "source_signal_id",
     "entry_reason",
+)
+STOCK_POOL_METRIC_FIELDS = (
+    "bayesian_score",
+    "crowding_level",
+    "crowding_score",
+    "consensus_confidence",
+    "contributing_products",
+    "contributing_products_count",
+    "darwin_moment",
 )
 
 
@@ -140,27 +147,149 @@ class StockPoolIngestionService:
         record["pool_zone"] = self.map_argus_zone(zone) if source == "argus" else PoolZone(zone).value
         record["source"] = source
         record.setdefault("source_project", source)
-        record.setdefault("source_detail", signal.get("source_detail"))
-        record.setdefault("source_signal_id", signal.get("source_signal_id") or signal.get("signal_id"))
         record["stock_code"] = record.get("stock_code") or str(record["wind_code"]).split(".")[0]
         record.setdefault("tags", [])
         record.setdefault("memo", "")
-        if not record.get("entry_reason"):
-            record["entry_reason"] = self._entry_reason_from_signal(signal)
+        self._apply_stock_pool_metrics(record)
+        if not self._is_structured_entry_reason(record.get("entry_reason")):
+            record["entry_reason"] = self._build_entry_reason(record, "new_entry", None, record["pool_zone"])
         return record
 
     @staticmethod
-    def _entry_reason_from_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
-        """Build a rich entry_reason with all metrics from the signal."""
+    def _is_structured_entry_reason(value: Any) -> bool:
+        """Return True when entry_reason already follows the new structured schema."""
+        return (
+            isinstance(value, dict)
+            and isinstance(value.get("reason"), str)
+            and value.get("trigger") in {"promote", "demote", "new_entry", "update", "exit"}
+        )
+
+    @staticmethod
+    def _build_entry_reason(
+        record: Dict[str, Any],
+        trigger: str,
+        from_zone: Optional[str],
+        to_zone: Optional[str],
+    ) -> Dict[str, Any]:
+        """Build a machine-readable, human-readable stock pool transition reason."""
+        reason = StockPoolIngestionService._entry_reason_text(
+            record.get("wind_code", ""),
+            trigger,
+            from_zone,
+            to_zone,
+            record,
+        )
         return {
-            "reason": signal.get("reason", ""),
-            "bayesian_score": signal.get("bayesian_score") or signal.get("confidence") or 0,
-            "consensus_confidence": signal.get("consensus_confidence") or 0,
-            "contributing_products": signal.get("contributing_products") or [],
-            "contributing_products_count": signal.get("contributing_products_count") or 0,
-            "crowding_score": signal.get("crowding_score") or 0,
-            "crowding_level": signal.get("crowding_level") or "LOW",
+            "reason": reason,
+            "trigger": trigger,
+            "from_zone": from_zone,
+            "to_zone": to_zone,
         }
+
+    @staticmethod
+    def _entry_reason_metrics(record: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract stock pool metrics from a signal-pool record."""
+        old_reason = record.get("entry_reason") if isinstance(record.get("entry_reason"), dict) else {}
+        product_candidates = (
+            record.get("contributing_products"),
+            old_reason.get("contributing_products"),
+        )
+        products = next((value for value in product_candidates if isinstance(value, list)), [])
+        product_count = (
+            (len(products) if isinstance(products, list) else 0)
+            or record.get("contributing_products_count")
+            or (record.get("contributing_products") if isinstance(record.get("contributing_products"), int) else 0)
+            or old_reason.get("contributing_products_count")
+            or 0
+        )
+        return {
+            "bayesian_score": StockPoolIngestionService._float(
+                record.get("bayesian_score")
+                or old_reason.get("bayesian_score")
+                or record.get("confidence")
+                or old_reason.get("confidence")
+            ),
+            "consensus_confidence": StockPoolIngestionService._float(
+                record.get("consensus_confidence")
+                or old_reason.get("consensus_confidence")
+                or record.get("consensus_score")
+                or old_reason.get("consensus_score")
+            ),
+            "crowding_level": str(
+                record.get("crowding_level")
+                or old_reason.get("crowding_level")
+                or "LOW"
+            ).upper(),
+            "crowding_score": StockPoolIngestionService._float(
+                record.get("crowding_score")
+                or old_reason.get("crowding_score")
+            ),
+            "contributing_products": products,
+            "contributing_products_count": StockPoolIngestionService._int(product_count),
+            "darwin_moment": bool(
+                record.get("darwin_moment")
+                or old_reason.get("darwin_moment")
+                or (record.get("metadata") or {}).get("darwin_moment")
+            ),
+        }
+
+    @staticmethod
+    def _apply_stock_pool_metrics(record: Dict[str, Any]) -> Dict[str, Any]:
+        """Write extracted metrics to stock_pool top-level fields."""
+        metrics = StockPoolIngestionService._entry_reason_metrics(record)
+        products = metrics.get("contributing_products") or []
+        product_count = StockPoolIngestionService._int(metrics.get("contributing_products_count"))
+        top_level_metrics = {
+            "bayesian_score": metrics["bayesian_score"],
+            "crowding_level": metrics["crowding_level"],
+            "crowding_score": metrics["crowding_score"],
+            "consensus_confidence": metrics["consensus_confidence"],
+            "contributing_products": products,
+            "contributing_products_count": product_count,
+            "darwin_moment": metrics["darwin_moment"],
+        }
+        record.update(top_level_metrics)
+        return top_level_metrics
+
+    @staticmethod
+    def _entry_reason_text(
+        wind_code: str,
+        trigger: str,
+        from_zone: Optional[str],
+        to_zone: Optional[str],
+        record: Dict[str, Any],
+    ) -> str:
+        metrics = StockPoolIngestionService._entry_reason_metrics(record)
+        score = metrics["bayesian_score"]
+        crowding = metrics["crowding_level"]
+        product_count = metrics["contributing_products_count"]
+        reason = (
+            f"{wind_code} bayesian={score:.2f}, "
+            f"crowding={crowding}, contributing_products={product_count}"
+        )
+        if trigger == "exit":
+            return "Exit: no supporting products or crowding maxed"
+        if trigger == "new_entry":
+            return f"New entry: {reason}"
+        if trigger == "promote":
+            return f"Promote: {from_zone}→{to_zone}: {reason}"
+        if trigger == "demote":
+            return f"Demote: {from_zone}→{to_zone}: {reason}"
+        return f"Update: {wind_code} metrics refreshed, bayesian={score:.2f}, crowding={crowding}"
+
+    @staticmethod
+    def _float(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _int(value: Any) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
 
     def _upsert_record(self, record: Dict[str, Any], actor: str, summary: Dict[str, Any]) -> None:
         existing = self.stock_pool_service.get_pool(
@@ -176,9 +305,8 @@ class StockPoolIngestionService:
                 "entry_reason": record["entry_reason"],
                 "tags": record.get("tags", []),
                 "memo": record.get("memo", ""),
-                "source_detail": record.get("source_detail"),
                 "source_project": record.get("source_project"),
-                "source_signal_id": record.get("source_signal_id"),
+                **{field_name: record.get(field_name) for field_name in STOCK_POOL_METRIC_FIELDS},
             }
             self.stock_pool_service.update_entry(record_id, patch, actor)
             summary["updated"] += 1
@@ -213,8 +341,15 @@ class StockPoolIngestionService:
                 existing.get("pool_zone"),
                 record.get("pool_zone"),
             ) or "update"
+            record["entry_reason"] = self._build_entry_reason(
+                record,
+                zone_action,
+                existing.get("pool_zone"),
+                record.get("pool_zone"),
+            )
             self._apply_record_update(existing["id"], record, zone_action, actor, summary, event_date=event_date)
             return
+        record["entry_reason"] = self._build_entry_reason(record, "new_entry", None, record.get("pool_zone"))
         record_id = self.stock_pool_service.create_entry(record, actor, event_date=event_date)
         summary["entry"] += 1
         summary["items"].append({"action": "entry", "id": record_id, "wind_code": record["wind_code"]})
@@ -225,7 +360,20 @@ class StockPoolIngestionService:
             summary["skipped"] += 1
             summary["items"].append({"action": "skip_exit_missing", "wind_code": record["wind_code"]})
             return
-        reason = f"Argus signal pool exit: {record['wind_code']}"
+        entry_reason = self._build_entry_reason(
+            record,
+            "exit",
+            existing.get("pool_zone"),
+            None,
+        )
+        self.stock_pool_service.update_entry(
+            existing["id"],
+            {"entry_reason": entry_reason},
+            actor,
+            audit_action="exit_reason",
+            event_date=event_date,
+        )
+        reason = entry_reason["reason"]
         if self.stock_pool_service.deactivate_entry(existing["id"], reason, actor, audit_action="exit", event_date=event_date):
             summary["exit"] += 1
             summary["items"].append({"action": "exit", "id": existing["id"], "wind_code": record["wind_code"]})
@@ -240,6 +388,7 @@ class StockPoolIngestionService:
     ) -> None:
         existing = self._active_record(current["wind_code"])
         if not existing:
+            current["entry_reason"] = self._build_entry_reason(current, "new_entry", None, current.get("pool_zone"))
             record_id = self.stock_pool_service.create_entry(current, actor, event_date=event_date)
             summary["entry"] += 1
             summary["items"].append({"action": "entry", "id": record_id, "wind_code": current["wind_code"]})
@@ -251,6 +400,12 @@ class StockPoolIngestionService:
             # Stock was already in stock_pool, so compare stock_pool zone with current zone.
             stock_pool_zone = existing.get("pool_zone")
             action = self._zone_delta_action(stock_pool_zone, current["pool_zone"]) or "update"
+        current["entry_reason"] = self._build_entry_reason(
+            current,
+            action,
+            previous.get("pool_zone"),
+            current.get("pool_zone"),
+        )
         patch = self._changed_field_patch(existing, current, include_zone=True)
 
         self._apply_record_update(existing["id"], current, action, actor, summary, patch, event_date=event_date)
@@ -332,6 +487,7 @@ class StockPoolIngestionService:
         include_zone: bool,
     ) -> Dict[str, Any]:
         field_names = ("pool_zone", *INCREMENTAL_UPDATE_FIELDS) if include_zone else INCREMENTAL_UPDATE_FIELDS
+        field_names = (*field_names, *STOCK_POOL_METRIC_FIELDS)
         return {
             field_name: record.get(field_name)
             for field_name in field_names

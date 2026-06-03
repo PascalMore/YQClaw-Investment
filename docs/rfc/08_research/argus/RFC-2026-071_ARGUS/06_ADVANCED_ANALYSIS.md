@@ -30,6 +30,61 @@ roadmap_scope: "V1 (Darwin + Consensus Direction + Opportunity Lens) / V2 (Causa
 
 ---
 
+## SS0 当前实现校准 (2026-06-02) {#ARGUS-06:current-implementation}
+
+> 本节记录 Phase 4B/4C 实际实现。下方高级分析设计保留为原始 RFC 基线。
+
+### 0.1 实现状态追踪
+
+| 功能 | 状态 | 当前实现 | 代码依据 |
+|:--|:--:|:--|:--|
+| Darwin 检测 | IMPLEMENTED | 行业指数 20 日回撤 + 产品信誉分位数 + `weight_change_30d` 分歧 | `core/darwin_detector.py` |
+| 系统性过滤 | IMPLEMENTED | CSI300 20 日回撤超过阈值时 `confidence *= 0.70` | `DarwinDetector.detect_for_date()` |
+| 行业权重变化 | IMPLEMENTED | `IndustryWeightCalculator` 预计算 `weight_change_30d/60d` | `core/industry_weight_calculator.py` |
+| Prosperity Gauge | IMPLEMENTED | 周期组 30d 权重变化 - 防御组 30d 权重变化 | `core/consensus_direction.py` |
+| Conviction Radar | IMPLEMENTED | 行业 `delta_30d`, `delta_60d`, acceleration 和 top rising/falling | `core/consensus_direction.py` |
+| Web `/analysis` 展示 | NOT_STARTED | 未发现当前 Web UI 实现 | 代码目录无 Web app/router/template |
+| Outcome 自动回填 | NOT_STARTED | 未发现当前回填逻辑 | 未发现 outcome update 代码 |
+| Opportunity Lens / Causal Chain / Graphify | DEFERRED | 未发现当前实现 | 保留路线图 |
+
+### 0.2 Darwin 当前检测逻辑
+
+当前 `DarwinDetector.detect_for_date()` 的核心条件：
+
+```text
+1. sw1_code 行业指数 20 日 drawdown <= -10%
+2. 产品信誉分数至少 3 个有效样本
+3. weak products = 当日 credibility 低于 20th percentile 的产品
+4. strong products = 当日 credibility 高于 80th percentile 的产品
+5. weak_net_action < 0
+6. strong_net_action >= 0
+7. strong_add_count >= min_strong_add
+```
+
+与原始设计差异：
+
+| 项 | 原始设计 | 当前实现 |
+|:--|:--|:--|
+| 弱手阈值 | 固定 `credibility < 0.50` | 当日 20th percentile |
+| 强手阈值 | 固定 `credibility > 0.70` | 当日 80th percentile |
+| 行业行为 | 窗口内权重 lookup 计算 | 使用 `08_research_argus_industry_weight.weight_change_30d` |
+| 输出集合 | SQLite `argus_darwin_event` | MongoDB `08_research_argus_darwin_event` |
+
+当前事件字段包括 `date`, `sw1_code`, `sw1_name`, `drawdown_20d`, `market_drawdown`, `is_systemic`, `weak_net_action`, `strong_net_action`, `strong_add_count`, `confidence`, `status`, `created_at`。
+
+### 0.3 Consensus Direction 当前逻辑
+
+`ConsensusDirectionEngine.calculate_for_date()` 输出写入 `08_research_argus_consensus_direction`：
+
+| 子模块 | 当前计算 |
+|:--|:--|
+| Prosperity Gauge | `prosperity_delta = Σ(cyclical weight_change_30d) - Σ(defensive weight_change_30d)` |
+| Signal | `> +2pp => BULLISH`, `< -2pp => DEFENSIVE`, 否则 `NEUTRAL` |
+| Conviction Radar | 对每个行业记录 `delta_30d`, `delta_60d`, `acceleration = delta_30d - (delta_60d - delta_30d)` |
+| Top sectors | 按 `delta_30d` 排序取 top 3 rising / falling |
+
+---
+
 ## SS1 达尔文时刻检测 (V1) {#ARGUS-06:darwin}
 
 ### 1.1 概念定义 / Concept {#ARGUS-06:darwin-concept}

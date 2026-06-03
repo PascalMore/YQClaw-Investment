@@ -171,6 +171,7 @@ class TestArgusPhase2Acceptance(unittest.TestCase):
         self.assertTrue(all(record['date'] == '2026-03-11' for record in writer.stock_pool))
         self.assertTrue(all(0 <= record['bayesian_score'] <= 1 for record in writer.stock_pool))
         self.assertTrue(any(record['bayesian_score'] != record['confidence'] for record in writer.stock_pool))
+        self.assertTrue(all('weight_change_30d' not in record for record in writer.stock_pool))
         self.assertTrue(all('crowding_level' in signal['metadata'] for signal in writer.signals))
         self.assertTrue(all('rebalancing_event_type' in signal for signal in writer.signals))
         self.assertTrue(all('direction_score' in signal for signal in writer.signals))

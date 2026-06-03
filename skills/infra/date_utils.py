@@ -2,7 +2,12 @@
 """Date utility functions."""
 
 from datetime import date, datetime, timedelta
-from typing import List
+from typing import List, Optional
+
+try:
+    import exchange_calendars as xcals
+except ImportError:  # pragma: no cover - fallback path for minimal envs
+    xcals = None
 
 
 # Chinese stock trading days (2026) - basic implementation
@@ -33,7 +38,36 @@ TRADING_DAYS_2026 = set([
     '2026-05-11', '2026-05-12', '2026-05-13', '2026-05-14', '2026-05-15',
     '2026-05-18', '2026-05-19', '2026-05-20', '2026-05-21', '2026-05-22',
     '2026-05-25', '2026-05-26', '2026-05-27', '2026-05-28', '2026-05-29',
+    # June 2026 (2026-06-19 Dragon Boat Festival market holiday)
+    '2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05',
+    '2026-06-08', '2026-06-09', '2026-06-10', '2026-06-11', '2026-06-12',
+    '2026-06-15', '2026-06-16', '2026-06-17', '2026-06-18',
+    '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26',
+    '2026-06-29', '2026-06-30',
 ])
+
+_CN_CALENDAR = None
+
+
+def _get_cn_calendar():
+    """Return the A-share exchange calendar when exchange_calendars is available."""
+    global _CN_CALENDAR
+    if xcals is None:
+        return None
+    if _CN_CALENDAR is None:
+        _CN_CALENDAR = xcals.get_calendar('XSHG')
+    return _CN_CALENDAR
+
+
+def _calendar_is_trading_day(d: str) -> Optional[bool]:
+    """Check XSHG calendar, returning None when the dynamic calendar cannot answer."""
+    calendar = _get_cn_calendar()
+    if calendar is None:
+        return None
+    try:
+        return bool(calendar.is_session(d))
+    except Exception:
+        return None
 
 
 def is_trading_day(d: str) -> bool:
@@ -45,6 +79,9 @@ def is_trading_day(d: str) -> bool:
     Returns:
         bool: True if trading day, False otherwise
     """
+    calendar_result = _calendar_is_trading_day(d)
+    if calendar_result is not None:
+        return calendar_result
     return d in TRADING_DAYS_2026
 
 
@@ -65,7 +102,7 @@ def get_latest_trading_day(d: str) -> str:
     for i in range(1, 10):
         check_date = dt - timedelta(days=i)
         check_str = format_date(check_date)
-        if check_str in TRADING_DAYS_2026:
+        if is_trading_day(check_str):
             return check_str
     
     return d  # fallback
@@ -84,7 +121,7 @@ def get_next_trading_day(d: str) -> str:
     for i in range(1, 10):
         check_date = dt + timedelta(days=i)
         check_str = format_date(check_date)
-        if check_str in TRADING_DAYS_2026:
+        if is_trading_day(check_str):
             return check_str
     
     return d  # fallback
@@ -102,12 +139,20 @@ def get_trading_dates(start: str, end: str) -> List[str]:
     """
     start_dt = parse_date(start)
     end_dt = parse_date(end)
+
+    calendar = _get_cn_calendar()
+    if calendar is not None:
+        try:
+            sessions = calendar.sessions_in_range(start_dt, end_dt)
+            return [format_date(session.date()) for session in sessions]
+        except Exception:
+            pass
     
     dates = []
     current = start_dt
     while current <= end_dt:
         current_str = format_date(current)
-        if current_str in TRADING_DAYS_2026:
+        if is_trading_day(current_str):
             dates.append(current_str)
         current += timedelta(days=1)
     

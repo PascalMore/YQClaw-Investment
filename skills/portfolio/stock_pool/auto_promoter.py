@@ -138,9 +138,7 @@ class StockPoolAutoPromoter:
         return True
 
     def _metrics(self, record: Dict[str, Any]) -> Dict[str, Any]:
-        reason = record.get("entry_reason") or {}
-        metadata = reason.get("metadata") or {}
-        sources = [record, reason, metadata]
+        sources = [record]
         products = self._first(sources, ["contributing_products", "products"], [])
         return {
             "bayesian": self._float(self._first(sources, ["bayesian_score", "bayesian", "score", "confidence"], 0)),

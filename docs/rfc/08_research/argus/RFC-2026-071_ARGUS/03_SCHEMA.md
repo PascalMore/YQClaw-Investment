@@ -22,6 +22,43 @@ amendment_level: L2
 
 ---
 
+## 0 当前实现校准 (2026-06-02) {#ARGUS-03:current-implementation}
+
+> 下方 13 表 SQLite Schema 是原始 v2.0.1 设计基线。当前 Phase 4/5 代码实际使用 MongoDB collections；本节记录当前运行 Schema，避免误把原始 DDL 当作已落地实现。
+
+### 0.1 实现状态追踪
+
+| 数据对象 | 状态 | 当前集合 / 表 | 唯一键 | 代码依据 |
+|:--|:--:|:--|:--|:--|
+| 输入持仓 | IMPLEMENTED | `portfolio_position` | 外部 Portfolio 管道管理 | `daily_processor.py` |
+| 输入交易 | IMPLEMENTED | `portfolio_trade` | 外部 Portfolio 管道管理 | `daily_processor.py` |
+| 产品信誉 | IMPLEMENTED | `08_research_argus_credential_score` | `date, product_code` | `MongoWriter.write_argus_credential_scores()` |
+| 日度信号 | IMPLEMENTED | `08_research_argus_signal` | `date, signal_id` | `MongoWriter.write_argus_signals()` |
+| 四区股票池 | IMPLEMENTED | `08_research_argus_signal_pool` | `date, wind_code` | `MongoWriter.write_argus_signal_pool()` |
+| 行业权重 | IMPLEMENTED | `08_research_argus_industry_weight` | `date, product_code, sw1_code` | `MongoWriter.write_argus_industry_weights()` |
+| Darwin 事件 | IMPLEMENTED | `08_research_argus_darwin_event` | `date, sw1_code` | `MongoWriter.write_argus_darwin_events()` |
+| 共识方向 | IMPLEMENTED | `08_research_argus_consensus_direction` | `date` | `MongoWriter.write_argus_consensus_direction()` |
+| Portfolio 股票池 | IMPLEMENTED | `05_portfolio_stock_pool` | Portfolio repository 管理 | `StockPoolIngestionService` |
+| Portfolio 审计 | IMPLEMENTED | `05_portfolio_stock_pool_audit` | Portfolio repository 管理 | `StockPoolIngestionService` |
+| SQLite Raw/Processed/Decision 13 表 | DEFERRED | 原始 RFC DDL | 未接入当前运行链路 | 未发现当前写入代码 |
+
+### 0.2 当前集合字段摘要
+
+| Collection | 关键字段 |
+|:--|:--|
+| `08_research_argus_credential_score` | `date`, `product_code`, `product_name`, `credibility_score`, `confidence_level`, `positions_count`, `avg_abs_holding_ratio_change` |
+| `08_research_argus_signal` | `date`, `signal_id`, `product_code`, `product_name`, `signal_type`, `confidence`, `direction`, `direction_score`, `rebalancing_event_type`, `pool_zone`, `trade_date`, `target_stocks`, `metadata` |
+| `08_research_argus_signal_pool` | `date`, `wind_code`, `stock_name`, `pool_zone`, `confidence`, `bayesian_score`, `bayesian_factors`, `contributing_products`, `contributing_products_count`, `consensus_direction`, `consensus_confidence`, `crowding_score`, `crowding_level`, `crowding_layers`, `darwin_moment`, `prosperity_signal` |
+| `08_research_argus_industry_weight` | `date`, `product_code`, `product_name`, `sw1_code`, `sw1_name`, `weight_pct`, `weight_change_1d`, `weight_change_30d`, `weight_change_60d`, `positions_count`, `has_1d_baseline`, `has_30d_baseline`, `has_60d_baseline`, `source` |
+| `08_research_argus_darwin_event` | `date`, `sw1_code`, `sw1_name`, `drawdown_20d`, `market_drawdown`, `is_systemic`, `weak_net_action`, `strong_net_action`, `strong_add_count`, `confidence`, `status` |
+| `08_research_argus_consensus_direction` | `date`, `prosperity_signal`, `prosperity_delta`, `cyclical_weight_delta`, `defensive_weight_delta`, `sector_conviction`, `top_rising_sectors`, `top_falling_sectors` |
+
+### 0.3 当前索引创建逻辑
+
+当前 `MongoWriter.ensure_argus_indexes()` 为六个 `08_research_argus_*` 集合创建唯一索引。Portfolio 侧 `05_portfolio_stock_pool` 与 `05_portfolio_stock_pool_audit` 由 Portfolio stock-pool repository/service 管理。
+
+---
+
 ## 1 三层表一览 {#ARGUS-03:overview}
 
 | # | 层级 | 表名 | 用途 | 频率 |

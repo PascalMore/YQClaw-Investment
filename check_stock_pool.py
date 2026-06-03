@@ -35,19 +35,19 @@ print(f"Total stocks tracked: {len(results)}")
 print()
 print("=== stock_pool bayesian_score range ===")
 scores = list(db['05_portfolio_stock_pool'].aggregate([
-    {'$project': {'bs': '$entry_reason.bayesian_score'}},
-    {'$group': {'_id': None, 'min': {'$min': '$bs'}, 'max': {'$max': '$bs'}, 'avg': {'$avg': '$bs'}}
+    {'$project': {'bs': {'$ifNull': ['$entry_reason.metrics.bayesian_score', '$entry_reason.bayesian_score']}}},
+    {'$group': {'_id': None, 'min': {'$min': '$bs'}, 'max': {'$max': '$bs'}, 'avg': {'$avg': '$bs'}}}
 ]))
 if scores:
     print(f"  min: {scores[0]['min']:.3f}, max: {scores[0]['max']:.3f}, avg: {scores[0]['avg']:.3f}")
 
 # Latest signal_pool date and bayesian range
-latest_sp = db['08_research_argus_signal_pool'].find_one(sort=[('trade_date', -1)])
+latest_sp = db['08_research_argus_signal_pool'].find_one(sort=[('date', -1), ('_id', -1)])
 if latest_sp:
     latest_date = latest_sp['date']
     scores_sp = list(db['08_research_argus_signal_pool'].aggregate([
         {'$match': {'date': latest_date}},
-        {'$group': {'_id': None, 'min': {'$min': '$bayesian_score'}, 'max': {'$max': '$bayesian_score'}, 'avg': {'$avg': '$bayesian_score'}}
+        {'$group': {'_id': None, 'min': {'$min': '$bayesian_score'}, 'max': {'$max': '$bayesian_score'}, 'avg': {'$avg': '$bayesian_score'}}}
     ]))
     print()
     print(f"=== signal_pool latest date: {latest_date} ===")
@@ -71,7 +71,8 @@ for s in db['08_research_argus_signal_pool'].find({'date': latest_date}).sort('b
     wc = s['wind_code']
     sp_record = db['05_portfolio_stock_pool'].find_one({'wind_code': wc, 'status': 'active'})
     if sp_record:
-        er = sp_record['entry_reason']
-        print(f"  {wc}: bayesian={er['bayesian_score']:.3f} consensus={er['consensus_confidence']:.3f} crowding={er['crowding_level']}")
+        er = sp_record.get('entry_reason') or {}
+        metrics = er.get('metrics') or er
+        print(f"  {wc}: bayesian={metrics['bayesian_score']:.3f} consensus={metrics['consensus_confidence']:.3f} crowding={metrics['crowding_level']}")
     else:
         print(f"  {wc}: NOT in stock_pool (status not active)")

@@ -18,15 +18,21 @@ class StockPoolAutoPromoterTest(unittest.TestCase):
         self.service = StockPoolService(self.repository)
         self.promoter = StockPoolAutoPromoter(self.service)
 
-    def _create(self, zone: str, reason: dict) -> str:
+    def _create(self, zone: str, metrics: dict) -> str:
         record = {
             "stock_code": "600519",
             "wind_code": f"600519.{zone}",
             "stock_name": "贵州茅台",
             "pool_zone": zone,
             "source": "argus",
-            "entry_reason": reason,
+            "entry_reason": {
+                "reason": f"New entry: 600519.{zone}",
+                "trigger": "new_entry",
+                "from_zone": None,
+                "to_zone": zone,
+            },
             "entry_date": datetime(2026, 5, 19),
+            **metrics,
         }
         return self.service.create_entry(record, actor="tester")
 
@@ -73,7 +79,7 @@ class StockPoolAutoPromoterTest(unittest.TestCase):
         """Candidate promotion should require the configured product count."""
         self._create(
             "CANDIDATE",
-            {"metadata": {"bayesian_score": 0.8, "contributing_products_count": 2, "crowding_level": "LOW"}},
+            {"bayesian_score": 0.8, "contributing_products_count": 2, "crowding_level": "LOW"},
         )
 
         result = self.promoter.evaluate_and_promote("2026-05-19", dry_run=True)

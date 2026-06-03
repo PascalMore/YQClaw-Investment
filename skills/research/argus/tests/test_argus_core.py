@@ -220,6 +220,20 @@ class TestBayesianScorer(unittest.TestCase):
         self.assertAlmostEqual(scored['bayesian_factors']['product_credibility'], 0.55)
         self.assertNotEqual(scored['bayesian_score'], scored['confidence'])
 
+    def test_scoring_does_not_emit_weight_change_30d(self):
+        """Signal-pool records should not persist industry 30-day weight changes."""
+        scorer = BayesianScorer()
+        record = {
+            'wind_code': '600519.SH',
+            'contributing_products': ['SM001'],
+            'contributing_products_count': 1,
+            'weight_change_30d': 2.5,
+        }
+
+        scored = scorer.score_signal_pool_record(record, [])
+
+        self.assertNotIn('weight_change_30d', scored)
+
     def test_defaults_missing_product_profile_to_neutral_credibility(self):
         scorer = BayesianScorer()
         self.assertEqual(scorer.product_credibility_for_products(['UNKNOWN']), 0.5)
