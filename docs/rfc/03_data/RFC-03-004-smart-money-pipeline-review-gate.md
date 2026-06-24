@@ -200,7 +200,6 @@ Pipeline `run_pipeline(...) -> dict` 返回值新增以下兼容字段：
 ## 12. 参考资料（References）
 
 - `skills/data/data-pipeline/SKILL.md`
-- `skills/data/data-pipeline/docs/IMAGE_PORTFOLIO_DATA_PIPELINE.md`
 - `docs/rfc/03_data/RFC-03-003-data-architecture.md`
 
 ## 版本记录（Changelog）

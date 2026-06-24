@@ -36,14 +36,6 @@ Output structure:
     ]
 }
 """
-import sys
-from pathlib import Path
-
-# Inject venv packages so this module can run standalone
-_venv = Path(__file__).parent.parent.parent / "common" / "paddleocr_table2excel" / ".venv" / "lib" / "python3.10" / "site-packages"
-if str(_venv) not in sys.path:
-    sys.path.insert(0, str(_venv))
-
 import pandas as pd
 from .base import BaseTransformer
 

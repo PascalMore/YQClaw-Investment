@@ -74,13 +74,20 @@ def _first_existing_column(cols: set[str], candidates: tuple[str, ...]) -> str |
     return next((col for col in candidates if col in cols), None)
 
 
-def load_pending_positions(pending_csv_path: str, name_mapping: dict | None = None) -> dict:
+def load_pending_positions(
+    pending_csv_path: str,
+    name_mapping: dict | None = None,
+    confirm_all: bool = False,
+) -> dict:
     """
     Load confirmed pending position records from pending CSV.
 
     Args:
         pending_csv_path: Path to the pending CSV file.
         name_mapping: Optional dict {wind_code: confirmed_name} to override asset names.
+        confirm_all: If True, load all rows regardless of 名称复核状态, including
+            pending_review and missing_master. Use this after user confirmation.
+            When False (default), only non-pending rows are loaded.
 
     Returns:
         dict with "loaded" count and "errors" list.
@@ -91,13 +98,23 @@ def load_pending_positions(pending_csv_path: str, name_mapping: dict | None = No
 
     df = pd.read_csv(path, dtype=str).fillna("")
 
-    pending_statuses = {"pending_review", "pending", "review"}
-    df_confirmed = df[
-        ~df["名称复核状态"].str.lower().isin(pending_statuses)
-        & df["Wind代码"].str.strip().ne("")
-        & df["产品代码"].str.strip().ne("")
-        & df["截止日期"].str.strip().ne("")
-    ]
+    # Default: skip rows that need review.  With confirm_all=True, skip only
+    # truly-unresolved states and load everything the user has confirmed.
+    if confirm_all:
+        # Load all rows that have a Wind code — user confirmed them already
+        df_confirmed = df[
+            df["Wind代码"].str.strip().ne("")
+            & df["产品代码"].str.strip().ne("")
+            & df["截止日期"].str.strip().ne("")
+        ]
+    else:
+        pending_statuses = {"pending_review", "pending", "review", "missing_master"}
+        df_confirmed = df[
+            ~df["名称复核状态"].str.lower().isin(pending_statuses)
+            & df["Wind代码"].str.strip().ne("")
+            & df["产品代码"].str.strip().ne("")
+            & df["截止日期"].str.strip().ne("")
+        ]
 
     records = []
     errors = []
@@ -129,16 +146,51 @@ def load_pending_positions(pending_csv_path: str, name_mapping: dict | None = No
     loader = PortfolioMongoLoader()
     loaded = loader.upsert_position(records)
 
-    return {"loaded": loaded, "errors": errors, "records": len(records)}
+    # Also extract and upsert NAV records (deduplicated per date+product)
+    nav_loaded = 0
+    if records:
+        nav_records = {}
+        for r in records:
+            key = (r["position_date"], r["product_code"])
+            if key not in nav_records:
+                # Find the first row for this date+product to get NAV fields
+                row_data = df_confirmed[
+                    (df_confirmed["截止日期"].str.strip() == r["position_date"]) &
+                    (df_confirmed["产品代码"].str.strip() == r["product_code"])
+                ].iloc[0]
+                nav_records[key] = {
+                    "nav_date": r["position_date"],
+                    "product_code": r["product_code"],
+                    "nav": _parse_num(row_data.get("最新净值", "")),
+                    "aum": _parse_num(row_data.get("最新规模", "")),
+                    "share": None,  # 最新份额 often not in CSV, compute if possible
+                    "updated_at": now,
+                }
+                # Compute share if we have both nav and aum
+                nav_r = nav_records[key]
+                if nav_r["nav"] and nav_r["aum"] and nav_r["nav"] > 0:
+                    nav_r["share"] = nav_r["aum"] / nav_r["nav"]
+        if nav_records:
+            nav_loaded = loader.upsert_nav(list(nav_records.values()))
+            logger.info(f"[load_pending_positions] nav records upserted: {nav_loaded}")
+
+    return {"loaded": loaded, "nav_loaded": nav_loaded, "errors": errors, "records": len(records)}
 
 
-def load_pending_trades(pending_csv_path: str, name_mapping: dict | None = None) -> dict:
+def load_pending_trades(
+    pending_csv_path: str,
+    name_mapping: dict | None = None,
+    confirm_all: bool = False,
+) -> dict:
     """
     Load confirmed pending trade records from pending CSV.
 
     Args:
         pending_csv_path: Path to the pending CSV file.
         name_mapping: Optional dict {wind_code: confirmed_name} to override asset names.
+        confirm_all: If True, load all rows regardless of 名称复核状态.
+            Use this after user confirmation. When False (default),
+            only non-pending rows are loaded.
 
     Returns:
         dict with "loaded" count and "errors" list.
@@ -161,13 +213,20 @@ def load_pending_trades(pending_csv_path: str, name_mapping: dict | None = None)
     if missing:
         return {"loaded": 0, "errors": [f"Missing required trade columns: {', '.join(missing)}"]}
 
-    pending_statuses = {"pending_review", "pending", "review"}
-    df_confirmed = df[
-        ~df["名称复核状态"].str.lower().isin(pending_statuses)
-        & df["Wind代码"].str.strip().ne("")
-        & df["产品代码"].str.strip().ne("")
-        & df[date_col].str.strip().ne("")
-    ]
+    if confirm_all:
+        df_confirmed = df[
+            df["Wind代码"].str.strip().ne("")
+            & df["产品代码"].str.strip().ne("")
+            & df[date_col].str.strip().ne("")
+        ]
+    else:
+        pending_statuses = {"pending_review", "pending", "review", "missing_master"}
+        df_confirmed = df[
+            ~df["名称复核状态"].str.lower().isin(pending_statuses)
+            & df["Wind代码"].str.strip().ne("")
+            & df["产品代码"].str.strip().ne("")
+            & df[date_col].str.strip().ne("")
+        ]
 
     records = []
     errors = []
@@ -230,10 +289,23 @@ def _mark_json_resolved(csv_path: str, loaded_count: int) -> bool:
 # F-009: Batch mode — process all pending CSVs for a given date
 # ---------------------------------------------------------------------------
 
-def load_all_pending_for_date(date_str: str, name_mapping: dict | None = None, dry_run: bool = False) -> dict:
+def load_all_pending_for_date(
+    date_str: str,
+    name_mapping: dict | None = None,
+    dry_run: bool = False,
+    confirm_all: bool = False,
+) -> dict:
     """Process all pending CSVs under source_root/<date>/review_pending/.
 
-    Returns aggregate summary dict.
+    Args:
+        date_str: Date string YYYY-MM-DD.
+        name_mapping: Optional {wind_code: confirmed_name} overrides.
+        dry_run: Show what would be loaded without writing.
+        confirm_all: If True, load all rows including pending_review / missing_master.
+            Use after user confirmation.
+
+    Returns:
+        Aggregate summary dict.
     """
     source_root = Path(__file__).resolve().parents[4] / "skills" / "data" / "source" / "smart-money"
     review_dir = source_root / date_str / "review_pending"
@@ -248,14 +320,24 @@ def load_all_pending_for_date(date_str: str, name_mapping: dict | None = None, d
     total_loaded = 0
 
     for csv_path in csv_files:
-        result = _process_single_csv(csv_path, name_mapping=name_mapping, dry_run=dry_run)
+        result = _process_single_csv(
+            csv_path,
+            name_mapping=name_mapping,
+            dry_run=dry_run,
+            confirm_all=confirm_all,
+        )
         all_results.append({"csv": csv_path, **result})
         total_loaded += result.get("loaded", 0)
 
     return {"total_files": len(csv_files), "total_loaded": total_loaded, "results": all_results}
 
 
-def _process_single_csv(csv_path: str, name_mapping: dict | None = None, dry_run: bool = False) -> dict:
+def _process_single_csv(
+    csv_path: str,
+    name_mapping: dict | None = None,
+    dry_run: bool = False,
+    confirm_all: bool = False,
+) -> dict:
     """Process a single pending CSV: detect format, load, mark resolved."""
     # Read headers to detect format
     df_check = pd.read_csv(csv_path, nrows=0, dtype=str)
@@ -266,9 +348,9 @@ def _process_single_csv(csv_path: str, name_mapping: dict | None = None, dry_run
         return {"loaded": 0, "format": fmt, "dry_run": True}
 
     if fmt == "trade":
-        result = load_pending_trades(csv_path, name_mapping=name_mapping)
+        result = load_pending_trades(csv_path, name_mapping=name_mapping, confirm_all=confirm_all)
     else:
-        result = load_pending_positions(csv_path, name_mapping=name_mapping)
+        result = load_pending_positions(csv_path, name_mapping=name_mapping, confirm_all=confirm_all)
 
     # F-010: mark JSON as resolved
     loaded = result.get("loaded", 0)
@@ -335,6 +417,12 @@ Examples:
     group.add_argument("--date", help="Process all pending CSVs for this date (YYYY-MM-DD)")
     parser.add_argument("--name-mapping", help='JSON dict of {wind_code: confirmed_name} overrides', default=None)
     parser.add_argument("--dry-run", action="store_true", help="Show what would be loaded without writing")
+    parser.add_argument(
+        "--confirm-all",
+        action="store_true",
+        help="Load ALL rows including pending_review / missing_master. "
+             "Use after user confirmation — bypasses the pending-row safety filter.",
+    )
     args = parser.parse_args()
 
     # Parse name mapping
@@ -348,7 +436,12 @@ Examples:
 
     if args.date:
         # F-009: batch mode
-        summary = load_all_pending_for_date(args.date, name_mapping=name_mapping, dry_run=args.dry_run)
+        summary = load_all_pending_for_date(
+            args.date,
+            name_mapping=name_mapping,
+            dry_run=args.dry_run,
+            confirm_all=args.confirm_all,
+        )
         mode = "DRY RUN" if args.dry_run else "DONE"
         print(f"\n=== {mode}: {summary['total_files']} file(s), {summary['total_loaded']} records loaded ===")
         for r in summary["results"]:
@@ -363,16 +456,16 @@ Examples:
             print(f"[DRY RUN] format={fmt}, csv={csv_path}")
         else:
             if fmt == "trade":
-                result = load_pending_trades(csv_path, name_mapping=name_mapping)
+                result = load_pending_trades(csv_path, name_mapping=name_mapping, confirm_all=args.confirm_all)
             else:
-                result = load_pending_positions(csv_path, name_mapping=name_mapping)
+                result = load_pending_positions(csv_path, name_mapping=name_mapping, confirm_all=args.confirm_all)
 
             # Mark resolved
             loaded = result.get("loaded", 0)
             if loaded > 0:
                 _mark_json_resolved(csv_path, loaded)
 
-            print(f"Result: format={fmt}, loaded={loaded}, records={result.get('records', 0)}")
+            print(f"Result: format={fmt}, loaded={loaded}, nav_loaded={result.get('nav_loaded', 0)}, records={result.get('records', 0)}")
             if result["errors"]:
                 for err in result["errors"]:
                     print(f"  ERROR: {err}")

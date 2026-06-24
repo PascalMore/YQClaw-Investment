@@ -124,7 +124,8 @@ async def run_pipeline(
 
     # Step 1: MiniMax OCR Image → DataFrame
     print(f"[Step1] 开始 OCR: {image_path}")
-    extractor = MiniMaxImageExtractor()
+    output_dir = source_root / date_str / "image"
+    extractor = MiniMaxImageExtractor(output_dir=str(output_dir), date_str=date_str)
     records = await extractor.extract(str(image_path))
 
     if not records:
