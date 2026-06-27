@@ -8,6 +8,8 @@ description: YQuant 数据管道框架。所有外部数据（API采集、文件
 >
 > **📌 Agent 反模式清单（2026-06-26 用户明确反馈）**：`references/agent-overengineering-anti-patterns.md` 记录 9 条「agent 不要 over-engineer」反模式 — 收到图片后**只归档 + 跑 pipeline**，不要 vision 读图、不要 md5 去重、不要 sanity check、不要替用户决定并发/配额/降级、不要替用户猜 product_code 命名。新会话涉及图片入库前必看。
 >
+> **📌 图片入库多批推送实战（2026-06-27）**：`references/image-pipeline-multi-batch-2026-06-27.md` 记录用户分多批（9:46 + 10:02 + 10:10）推同一批持仓截图时，agent 如何区分"归档 vs 已跑 pipeline"、MongoDB 业务日期字段实际是字符串而非 datetime、OCR 输出全角括号 `市值（本币）` 导致 loader KeyError 的临时修复。
+>
 > **📌 6/26 早上失败复盘（Z_AI_API_KEY 缺失）**：`references/image-failure-postmortem.md` 记录早上 6 张并发跑 2 张失败的真正根因（profile .env 不注入裸跑子进程）+ 修复方案 + 验证步骤。看到 `Z_AI_API_KEY environment variable is required` 时**先看这个文件**，**不要直接套用 line 774 那个 pitfall**（那是另一回事）。
 >
 > **🔍 Z.AI MCP 工具清单（v0.1.2 实测）**：`references/zai-mcp-tools.md` — `@z_ai/mcp-server` 实际暴露 8 个 tool（`extract_text_from_screenshot` / `analyze_image` / `ui_to_artifact` 等），provider 选 tool 的优先级，**为什么以前 zai fallback 静默失败**（heuristic 选错 tool → 缺 required 参数）。图片 pipeline 的 JSON 提取优先 `analyze_image`，纯 OCR `extract_text_from_screenshot` 只作兜底。
@@ -97,6 +99,13 @@ data-pipeline/
 │   └── serializers/
 │       ├── __init__.py
 │       └── base64_codec.py     ← JSON↔Base64 序列化（Transport 层）
+│
+│ ★ 常用运维脚本（agent 直接复用，不要重写）：
+│   ├── check_data_completeness.py   ← 数据完整性检查（2026-06-27 新增）
+│   ├── audit_pending_unmigrated.py  ← pending CSV 孤儿审计
+│   ├── query_portfolio.py           ← 按 product_code 查询持仓
+│   ├── load_pending_confirmed.py    ← pending 行入库（用户确认后）
+│   └── stock_name_corrections.py    ← OCR 名称 → 主数据名静态映射
 └── references/
     ├── image-pipeline-workflow.md       ← 图片入库实操笔记
     ├── agent-overengineering-anti-patterns.md ← Agent 反模式清单
@@ -412,6 +421,62 @@ python scripts/query_portfolio.py --list-products
 
 如果用户提到不在这个清单里的产品代码，先用上面 1–5 步确认，再回问确认（避免用户记错/笔误）。
 
+## 📊 数据完整性检查（用户问"XX 区间数据齐不齐"时用）
+
+**触发场景**：用户问「检查 2025-07-07~09 portfolio_position/nav/trade 完整性」「portfolio 缺哪些日期」「trading day 覆盖率」等。
+
+**复用脚本**：`scripts/check_data_completeness.py`（2026-06-27 新增）。
+
+```bash
+# 默认扫所有已知产品 × position/nav/trade 三个集合
+.venv/bin/python skills/data/data-pipeline/scripts/check_data_completeness.py \
+  --start 2025-07-07 --end 2025-07-09
+
+# 指定产品
+.venv/bin/python scripts/check_data_completeness.py \
+  --start 2025-07-07 --end 2025-07-09 --products SM001,SM002
+
+# JSON 输出（供下游程序消费）
+.venv/bin/python scripts/check_data_completeness.py \
+  --start 2025-07-07 --end 2025-07-09 --json
+```
+
+**脚本内部已修复的坑**（详见 P6a）：
+- 用 `$in` 字符串数组而非 `$gte` datetime 对象（避免 `bson.errors.InvalidDocument`）
+- 用 `holding_ratio / shares / market_value` 而非错误的 `position_ratio / quantity / market_value_local`
+- 自动剔除周末（`date.weekday() >= 5`）
+
+**输出**：
+- 矩阵：product × trading_day 行数（自动剔除周末）
+- Gap 分析：position / nav 在交易日缺数据的明确清单
+- trade 不算 gap（trade 是稀疏的，**不是每个产品每天都有交易** — 用户 2026-06-27 明确反馈）
+
+**报告模板**（用户问"数据完整性"时）：
+
+```
+## 📊 YYYY-MM-DD ~ YYYY-MM-DD 数据完整性报告
+
+**日历核对**：X/X=周一 ✅ ... X/X=周末 ❌
+
+### portfolio_position（持仓快照）
+| 产品 | X/X | X/X | X/X | sum |
+...
+
+### portfolio_nav（净值）
+| 产品 | ...
+
+### portfolio_trade（成交明细 — 注意稀疏）
+
+### 结论
+- 真实缺失：product X 在 X/X 缺持仓（业务数据未传）
+- trade 0 行 = 这天确实没交易（正常）
+```
+
+**反例（agent 本会话 2026-06-27）**：
+- 没检查 `date.weekday()` 就说"7/8~7/9 是周末" — 实际是周二/三，**导致误判真实缺失**
+- 用 `datetime.date(2025,7,1)` 直接做 MongoDB 查询 → `bson.errors.InvalidDocument`
+- 用 `position_ratio / market_value_local` 字段名 → KeyError
+
 ### 设计原则 — 接口层强制安全 > 文档层提醒安全（2026-06-26 用户明确原则）
 
 > 用户的工程原则：「**能否就不传呀，因为传错比不传更危险**」。
@@ -719,6 +784,7 @@ agent 收到用户发图时，**3 个日期必须分别明确**：
    - 不要 `md5sum` 检查 image cache（重发就让 pipeline 跑多次，MongoDB unique key 自然 upsert）
    - 不要 `db.portfolio_position.distinct('position_date')` 之类的预检
    - 不要 `audit_pending_unmigrated.py` 预跑
+   - 不要 `check_pending_pipeline_runs.py` 预跑（这是个诊断工具，**用户问"哪些没跑"时**才用，不在入库前置流程里）
 4. **不干预 pipeline**：
    - 不替用户决定并发数 / 配额 / 降级（用 profile 默认）
    - 不替用户猜 product_code 写文件名（命名用 `portfolio_{date}_{HHMMSS}.jpg` 时间戳即可，**不要**加 `_unknown` 后缀 — 用户 2026-06-26 明确反馈「为什么是 xxxx_unknown.jpg」多此一举）
@@ -824,6 +890,100 @@ profile 的 `~/.hermes/profiles/yquant/.env` 里设了 `Z_AI_API_KEY`，但 `ter
 - **不是** SKILL.md line 774 那个 PATH/HOME 继承 bug（已修）
 - **是** .env 没加载，参考本条修复
 
+### Pitfall — OCR 把 `市值(本币)` 输出成全角括号 `市值（本币）`（2026-06-27 实测）
+
+`load_pending_confirmed.py` 按精确列名读 CSV，遇到全角括号 `市值（本币）` 报 `KeyError: '市值(本币)'`，结果 `loaded=0` 静默失败。
+
+**症状**：`Result: format=portfolio, loaded=0, nav_loaded=0, records=0  ERROR: Row 0: '市值(本币)'`
+
+**正确处理（不要直接放弃）**：
+1. 用 `sed -i 's/市值（全币）/市值(本币)/g' <pending.csv>` 把全角括号改回半角
+2. 重新跑 `load_pending_confirmed.py --confirm-all`
+3. 验证 MongoDB 实际入库
+
+**反例（不要做）**：
+- 跳过这一行 pending，CSV 永久滞留
+- 改 loader 代码加 `re.sub` 兼容两种括号 → 治标不治本，OCR 噪声下次还会以其他字符复现
+
+CSV 是审计文件，`sed` 改字段名要记录在案（注明修改时间 + 原因）。这是临时方案；长期应写 `stock_name_corrections.py` 永久映射，避免每天走手工 sed。
+
+### Pitfall — "已归档" ≠ "已跑过 pipeline"（2026-06-27 实测）
+
+`source/smart-money/{date}/image/` 目录里的 portfolio_*.jpg 文件，**只表示归档动作完成**，不表示 pipeline 已经处理过。当用户分多批推送同一批图（早上 9:46 + 中午 10:02 + 晚上 10:10），image_cache unique hash 可能是同一批 18 张的不同子集，但 pipeline 实际只跑了第一轮的子集。
+
+**正确区分三件事**：
+1. **image_cache 里** — 飞书推送的所有图（含重复推送的副本）
+2. **归档目录里** — agent 第一步 cp 过去的图（按 unique hash 去重）
+3. **pipeline 跑过的图** — 在归档目录里留下了对应的 `trade_*.xlsx` / `portfolio_*.xlsx` 和可能的 `*_vision_raw.json`
+
+**判断"哪些图还没跑过 pipeline"的标准做法**：
+```bash
+# 已跑过 pipeline 的图 = 留下了同名 xlsx 的图
+ls skills/data/source/smart-money/2026-06-27/image/portfolio_*.xlsx 2>/dev/null \
+  | sed 's/portfolio_/portfolio_/; s/\.xlsx$/.jpg/' | sort -u > /tmp/ran.txt
+
+# 归档目录里所有图
+ls skills/data/source/smart-money/2026-06-27/image/portfolio_*.jpg | sort -u > /tmp/archived.txt
+
+# 还没跑过的 = 差集
+comm -23 /tmp/archived.txt /tmp/ran.txt
+```
+
+**反例（不要做）**：
+- 仅凭 "归档目录里有" 就回复用户"已经处理过"
+- 仅凭 image_cache unique hash 数 == 归档目录 unique hash 数 就说"全部入库了"
+- 跳过启动 pipeline 步骤 → 用户数据没真入库
+
+### Pitfall — 三批推送图是同一批的子集（2026-06-27 实测）
+
+飞书可能把同一批持仓截图分多次推送（比如 9:46 推 18 张 + 10:02 推 9 张 + 10:10 推 9 张），image_cache 总文件数看着多但 unique hash 可能就是同一批的 18 张的拆分。
+
+**正确诊断**：
+```bash
+# 列出 image_cache 按时间戳分组的图
+for f in /home/pascal/.hermes/profiles/yquant/image_cache/img_*.jpg; do
+  TS=$(stat -c '%y' "$f" | cut -c12-19)  # HH:MM:SS
+  H=$(md5sum "$f" | awk '{print $1}')
+  echo "$H $TS"
+done | sort -k2,2
+
+# 看几个时间簇 → 每个簇可能是同一批的部分
+```
+
+**然后**：
+- 按 hash 求并集 = 实际独立图
+- 按时间簇求差集 = 哪些 hash 是用户"新推"的（不在上一批里）
+
+**反例（不要做）**：
+- 直接按 image_cache 总数判断"9 张新图"——可能是同批重复推送
+- 不对比 hash 直接说"都归档过 = 都跑过 pipeline"
+
+### Pitfall — MongoDB 业务日期字段实际存字符串不是 datetime（2026-06-27 实测）
+
+`portfolio_position.position_date` / `portfolio_nav.nav_date` / `portfolio_trade.trade_date` 在 MongoDB 里**实际类型是 `str`**（如 `'2025-07-07'`），不是 BSON datetime。
+
+**症状 1**：用 `datetime.date(2025,7,7)` 做 `\$gte` / `\$lte` 查询报 `bson.errors.InvalidDocument: cannot encode object: datetime.date(2025, 7, 7)`
+**症状 2**：用 `datetime.datetime(2025,7,7)` 做范围查询 → 返回 0 行（datetime > str）
+**症状 3**：从查询结果读 `.day` → AttributeError: 'str' object has no attribute 'day'
+
+**正确做法**：
+```python
+# ✅ 用 $in + 字符串列表
+DATES = [f'2025-07-{d:02d}' for d in range(1,16)]
+db['portfolio_position'].find({'position_date': {'$in': DATES}}, ...)
+
+# ✅ 取日期部分用字符串切片
+for r in cursor:
+    day = int(r['position_date'][-2:])  # '2025-07-07' → 7
+```
+
+**反例（不要做）**：
+- 看到查询返回 0 行就以为"数据缺失" — 可能是 datetime/str 类型不匹配
+- 用 `datetime.date` 直接做 MongoDB 查询参数 — 报 InvalidDocument
+- 用 `'2025-07-0' in str(d) and int(str(d)[-2:]) <= 11` 这种字符串截位 — 月份位错位（`'2025-07-07'[-2:]='07'` 而不是 `'7'`），正确做法用 `r['position_date'].day`
+
+**诊断流程**：先 `find_one()` 一行 → `print(type(r['position_date']), r['position_date'])` → 确认实际类型再写查询。
+
 ### Pitfall — `_unknown` 文件名后缀是 agent 画蛇添足（2026-06-26 用户纠正）
 
 agent 曾经自作主张把归档图片命名为 `portfolio_{ts}_unknown.jpg`，理由是「避免猜测 product_code」。用户反馈「为什么是 xxxx_unknown.jpg」— 这是越权，pipeline 自己识别格式和 product_code，文件名只需可排序可追溯。
@@ -874,11 +1034,11 @@ cd /home/pascal/workspace/yquant-investment && \
 
 **OCR 识别错的日期**（少见但可能发生）通过 `audit_pending_unmigrated.py` 或 `update_position_date` 工具修正，**不要**在 agent 层用 `--date` 替 OCR 兜底。
 
-### Pitfall — pending 行入库用 `--name-mapping` 不要先改 CSV（2026-06-26 实战）
+### P6. pending 行入库用 `--name-mapping` 而不是先改 CSV（2026-06-26 实战）
 
 场景：OCR 读到「广晟有色」，主数据是「中稀有色」（公司改名），想用主数据名入库。
 
-**正确做法**：
+**正确做法 — 用 `--name-mapping` 在命令行覆盖**：
 
 ```bash
 .venv/bin/python skills/data/data-pipeline/scripts/load_pending_confirmed.py \
@@ -888,6 +1048,85 @@ cd /home/pascal/workspace/yquant-investment && \
 ```
 
 **反例**：手动编辑 CSV 改 asset_name 字段再 `confirm-all` — 丢失 OCR 原始痕迹，且需要重跑 audit。
+
+### P6a. MongoDB 字段名 / 类型 — 不要凭印象写查询（2026-06-27 实战三次踩坑）
+
+**集合实际字段（实测，不是文档说的）：**
+
+| 集合 | 业务日期字段名 | 类型 | **常见错误拼写** |
+|---|---|---|---|
+| `portfolio_position` | `position_date` | **string**（不是 datetime）| `position_ratio / quantity / market_value_local` |
+| `portfolio_nav` | `nav_date` | **string** | `scale / share` |
+| `portfolio_trade` | `trade_date` | **string** | `quantity / wind_code` |
+
+**`portfolio_position` 实际字段**：`asset_name / asset_wind_code / holding_ratio / shares / market_value / position_date / product_code / updated_at / source_image`。
+
+**`portfolio_nav` 实际字段**（详见 P1）：`nav_date / product_code / nav / aum / share / updated_at`。
+
+**两个坑一次说清：**
+
+1. **类型坑**：`position_date` 是 `'2025-07-15'` 字符串，**不是** `datetime.datetime`。MongoDB `find({'position_date': {'$gte': datetime.date(2025,7,15)}})` 会抛 `bson.errors.InvalidDocument: cannot encode object: datetime.date(...)`。**正确**：
+   ```python
+   db['portfolio_position'].find({'position_date': {'$in': ['2025-07-15', '2025-07-16']}})
+   # 或字符串范围（注意字典序和日期序一致时可用）：
+   db['portfolio_position'].find({'position_date': {'$gte': '2025-07-15', '$lte': '2025-07-20'}})
+   ```
+
+2. **字段名坑**：`portfolio_position` 实际是 `holding_ratio / shares / market_value`，**不是** SKILL.md 早期暗示的 `position_ratio / quantity / market_value_local`。第一次用新集合时先 `find_one({...})` 然后 `print(sorted(r.keys()))` 看实际字段名，再写查询 — 不要凭记忆写。
+
+**反例（agent 本会话三次踩坑）**：
+```python
+# ❌ datetime 编码错误
+db['portfolio_position'].find({'position_date': {'$gte': date(2025,7,1)}})
+# ❌ 字段名错误返回 KeyError
+r['position_ratio']  # → KeyError: 'position_ratio'
+r['market_value_local']  # → KeyError
+# ❌ SKILL 早段提到的字段不存在
+nav_record['share']  # SM001 早期记录没这个字段
+```
+
+**一次走通的查询模板**（业务日期 × 集合 × 6 产品矩阵）见 `scripts/check_data_completeness.py`。
+
+### P6b. `smart_money_watcher` 已经在跑 — 不要重复启动 pipeline（2026-06-27 实战）
+
+**症状**：飞书收到图片后，`smart_money_watcher` 守护进程自动触发 `run_unified_image_pipeline.py`。如果 agent 又手动 `terminal(background=true)` 启 pipeline，**同一张图会被处理两次**，MongoDB unique key 自然 upsert 但**会触发不必要的 OCR 成本**（MiniMax 配额）。
+
+**agent 自检流程**（收到图片后、决定是否启 pipeline 之前）：
+
+```bash
+# 1. 看 image_cache 是否有未归档的新图
+ls -la /home/pascal/.hermes/profiles/yquant/image_cache/img_*.jpg | tail -20
+
+# 2. 看今天归档目录的 xlsx 是否已经生成（pipeline 跑过的痕迹）
+ls /home/pascal/workspace/yquant-investment/skills/data/source/smart-money/$(date +%Y-%m-%d)/image/*.xlsx 2>/dev/null | wc -l
+# 如果 xlsx 数 > 0，且 unique hash 数 ≈ archive 数 → watcher 已经处理过
+
+# 3. 看今天 review_pending 是否有新文件
+ls /home/pascal/workspace/yquant-investment/skills/data/source/smart-money/$(date +%Y-%m-%d)/review_pending/*.csv 2>/dev/null | wc -l
+```
+
+**判定规则**：
+- `xlsx 数 ≥ 图片 unique hash 数` → watcher 全跑完了，**不要**再启 pipeline
+- `xlsx 数 < 图片 unique hash 数` → watcher 没跑完（或部分失败），启剩余张
+- `xlsx 数 = 0 且 review_pending 也没新增` → watcher 没启动，可能是 watcher 进程挂了，**先排查 watcher** 不要直接启
+
+**反例（agent 本会话行为）**：用户发 18 张图 → 我启 10 个后台 pipeline → 实际 watcher 已经全部跑完 → 我的 10 个 pipeline 是冗余 OCR 浪费。
+
+**正确做法（最小动作）**：
+1. 归档图（必做）
+2. 自检 xlsx/review_pending 状态（30 秒）
+3. 如果 watcher 没跑完 → 启剩余张；如果跑完 → **只汇报结果，不要再启**
+
+### P6c. image_cache 状态歧义 — 飞书会保留旧图（2026-06-27 实战）
+
+**症状**：`/home/pascal/.hermes/profiles/yquant/image_cache/` 里有 72 张图，**其中多数是前几天/几小时前的旧图残留**。新发的 18 张图只是其中一部分（按 mtime 在 09:46~09:47 区间）。如果 agent 用 `ls -1 *.jpg | wc -l` 当"今天用户发了多少张"的依据，**会得到错的数量**（72 而不是 18）。
+
+**正确做法**：
+1. 用 `ls -la --time-style=full-iso` 看 mtime，按 mtime 区间筛选"用户最新发的图"
+2. 按 mtime 排序后 `tail -N`，N 由用户在消息里说的张数决定（或 `ls` 当前会话推送间隔内）
+3. **如果不确定张数，先问用户再启 pipeline** — OCR 成本按张算，多跑一张浪费一次
+
+**反例（agent 本会话）**：用户说"新发了 18 张图"，我用 `ls img_*.jpg | wc -l` 得到 72，归档了 60 张（去重后），远超用户实际推送量。
 
 ### 图片 Vision 策略（关键 Pitfall — 两层问题）
 

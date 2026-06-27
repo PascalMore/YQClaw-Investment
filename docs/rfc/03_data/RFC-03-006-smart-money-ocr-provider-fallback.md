@@ -261,8 +261,8 @@ VisionProviderRouter
 - `skills/data/data-pipeline/scripts/run_unified_image_pipeline.py`（pipeline 入口）
 - `docs/rfc/03_data/RFC-03-004-smart-money-pipeline-review-gate.md`
 - `docs/rfc/03_data/RFC-03-005-smart-money-batch-closeout.md`
-- `docs/spec/SPEC-03-004-smart-money-pipeline-review-gate.md`
-- `docs/design/DESIGN-03-004-smart-money-pipeline-review-gate.md`
+- `docs/spec/03_data/SPEC-03-004-smart-money-pipeline-review-gate.md`
+- `docs/design/03_data/DESIGN-03-004-smart-money-pipeline-review-gate.md`
 - `~/.hermes/profiles/yquant/config.yaml`（MCP servers 配置）
 - `~/.hermes/profiles/yquant/.env`（`Z_AI_API_KEY` 存放位置）
 
