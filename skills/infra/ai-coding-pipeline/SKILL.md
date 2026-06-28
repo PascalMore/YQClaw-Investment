@@ -18,6 +18,7 @@ description: "用于 YQuant 或应龙项目非平凡工程任务的七阶段 AI 
 - 运行态 profile 的模型、fallback、toolsets 等易变配置仍以 `~/.hermes/profiles/<profile>/config.yaml` 为准，项目内只保存路由语义、阶段门禁和可复用 skill 逻辑。
 - 当前入口 profile 是 orchestrator，负责 Intake、解析目标工作目录、创建 Kanban 任务、校验阶段门禁和 Closeout。
 - 阶段执行必须通过 `kanban_create` 创建真实任务，并设置 `assignee` 为对应 Hermes profile。
+- `kanban_create(skills=[...])` 只能引用目标 assignee profile 可见的 **canonical/project skill**。不要把 orchestrator 自己 profile-local 的补丁 skill 传给 worker；worker CLI 会在初始化阶段报 `Unknown skill(s)` 并立即 crash，连 `agent.turn_context` 都不会进入。
 - 不要用 `delegate_task` 承担正式流水线阶段；`delegate_task` 只适合短推理子任务，且默认继承父 profile 的模型，不能按单次调用切到 `yquantprincipal` / `yquantdeveloper` 等 profile。
 - **历史教训（2026-06-25 RFC-03-006 案例）**：`delegate_task` **不在 Kanban DB 创建 task 记录**，会导致后续阶段 `parents=[前阶段 task_id]` 无法设置，pipeline 自动串联中断。所有流水线阶段必须用 `kanban_create` 派任务，每个阶段设置 `parents`，dispatcher 才能自动 promote。详见 `references/real-run-journal-2026-06-25.md` 关键观察 6。
 - **SPEC §3 文件清单必须精确到目录层级**（2026-06-25 教训）：不能写“新建 `providers/` 子包”这种模糊描述，要写“在 `scripts/extractors/providers/` 下新建 10 个文件”。否则 Implement worker 可能写到错的目录层级。详见 `references/real-run-journal-2026-06-25.md` 关键观察 7。
@@ -38,6 +39,29 @@ Intake 开始时必须根据当前 orchestrator profile 解析一次 `PIPELINE_W
 - 每个 `kanban_create` 都必须显式设置 `workspace_kind="dir"` 和解析后的绝对 `workspace_path`。
 - 任务正文必须同时写明目标项目绝对路径，并禁止修改另一个项目。
 - worker 以任务传入的 `workspace_path` / `$HERMES_KANBAN_WORKSPACE` 为准，不重新解析 orchestrator。
+
+### 项目约定发现与任务正文固化
+
+Pipeline 是跨项目基础设施，但每个项目的文档目录、模块编号、skill/module 命名、持久化规范和凭据位置可能不同。**Intake 在派第一个 worker 前必须发现并固化目标项目约定**，不能把 YQuant 的目录约定照搬到其他项目。
+
+最低发现步骤：
+
+```bash
+cd "$PIPELINE_WORKSPACE"
+find docs -maxdepth 3 -type f -name 'README.md' -o -name '*-00-000-*template*.md' 2>/dev/null
+find skills -maxdepth 3 -name SKILL.md 2>/dev/null | head -80
+find config -maxdepth 2 -type f 2>/dev/null | sort
+```
+
+Intake 必须把以下内容写进**每个文档类任务（RFC/SPEC/Design）的 body**，不要只放在 README 或 skill 里：
+
+- 目标项目绝对路径与禁止修改的外部项目路径。
+- 文档目录命名规则：`docs/{rfc,spec,design}/...` 的具体子目录。
+- 文档文件命名规则：`{TYPE}-{NN}-{XXX}-{short-name}.md` 或目标项目实际规则。
+- 本任务交付物的**精确目标路径**，至少给 1 个完整示例。
+- 项目私有约束（数据库集合前缀、隐私分级、外部 API mock/real 模式、凭据文件位置等）。
+
+**原则**：worker 优先读 task body；README、模板和 skill 是参考材料，不保证被 worker 主动打开。凡是会影响路径、命名、数据契约或安全边界的约定，都必须在 task body 中显式出现。
 
 ### Hermes Profile 路由
 
@@ -363,6 +387,30 @@ WARNING tools.skills_tool: Skill name collision for '...': 2 candidates — <pat
 
 **预防**：流水线部署完成后立即跑一次 `find ~/.hermes/profiles -name "SKILL.md" -path "*yquant-ai-coding-pipeline*"`——应该看不到任何 profile 副本；全局检查只应看到项目源目录一份。
 
+### P-1b: `kanban_create(skills=...)` 引用 profile-local skill 会让 worker 初始化失败
+
+**症状**：worker 进程启动后数秒内 crash，task 连续失败后 `blocked/gave_up`。目标 profile 单独 smoke test 成功，但带 `--skills <some-skill>` 后立即退出：
+
+```text
+Error: Unknown skill(s): <skill-name>
+```
+
+**根因**：`kanban_create(skills=[...])` 是由目标 assignee profile 的 Hermes CLI 解析，不是由 orchestrator 解析。orchestrator 自己可见的 profile-local skill（例如只在当前 profile `~/.hermes/profiles/<orchestrator>/skills/` 下）对 `yquantprincipal` / `yquantdeveloper` 等 worker 不可见。
+
+**修复**：
+- 不要把 orchestrator profile-local skill 放进 `skills=[...]`。
+- 若内容对流程通用，提升到 canonical project skill（本文件或项目源目录）并删除 profile-local 副本。
+- 若内容只是项目私有约束，把它写进 task body；worker 不需要加载该 skill 也能执行。
+
+**诊断命令**：
+
+```bash
+hermes -p <assignee> chat -q '只回复 OK'
+hermes -p <assignee> chat --skills <skill-a>,<skill-b> -q '只回复 OK'
+```
+
+第一条成功、第二条失败时，优先检查 `skills=[...]` 中是否有 worker 不可见的 profile-local skill。
+
 ### P-2: dispatcher 透明跑 fallback 链，任务名义 assignee 与实际模型可能不一致
 
 **症状**：`kanban_create(assignee="yquantprincipal")` 派出的 task 实际由 zai/glm-5.2 甚至 MiniMax-M3 完成。task summary 看似完成，但内容质量反映的是 fallback 模型的能力上限，不是 yquantprincipal 的设计意图。
@@ -469,6 +517,53 @@ kanban_create(
 - P-6：编排层补"已 done 任务的文档"是**允许**的（补救）
 - P-7：编排层补"跨任务的模板/全局规约"是**禁止**的（必须委派）
 - 简单判定：改**当前流水线实例的产出物** = OK；改**所有流水线实例的规约源** = 不 OK
+
+### P-8: 跨项目复用前必须先发现目标项目命名约定
+
+**症状**：orchestrator 把一个项目的 `docs/{rfc,spec,design}/` 数字域、模块名、文件编号规则照搬到另一个项目，worker 随后按错误路径写 RFC/SPEC/Design；用户需要多轮纠正目录和文件名。
+
+**根因**：pipeline 是通用基础设施，但项目命名是局部约定。worker 不会自动推断目标项目的真实模块/skill 编号，也不一定读取 README。
+
+**修复**：Intake 在派第一个文档任务前必须执行“项目约定发现与任务正文固化”：读取目标项目 docs README、模板、skills/module 目录和 config，并把精确交付路径写入 task body。
+
+**预防**：文档类任务 body 必须给出完整示例，例如：
+
+```text
+交付物路径（严格按目标项目约定）：
+- docs/rfc/<module-dir>/<RFC-file>.md
+- docs/spec/<module-dir>/<SPEC-file>.md
+示例：docs/rfc/16_travel/RFC-16-001-travel-planning-ability.md
+```
+
+示例只作为目标项目当前约定的展开，不得把某个项目的示例当成跨项目默认值。
+
+### P-9: 中途变更骨架/命名规范时，orchestrator 负责 comment + 兜底搬迁
+
+**症状**：用户在 T1/T2 已经启动后修正文档目录、文件名、模块编号或数据契约。worker 可能已经按旧规则写了一部分产物；如果只在聊天里确认，不通知 worker，后续阶段继续沿用旧规则。
+
+**修复流程**：
+
+```text
+1. 立即用 kanban_comment 通知已创建/已 claim 的相关 task：新约定是什么、哪些路径作废。
+2. 若 worker 已按旧路径写出产物，orchestrator 负责 mv/rename 兜底，不把纯路径搬迁退回给 worker 重做。
+3. 下一阶段 body 顶部写“前置约定变更”，引用新路径和上一阶段修正说明。
+4. 若变更会让已完成 RFC/SPEC/Design 内容不准确，触发“阶段决策同步门禁”，先补文档再派实现任务。
+```
+
+**预防**：Intake 第一次派任务前，尽量让用户确认“目录/文档命名规范”和“模块编号来源”；但一旦中途变更，状态同步责任在 orchestrator。
+
+### P-10: 凭据/环境文件可能被工具链遮蔽，验证时看“是否真实可用”而不是看起来已写入
+
+**症状**：worker 或 orchestrator 声称已写入 `.env` / config，但后续 API/Mongo/外部服务 auth 仍失败；文件里出现 `***`、占位字符串或被遮蔽值。
+
+**根因**：Hermes 工具链和日志会保护 `*_PASSWORD`、`*_API_KEY`、`*_SECRET`、`*_TOKEN` 等敏感字段。某些写入/展示路径可能把真实值遮蔽成占位，导致“看起来写了，实际不可用”。
+
+**修复**：
+- 不在 skill、task metadata、kanban summary 中记录真实秘密。
+- 写入凭据后，用最小泄露方式验证：只打印键名、长度、hash 前缀或直接调用目标服务 smoke test。
+- auth 失败时，先检查“值是否仍是占位/遮蔽值”，再排查网络和代码。
+
+**预防**：涉及凭据的实现任务，验收标准必须包含“真实连接 smoke test 或只泄露长度的配置读取测试”，不能只检查文件存在。
 
 ## 参考资料
 
