@@ -552,19 +552,37 @@ kanban_create(
 
 **预防**：Intake 第一次派任务前，尽量让用户确认“目录/文档命名规范”和“模块编号来源”；但一旦中途变更，状态同步责任在 orchestrator。
 
-### P-10: 凭据/环境文件可能被工具链遮蔽，验证时看“是否真实可用”而不是看起来已写入
+### P-10: 凭据/环境文件可能被工具链遮蔽，验证时看"是否真实可用"而不是看起来已写入
 
 **症状**：worker 或 orchestrator 声称已写入 `.env` / config，但后续 API/Mongo/外部服务 auth 仍失败；文件里出现 `***`、占位字符串或被遮蔽值。
 
-**根因**：Hermes 工具链和日志会保护 `*_PASSWORD`、`*_API_KEY`、`*_SECRET`、`*_TOKEN` 等敏感字段。某些写入/展示路径可能把真实值遮蔽成占位，导致“看起来写了，实际不可用”。
+**根因**：Hermes 工具链和日志会保护 `*_PASSWORD`、`*_API_KEY`、`*_SECRET`、`*_TOKEN` 等敏感字段。某些写入/展示路径可能把真实值遮蔽成占位，导致"看起来写了，实际不可用"。
 
 **修复**：
+
 - 不在 skill、task metadata、kanban summary 中记录真实秘密。
 - 写入凭据后，用最小泄露方式验证：只打印键名、长度、hash 前缀或直接调用目标服务 smoke test。
-- auth 失败时，先检查“值是否仍是占位/遮蔽值”，再排查网络和代码。
+- auth 失败时，先检查"值是否仍是占位/遮蔽值"，再排查网络和代码。
 
-**预防**：涉及凭据的实现任务，验收标准必须包含“真实连接 smoke test 或只泄露长度的配置读取测试”，不能只检查文件存在。
+**预防**：涉及凭据的实现任务，验收标准必须包含"真实连接 smoke test 或只泄露长度的配置读取测试"，不能只检查文件存在。
 
+### P-11: 端到端 smoke test 必须包含"数据合理性校验"，不能只看 Phase 跑通（2026-06-29 应龙 Travel Pipeline 案例）
+
+**症状**：Implement 阶段 worker 把 7 P0 全部产出代码、单测 223 passed、T3 → T4 → T5 都 done。但 orchestrator 直接跑端到端 smoke 时发现：**POI 数据返回了北京景点（故宫/雍和宫/天安门）给"舟山朱家尖 4 日亲子自驾"行程**，因为 POI 聚合没按 destination 过滤；**discovery 反向推荐返回 0 候选**，因为 fixture 过滤逻辑把 8 个目的地全过滤掉了。
+
+**根因**：
+- T3 Implement 验收标准只检查"代码可跑 + 测试通过"，**没检查 destination/POI/预算等业务字段是否合理**
+- T4 Verify 同样只看测试 PASS，没做端到端 e2e 烟测
+- T5 Review 只看 diff 与 SPEC 对齐，没真实跑一次用户场景
+
+**修复**：
+- T3 body 必须明确写验收标准包含**端到端 smoke test + 业务合理性 checklist**（如 "destination=舟山时 POI 必须是舟山真实景点，不允许返回北京/广州等地"）
+- T4 Verify 必须实际跑一次端到端（init_trip → ... → render_final）并**抽样检查输出是否包含真实业务数据**
+- T5 Review 不能只看 diff，**至少抽样读 1 个 final.md 看是否合理**
+
+**预防**：任何"产出数据"的 Pipeline，验收标准必须包含"用真实用户输入跑一次 + 人工或脚本检查输出合理性"。特别是 travel/search/recommend 类任务，光看代码和单测不够。
+
+**真实证据**：`data/memory/16_travel_pipeline-smoke-2026-06-29.md`（yinglong 项目）
 ## 参考资料
 
 - `references/pipeline.md`：阶段门禁、任务目录结构、路由规则。

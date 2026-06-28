@@ -100,12 +100,13 @@ data-pipeline/
 │       ├── __init__.py
 │       └── base64_codec.py     ← JSON↔Base64 序列化（Transport 层）
 │
-│ ★ 常用运维脚本（agent 直接复用，不要重写）：
-│   ├── check_data_completeness.py   ← 数据完整性检查（2026-06-27 新增）
-│   ├── audit_pending_unmigrated.py  ← pending CSV 孤儿审计
-│   ├── query_portfolio.py           ← 按 product_code 查询持仓
-│   ├── load_pending_confirmed.py    ← pending 行入库（用户确认后）
-│   └── stock_name_corrections.py    ← OCR 名称 → 主数据名静态映射
+★ 常用运维脚本（agent 直接复用，不要重写）：
+  ├── check_data_completeness.py   ← 数据完整性检查（2026-06-27 新增，weekday-only 过滤）
+  ├── portfolio_audit_real.py      ← ✅ A 股真交易日 corrected audit（2026-06-28 新增，跨年窗口必用）
+  ├── audit_pending_unmigrated.py  ← pending CSV 孤儿审计
+  ├── query_portfolio.py           ← 按 product_code 查询持仓
+  ├── load_pending_confirmed.py    ← pending 行入库（用户确认后）
+  └── stock_name_corrections.py    ← OCR 名称 → 主数据名静态映射
 └── references/
     ├── image-pipeline-workflow.md       ← 图片入库实操笔记
     ├── agent-overengineering-anti-patterns.md ← Agent 反模式清单
@@ -427,28 +428,73 @@ python scripts/query_portfolio.py --list-products
 
 **复用脚本**：`scripts/check_data_completeness.py`（2026-06-27 新增）。
 
+> ✅ **Trading-day 校正（2026-06-28 已修复）**：脚本内置 `date.weekday() < 5` 只排除周末，**不排除中国法定节假日**。对 2025-06-30 ~ 2026-06-25 这种跨年窗口，会把国庆、春节、劳动节、端午等 137 个法定节假日误报为「缺数据」，严重淹没真实 gap。
+>
+> **修复状态（2026-06-28 当日完成）**：
+> - 项目根 `.venv`（Python 3.12.13）已 `pip install exchange_calendars==4.13.2` —— `skills/infra/date_utils.py` 自动走 `_get_cn_calendar()` XSHG 路径
+> - `get_trading_dates("2025-06-30", "2026-06-25")` 返回 **240 个真交易日**（之前 fallback 路径返回 122，2025 全部静默跳过）
+> - `is_trading_day` 7/7 probe 通过（国庆/元旦/春节/清明/劳动节/端午都正确判定）
+> - **`check_data_completeness.py` 脚本本身仍用 weekday-only 过滤**，对 2025-06-30 ~ 2026-06-25 这种跨年窗口会报 19 个 gap（其中 18 个是误判）。**核验时务必用 `portfolio_audit_real.py`**（已封装好 `date_utils.get_trading_dates` 二次过滤 + trade coverage + position/nav 一致性校验），不要直接信 `check_data_completeness.py` 的 "missing" 列表。
+>
+> 完整 recipe + 历史 bug 上下文见 `references/trading-day-discipline-2026-06-28.md`。
+
 ```bash
-# 默认扫所有已知产品 × position/nav/trade 三个集合
-.venv/bin/python skills/data/data-pipeline/scripts/check_data_completeness.py \
-  --start 2025-07-07 --end 2025-07-09
+# ✅ 标准核验 — 一行命令搞定（已封装 trading-day 二次过滤 + position/nav 一致性 + trade 覆盖率）
+.venv/bin/python skills/data/data-pipeline/scripts/portfolio_audit_real.py \
+  --start 2025-06-30 --end 2026-06-25
 
 # 指定产品
-.venv/bin/python scripts/check_data_completeness.py \
-  --start 2025-07-07 --end 2025-07-09 --products SM001,SM002
+.venv/bin/python skills/data/data-pipeline/scripts/portfolio_audit_real.py \
+  --start 2025-06-30 --end 2026-06-25 --products SM001,SM002
 
 # JSON 输出（供下游程序消费）
-.venv/bin/python scripts/check_data_completeness.py \
-  --start 2025-07-07 --end 2025-07-09 --json
+.venv/bin/python skills/data/data-pipeline/scripts/portfolio_audit_real.py \
+  --start 2025-06-30 --end 2026-06-25 --json > /tmp/portfolio_audit.json
+
+# 复用 mongo matrix（避免重复查库；首次跑查 mongo 并写 cache，后续跑直接读 cache <1s）
+.venv/bin/python skills/data/data-pipeline/scripts/portfolio_audit_real.py \
+  --start 2025-06-30 --end 2026-06-25 --matrix-cache /tmp/portfolio_matrix.json
+
+# JSON 下游消费（不需要 jq；用 python -c 取单字段，比 jq 兼容性更好）
+.venv/bin/python skills/data/data-pipeline/scripts/portfolio_audit_real.py \
+  --start 2025-06-30 --end 2026-06-25 --products SM012 --json \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['gap_by_collection']['portfolio_position']['SM012'])"
+# 输出示例: ['2025-09-03', '2025-09-04', '2025-09-05', '2025-09-08']
+
+# 只看 trade 覆盖率 + position/nav 一致性
+.venv/bin/python skills/data/data-pipeline/scripts/portfolio_audit_real.py \
+  --start 2025-06-30 --end 2026-06-25 --json \
+  | python3 -c "
+import json,sys
+d = json.load(sys.stdin)
+print('=== TRADE COVERAGE ===')
+for p, s in d['trade_coverage'].items():
+    flag = '⚠️' if s['coverage_pct'] < 50 else '✅'
+    print(f\"  {flag} {p}: {s['days_with_trades']}/{s['trading_days']} = {s['coverage_pct']}%\")
+print('=== POSITION ↔ NAV CONSISTENCY ===')
+for p, c in d['position_nav_consistency'].items():
+    flag = '✅' if c['match'] else '⚠️'
+    print(f\"  {flag} {p}: {'match' if c['match'] else 'MISMATCH'}\")
+"
+```
+
+```bash
+# ⚠️ 旧路径 — 仅用于历史兼容 / 单月查询（2025-07-07~09 不跨节假日，weekday-only 过滤勉强可用）
+# 跨年窗口必须用上面 portfolio_audit_real.py，否则误报 100+ 节假日
+.venv/bin/python skills/data/data-pipeline/scripts/check_data_completeness.py \
+  --start 2025-07-07 --end 2025-07-09
 ```
 
 **脚本内部已修复的坑**（详见 P6a）：
 - 用 `$in` 字符串数组而非 `$gte` datetime 对象（避免 `bson.errors.InvalidDocument`）
 - 用 `holding_ratio / shares / market_value` 而非错误的 `position_ratio / quantity / market_value_local`
-- 自动剔除周末（`date.weekday() >= 5`）
+
+**脚本仍存在的坑**（2026-06-28 已知）：
+- 只剔除周末（`date.weekday() >= 5`），**不剔除中国法定节假日** —— 跨年窗口会误报 100+ 误判。必须用上文"标准核验 recipe"二次过滤。
 
 **输出**：
-- 矩阵：product × trading_day 行数（自动剔除周末）
-- Gap 分析：position / nav 在交易日缺数据的明确清单
+- 矩阵：product × trading_day 行数（脚本只剔周末；交易日判断以 `date_utils.get_trading_dates` 为准）
+- Gap 分析：position / nav 在交易日缺数据的明确清单（必须用 `date_utils.get_trading_dates` 二次过滤，否则含节假日误判）
 - trade 不算 gap（trade 是稀疏的，**不是每个产品每天都有交易** — 用户 2026-06-27 明确反馈）
 
 **报告模板**（用户问"数据完整性"时）：
@@ -759,6 +805,46 @@ Hermes `execute_code` 工具使用自己的 venv（无 pandas），**禁止**用
 - 完整 Python path 命令（如 `.venv/bin/python ...`）**不触发** Hermes 安全审批，可直接执行
 - 脚本通过 `-e`/`-c` 参数注入代码时会触发审批，**不要**依赖这种方式
 - 若 pipeline 执行被安全策略拦截，切换 `terminal(background=true)` + `notify_on_complete=true` 提交后台任务
+
+### Pitfall — "主 venv" 必须实证探测，不要凭名字猜（2026-06-28 实战）
+
+`yquant-investment` 项目里有多个 venv，agent 不能用"主 venv"这种抽象说法 —— 不同会话/不同任务可能用不同解释器。常见候选：
+
+| 路径 | Python | 实际用途 |
+|---|---|---|
+| `yquant-investment/.venv` | 3.12.13 | **项目主 venv**（pandas / openpyxl / pymongo / exchange_calendars），所有 data-pipeline 脚本和 argus 之外的 skill 默认用它 |
+| `skills/research/argus/.venv` | 3.12 | argus 自管，**有 `exchange_calendars`**（曾经是项目里唯一装它的 venv）|
+| `skills/research/daily_stock_analysis/.venv` | 3.12 | dsa 自管，trading_calendar |
+| `hermes-agent/venv` | 3.11 | Hermes Agent 自身；**不能**用于跑 yquant 数据脚本（无 pymongo / 错 numpy ABI）|
+| `skills/data/data-pipeline/.venv` | ❌ 不存在 | data-pipeline skill 没有自管 venv，必须借项目根 `.venv` |
+
+**实证探测流程**（不要跳步）：
+
+```bash
+# 1. 列出所有 venv 的 bin/python 实际路径
+for v in yquant-investment/.venv yquant-investment/skills/research/argus/.venv \
+         yquant-investment/skills/research/daily_stock_analysis/.venv \
+         hermes-agent/venv; do
+  P="/home/pascal/workspace/$v/bin/python"
+  if [ -x "$P" ]; then
+    echo "$P: $($P -V 2>&1)"
+  else
+    echo "$P: MISSING"
+  fi
+done
+
+# 2. 验证目标包是否在候选 venv 里
+/home/pascal/workspace/yquant-investment/.venv/bin/python -c "import exchange_calendars; print('OK', exchange_calendars.__version__)"
+```
+
+**反例（本会话 2026-06-28 错误示范）**：
+- 第一次回答："主 venv = hermes-agent/venv" —— 错。它是 Hermes 自己的解释器，缺 pymongo。
+- 第二次回答："yquant-investment/.venv 是空目录" —— 错。`ls -la` 默认不显式列子目录，看到只有 `.` / `..` 误判。需要 `ls .venv/bin/python` 实证。
+- 第三次才定位到 `yquant-investment/.venv` Python 3.12.13 是项目主 venv。
+
+**当一个第三方库在多个 venv 都有装**（如 `exchange_calendars` 在 argus venv 和项目根 venv 都有）时，**优先用项目根 `.venv`**，保持 data 脚本运行环境和 argus backfill 共享。如果选错 venv，会落入 `date_utils.py` 的 `TRADING_DAYS_2026` fallback 路径（详见 `references/trading-day-discipline-2026-06-28.md`）—— 2025 数据被静默跳过。
+
+**给用户/日志说"主 venv"时，永远写完整绝对路径**（如 `yquant-investment/.venv`），不要用"主 venv"这种抽象词。
 
 ### Pitfall — 用户发图入库的 3 个日期概念（2026-06-25 用户纠正过）
 
