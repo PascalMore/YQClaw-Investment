@@ -2,7 +2,19 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+# Force unbuffered stdout/stderr so cron/tee logs show progress in real time
+# (Python 3.12 defaults to block-buffering when stdout is not a TTY, which
+# caused 91 minutes of "0 log output" in the 2026-06-29 manual run).
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(line_buffering=True)
+    except (AttributeError, ValueError):
+        # reconfigure is a Python 3.7+ TextIO API; skip on older interpreters
+        # or already-closed streams.
+        pass
 
 from scheduler import HotelPriceScheduler
 
@@ -23,7 +35,7 @@ def main() -> int:
         days=args.days,
         send_email=args.send_email,
     )
-    print(f"records={len(result.records)} errors={len(result.errors)} output={result.output_path}")
+    print(f"records={len(result.records)} errors={len(result.errors)} output={result.output_path}", flush=True)
     return 0 if result.records or result.output_path else 1
 
 

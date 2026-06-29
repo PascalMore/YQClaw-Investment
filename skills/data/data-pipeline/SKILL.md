@@ -4,6 +4,8 @@ description: YQuant 数据管道框架。所有外部数据（API采集、文件
 ---
 # Data Pipeline
 
+> **📊 Portfolio MongoDB 字段速查**：`references/portfolio-mongo-schema.md` — 实际字段名/类型/反例/查询模板。写 ad-hoc 查询或导出脚本前**先看这个文件**，避免 3x 踩坑（字段名猜错 / str-vs-datetime / product_code 误用）。
+>
 > **📌 Image Pipeline 实战笔记**：`references/image-pipeline-workflow.md` 记录 Smart Money 图片入库的完整实操流程、3 个日期概念辨析、孤儿 CSV 现象、NAV 字段名坑（`aum` 不是 `scale`）、`--date` 已删除等本会话踩过的坑。新会话涉及图片入库前先看这个文件。
 >
 > **📌 Agent 反模式清单（2026-06-26 用户明确反馈）**：`references/agent-overengineering-anti-patterns.md` 记录 9 条「agent 不要 over-engineer」反模式 — 收到图片后**只归档 + 跑 pipeline**，不要 vision 读图、不要 md5 去重、不要 sanity check、不要替用户决定并发/配额/降级、不要替用户猜 product_code 命名。新会话涉及图片入库前必看。
@@ -993,6 +995,30 @@ profile 的 `~/.hermes/profiles/yquant/.env` 里设了 `Z_AI_API_KEY`，但 `ter
 
 CSV 是审计文件，`sed` 改字段名要记录在案（注明修改时间 + 原因）。这是临时方案；长期应写 `stock_name_corrections.py` 永久映射，避免每天走手工 sed。
 
+### Pitfall — OCR 错名 / 字符宽度损失（2026-06-29 实战新增）
+
+OCR 输出的资产名称有 2 类常见错误，**永久映射**应写入 `scripts/stock_name_corrections.py`：
+
+| Wind 代码 | OCR 错名 | 正确名 | 案例 |
+|---|---|---|---|
+| `688246.SH` | 嘉元科技 | **嘉和美康** | 2026-06-29 用户确认后用 `--name-mapping '{"688246.SH": "嘉和美康"}' --confirm-all` 补录 |
+| `000725.SZ` | 京东方A | **京东方Ａ**（全角）| 2026-06-29 OCR 损失全角字符宽度 |
+
+**症状**：`pending_review` CSV 出现一行，reason = `incompatible OCR/master names; possible Wind-code OCR error`
+
+**推荐流程**（替代手工 sed + 改 CSV）：
+1. 看原图确认 Wind code 和正确名称
+2. 跑：`load_pending_confirmed.py --csv X --name-mapping '{"CODE.SH": "正确名"}' --confirm-all`
+3. 同时把映射加入 `scripts/stock_name_corrections.py`（下次新图自动修正，不再卡 pending）
+
+**反例**：
+- 看到 pending 立刻 sed CSV 改 `名称复核状态` 字段
+- 不写 stock_name_corrections.py，下次同公司再 OCR 错又卡 pending
+
+**已写**（2026-06-29 当日加入 `stock_name_corrections.py`）：
+- `688246.SH → 嘉和美康`
+- `000725.SZ → 京东方Ａ`
+
 ### Pitfall — "已归档" ≠ "已跑过 pipeline"（2026-06-27 实测）
 
 `source/smart-money/{date}/image/` 目录里的 portfolio_*.jpg 文件，**只表示归档动作完成**，不表示 pipeline 已经处理过。当用户分多批推送同一批图（早上 9:46 + 中午 10:02 + 晚上 10:10），image_cache unique hash 可能是同一批 18 张的不同子集，但 pipeline 实际只跑了第一轮的子集。
@@ -1135,7 +1161,13 @@ cd /home/pascal/workspace/yquant-investment && \
 
 **反例**：手动编辑 CSV 改 asset_name 字段再 `confirm-all` — 丢失 OCR 原始痕迹，且需要重跑 audit。
 
-**长期方案（阶段 2 用）**：把确认过的映射加入 `scripts/stock_name_corrections.py`，下次 OCR 识别直接修正，避免再卡 `pending_review`。已知映射：`600259.SH → 中稀有色`（公司改名：原"广晟有色"，主数据已更名为"中稀有色"）。改完后用 `audit_pending_unmigrated.py` 或新跑的图片验证：pending 行应消失。
+**长期方案（阶段 2 用）**：把确认过的映射加入 `scripts/stock_name_corrections.py`，下次 OCR 识别直接修正，避免再卡 `pending_review`。已知映射：
+- `600259.SH → 中稀有色`（公司改名：原"广晟有色"，主数据已更名为"中稀有色"）
+- `000725.SZ → 京东方Ａ`（OCR 把全角 Ａ 读成半角 A，2026-06-29 实测）
+
+改完后用 `audit_pending_unmigrated.py` 或新跑的图片验证：pending 行应消失。
+
+**全角字符漂移的同类 case（2026-06-29）**：OCR 还可能输出全角字母（`Ａ` vs `A`）、全角数字（`１` vs `1`）—— 同名同股，master 校验只放行匹配的主数据。**确认时 `--name-mapping` 写入全角主数据名**即可，不要 sed 改 CSV 丢审计痕迹。
 
 ### P6d. pipeline 产出 xlsx 的命名格式与 agent 归档 jpg 不一致（2026-06-27 实测）
 

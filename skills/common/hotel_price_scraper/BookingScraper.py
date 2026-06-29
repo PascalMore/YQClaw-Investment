@@ -11,6 +11,15 @@ from base import BaseHotelScraper
 from models import HotelPriceRecord
 
 
+class WAFChallengeError(Exception):
+    """Raised when Booking returns a WAF/captcha/challenge interstitial page.
+
+    _fetch_page treats this as a 'cool down' signal: backoff 30s, then retry.
+    Distinct from generic RuntimeError so the retry loop can apply the longer
+    backoff specifically for WAF events.
+    """
+
+
 class BookingScraper(BaseHotelScraper):
     platform = "booking"
 
@@ -20,6 +29,8 @@ class BookingScraper(BaseHotelScraper):
     def scrape(self, hotel_id: str, checkin: date, checkout: date) -> list[HotelPriceRecord]:
         url = self._build_url(hotel_id, checkin, checkout)
         html = self._fetch_page(url)
+        if self._is_waf_challenge(html):
+            raise WAFChallengeError(f"Booking returned challenge/captcha page for {hotel_id} on {checkin}")
         hotel_name, rooms = self._parse_page(html)
         if hotel_name == -1:
             raise RuntimeError("Booking page title not found or cookie expired")
@@ -36,14 +47,46 @@ class BookingScraper(BaseHotelScraper):
 
     def _fetch_page(self, url: str) -> str:
         last_error: Exception | None = None
-        for attempt in range(3):
+        # 1 WAF-aware retry (30s backoff) + 1 fast retry (3s) = 2 attempts total.
+        # Phase 2 testing showed 5× WAF retries waste up to 150s/req without
+        # recovering most challenges — fail-fast is better.
+        for attempt in range(2):
             try:
                 return self._fetch_page_once(url)
+            except WAFChallengeError as exc:
+                last_error = exc
+                print(f"  [WAF] challenge detected, backoff 30s (attempt {attempt+1}/2): {url[:80]}", flush=True)
+                time.sleep(30)
             except Exception as exc:
                 last_error = exc
                 time.sleep(2 + attempt)
         assert last_error is not None
         raise last_error
+
+    def _is_waf_challenge(self, html: str) -> bool:
+        """Detect Booking WAF / challenge / captcha interstitial page.
+
+        Real Booking hotel pages contain rich content; challenge pages are sparse
+        and contain challenge/captcha/verify markers.
+        """
+        if not html:
+            return True
+        lower = html.lower()
+        # Common WAF challenge markers observed on Booking.com
+        challenge_markers = [
+            "captcha",
+            "verify you are a human",
+            "verify you are not a robot",
+            "checking your browser before accessing",
+            "please complete the security check",
+            "access denied",
+        ]
+        # Real hotel pages have h2.pp-header__title — challenge pages don't
+        if "hprt-roomtype-icon-link" not in lower and "pp-header__title" not in lower:
+            # Page didn't render the hotel content (likely WAF replacement)
+            if any(m in lower for m in challenge_markers) or len(html) < 50000:
+                return True
+        return False
 
     def _fetch_page_once(self, url: str) -> str:
         from playwright.sync_api import sync_playwright

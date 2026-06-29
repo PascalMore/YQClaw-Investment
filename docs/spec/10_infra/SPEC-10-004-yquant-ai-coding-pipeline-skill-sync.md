@@ -7,7 +7,8 @@
 | 状态 | Accepted |
 | 作者 | YQuant-Codex-Principal |
 | 创建日期 | 2026-06-27 |
-| 最后更新 | 2026-06-27 |
+| 最后更新 | 2026-06-29 |
+| 版本号 | V1.1 |
 | 来源 RFC | RFC-10-004-yquant-ai-coding-pipeline-skill-sync |
 | 目标模块 | infra / Hermes Kanban Pipeline |
 | 适配 Agent | YQuant-Developer-Engineer, YQuant-Test-Engineer, YQuant-Reviewer-Principal |
@@ -242,5 +243,120 @@ find ~/.hermes/profiles -name "SKILL.md" -path "*yquant-ai-coding-pipeline*" -pr
 
 未解决问题：
 
-- 是否需要把“只同步 yquant cache、删除 worker copy”的逻辑固化到 Hermes profile bootstrap 或项目脚本中？本 SPEC 不处理。
+- 是否需要把"只同步 yquant cache、删除 worker copy"的逻辑固化到 Hermes profile bootstrap 或项目脚本中？本 SPEC 不处理。
 - 是否需要在 Hermes upstream 支持同名 skill 优先级或 shadowing 规则？本 SPEC 不处理。
+
+## 13. Quick Flow 可执行契约
+
+### 13.1 Kanban 任务链契约
+
+Quick Flow 5 阶段对应 4 个 Kanban task：
+
+```text
+T1 RFC/SPEC/Design   assignee=yquantprincipal   产出：RFC + SPEC + Design 三份独立文档
+T2 Implement          assignee=yquantdeveloper   parents=[T1]
+T3 Verify             assignee=yquanttester      parents=[T2]
+T4 Closeout           assignee=<orchestrator>    parents=[T3]
+```
+
+三份文档的产出顺序与文件命名契约：
+
+| 文档 | 路径模板 | 示例 |
+|---|---|---|
+| RFC | `docs/rfc/{module}/RFC-{NN}-{XXX}-{short-name}.md` | `docs/rfc/10_infra/RFC-10-004-...md` |
+| SPEC | `docs/spec/{module}/SPEC-{NN}-{XXX}-{short-name}.md` | `docs/spec/10_infra/SPEC-10-004-...md` |
+| Design | `docs/design/{module}/DESIGN-{NN}-{XXX}-{short-name}.md` | `docs/design/10_infra/DESIGN-10-004-...md` |
+
+文档文件名中的 `{NN}-{XXX}` 必须与来源 RFC 编号一致。
+
+### 13.2 T1 Task Body 最低要求
+
+T1（RFC/SPEC/Design，assignee=yquantprincipal）的 body 必须包含：
+
+- 用户目标和流程模式声明："本任务走 Quick Flow（5 阶段：Intake → RFC/SPEC/Design → Implement → Verify → Closeout）"。
+- 允许修改的文件范围精确列表。
+- 禁止修改的文件范围精确列表。
+- 三层文档的精确目标路径（至少给出完整路径示例）。
+- 项目约定（文档命名、模块编号、数据库/隐私/凭据约束等）。
+- 验收标准清单（每份文档的章节结构要求）。
+- 输出语言要求。
+
+### 13.3 T2 Task Body 最低要求
+
+T2（Implement，assignee=yquantdeveloper）的 body 必须包含：
+
+- 来源 RFC/SPEC/Design 的精确文件路径引用。
+- 允许修改的代码文件范围。
+- 禁止修改的代码文件范围。
+- 实现约束（来自 SPEC §11 与 Design §7）。
+- 验收标准（含端到端 smoke test + 业务合理性 checklist）。
+- 需要运行的测试命令或可接受的替代验证方法。
+- 输出语言要求。
+
+### 13.4 T3 Task Body 最低要求
+
+T3（Verify，assignee=yquanttester）的 body 必须包含：
+
+- 来源 SPEC 的精确文件路径引用。
+- 验收标准矩阵（来自 SPEC §10）。
+- 测试命令与断言列表。
+- 端到端 smoke test 具体步骤（含数据合理性抽样检查）。
+- 输出语言要求。
+
+### 13.5 T4 Closeout 最低要求
+
+T4 Closeout 由 orchestrator 执行，必须完成：
+
+- Closeout 自审清单（RFC-10-004 §12.7，≥11 项逐一核查）。
+- 变更总结（1-3 句）。
+- 残余风险与后续事项。
+- 若自审发现问题，按严重度处理：
+  - Minor（文档遗漏、命名建议）→ orchestrator 直接修，closeout 记录。
+  - Major/High（契约不一致、测试未达标、遗漏关键路径）→ 退回 T2，不 closeout。
+
+### 13.6 验收标准矩阵（Quick Flow 专用）
+
+| 编号 | 验收项 | 验证方式 | 负责阶段 |
+|---|---|---|---|
+| Q-A-001 | RFC/SPEC/Design 三份文档均存在且章节结构完整 | 文件存在性 + 章节 grep | T1 完成后 orchestrator 门禁 |
+| Q-A-002 | 三层文档引用关系正确（RFC → SPEC → Design） | 交叉引用 grep | T1 完成后 orchestrator 门禁 |
+| Q-A-003 | T2 实现符合 SPEC/Design 约束 | T3 Verify 测试报告 | T3 |
+| Q-A-004 | 验收标准（SPEC §10 + RFC §9）全部通过 | T3 测试报告 + orchestrator 复核 | T3/T4 |
+| Q-A-005 | Closeout 自审清单 ≥11 项全部通过 | orchestrator 逐项核查并记录 | T4 |
+| Q-A-006 | 文件改动范围在 Design 预期内 | `git diff --stat` 对比 Design §3.1 | T4 |
+| Q-A-007 | 未修改禁止清单中的文件 | `git diff --name-only` 交叉检查 | T4 |
+
+### 13.7 与 RFC-10-004 §12 的对应关系
+
+| RFC-10-004 章节 | SPEC-10-004 落地点 |
+|---|---|
+| §12.3 触发条件 | orchestrator Intake 阶段判定（不写入 SPEC） |
+| §12.4 适用边界 | orchestrator Intake 阶段硬性检查（不写入 SPEC） |
+| §12.5 三流程矩阵 | 本 SPEC §13.1 任务链（仅 Quick Flow 部分） |
+| §12.6 Kanban 任务链 | 本 SPEC §13.1 |
+| §12.7 Closeout 自审清单 | 本 SPEC §13.5（操作化） |
+| §12.8 风险与降级 | 本 SPEC §13.5 退回策略 |
+
+### 13.8 与完整流程 SPEC 的兼容性
+
+- Quick Flow 不取代完整流程；两种流程在 Kanban 任务创建时由不同的 task body 驱动。
+- 与完整流程共享相同的 profile assignee 路由（`yquantprincipal` / `yquantdeveloper` / `yquanttester` / `yquantreviewer`）。
+- P-1~P-11 pitfalls 中以下条目在 Quick Flow 中仍然适用：
+  - P-1（Skill name collision）✅
+  - P-2（dispatcher fallback）✅
+  - P-3（Kanban DB task id 不存在）✅
+  - P-4（workspace_path 必须用共享项目目录）✅
+  - P-5（worker 完成后不要误 block）✅ — Quick Flow 同样适用
+  - P-6（T1 完成后用户决策变更）✅ — Quick Flow 的 T1 是 RFC/SPEC/Design 合并 task
+  - P-8（跨项目复用前须发现约定）✅
+  - P-9（中途变更骨架/命名规范）✅
+  - P-10（凭据/环境文件遮蔽）✅
+  - P-11（端到端 smoke test 数据合理性）✅
+- P-7（编排层越界改模板）在 Quick Flow 中同样禁止。
+
+### 13.9 实现约束（Quick Flow 专用）
+
+- T1 task body 必须显式声明"本任务走 Quick Flow"和流程模式定义。
+- T1 产出的 DESIGN 文档必须包含自审清单（≥11 项），T4 Closeout 必须逐项执行。
+- orchestrator 不得在 Quick Flow 中自动跳过 Verify 阶段。
+- 若 Quick Flow 中途发现风险等级被低估，orchestrator 可升级为完整流程（补开 Design 独立 task 或 Review task）。

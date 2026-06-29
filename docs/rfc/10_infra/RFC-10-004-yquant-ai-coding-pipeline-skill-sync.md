@@ -7,8 +7,8 @@
 | 状态 | 已采纳（Accepted） |
 | 作者 | YQuant-Codex-Principal |
 | 创建日期 | 2026-06-27 |
-| 最后更新 | 2026-06-27 |
-| 版本号 | V1.0 |
+| 最后更新 | 2026-06-29 |
+| 版本号 | V1.1 |
 | 所属模块 | 10_infra（基础设施 / Hermes Kanban Pipeline） |
 | 依赖 RFC | RFC-10-003-infra-architecture |
 | 替代 RFC | 无 |
@@ -20,6 +20,7 @@
 | 版本号 | 日期 | 更新内容 | 负责人 |
 |---|---|---|---|
 | V1.0 | 2026-06-27 | 初始创建，定义 AI Coding Pipeline skill canonical source、运行态副本保留策略与 worker 副本删除策略 | YQuant-Codex-Principal |
+| V1.1 | 2026-06-29 | 新增 §12 扩展：Quick Flow 5 阶段流程模式（Intake → RFC/SPEC/Design → Implement → Verify → Closeout） | YQuant-Codex-Principal |
 
 ## 1. 执行摘要
 
@@ -241,7 +242,117 @@ done
 - 是否需要后续新增一个自动同步脚本，避免项目源与 yquant 主 profile cache 再次漂移？本 RFC 不处理。
 - Hermes core 是否应支持同名 skill 的优先级策略或去重策略？本 RFC 不处理。
 
-## 12. 参考资料
+## 12. 扩展：Quick Flow 流程模式
+
+### 12.1 背景与动机
+
+当前 AI Coding Pipeline 提供两种流程模式：
+- **完整流程（7 阶段）**：Intake → RFC/SPEC → Design → Implement → Verify → Review → Closeout。适用于高风险、跨模块、涉及交易/风控的非平凡改动。
+- **轻量流程（3 阶段）**：Intake → Implement → Verify → Closeout。适用于单文件低风险 bug fix。
+
+实践中发现两种模式的中间存在大量"中风险、明确需求、改动范围 3-8 个文件、需要三层文档但不需独立 Reviewer"的场景。完整流程对这类任务过于冗余（多 1 个 Review 阶段 + 多 1 个 Kanban task），轻量流程又缺少 RFC/SPEC/Design 三层文档保障。Quick Flow 填补这一空缺。
+
+### 12.2 目标与非目标
+
+#### 12.2.1 目标
+
+- 提供 5 阶段流程：Intake → RFC/SPEC/Design → Implement → Verify → Closeout。
+- RFC/SPEC/Design 三层文档由一个 Kanban task 产出，保持三层独立但减少 stage count。
+- 保留 Verify 作为客观质量屏障——去掉 Review 是合理的，因为 Reviewer 的主要价值（架构一致性审查）在"有完整三层文档 + Verify"场景下可替换为 Closeout 自审清单。
+- 与完整流程共享相同的 profile assignee 路由（`yquantprincipal` / `yquantdeveloper` / `yquanttester`）。
+
+#### 12.2.2 非目标
+
+- 不引入"无文档"流程（轻量流程已覆盖）。
+- 不合并 Verify + Review 为一个阶段。
+- 不改变 P-1~P-11 pitfalls 的核心修复策略。
+- 不在 Quick Flow 中引入新的 profile 或角色。
+
+### 12.3 触发条件
+
+Quick Flow 由 orchestrator 在 Intake 阶段基于以下规则自动判定，也可由用户显式指定：
+
+| 维度 | Quick Flow 条件 | 说明 |
+|---|---|---|
+| 风险等级 | 中等或以下 | 不涉及核心交易、真实资金、生产数据库 schema 变更 |
+| 需求明确度 | 需求已明确 | 无需多轮探索性讨论 |
+| 改动范围 | 3-8 个文件 / 单模块 | 超 8 文件或跨多模块仍应走完整流程 |
+| 影响面 | 非核心数据/风控 | 不修改 `portfolio_position`、交易执行、风控限额 |
+| 文档需求 | 需要三层文档 | 需要 RFC/SPEC/Design 但不需要独立 Reviewer |
+
+用户显式触发词："走 Quick Flow"、"按快捷流程"、"5 阶段快速"。
+
+### 12.4 适用边界（仍走完整流程的场景）
+
+以下场景即使文件数 ≤ 8，也必须走完整流程（含 Review）：
+
+- 修改 MongoDB 写入路径（`portfolio_position`、`portfolio_trade`、`stock_pool` 等核心集合）。
+- 修改交易/风控逻辑（`risk/`、`trading/` 模块）。
+- 修改外部消息发送（cron 报告推送、telegram/email 通知）。
+- 新增外部 API 集成或依赖升级。
+- 跨 2 个以上模块的架构变更。
+- 用户明确要求走完整流程或独立 Review。
+
+### 12.5 与已有流程的关系
+
+| 特征 | 完整流程（Full） | 快捷流程（Quick） | 轻量流程（Light） |
+|---|---|---|---|
+| 阶段数 | 7 | 5 | 3（实际 4，含 Intake/Closeout） |
+| Kanban task 数 | 6 | 4 | 2 |
+| RFC/SPEC/Design | 独立文件，分 2 task | 独立文件，1 task 产出 | 无 |
+| Verify | 独立 tester | 独立 tester | 独立 tester |
+| Review | 独立 reviewer | **无**（以 Closeout 自审替代） | 无 |
+| 适用场景 | 高风险、核心逻辑、跨模块 | 中风险、明确需求、≤8 文件 | 单文件 bug fix、文案 |
+
+三层流程由 orchestrator 在 Intake 阶段根据触发条件选定，并在首次 Kanban task body 中显式声明流程模式。
+
+### 12.6 Kanban 任务链
+
+```
+T1 RFC/SPEC/Design   assignee=yquantprincipal   (1 task → 3 份文档)
+T2 Implement          assignee=yquantdeveloper   parents=[T1]
+T3 Verify             assignee=yquanttester      parents=[T2]
+T4 Closeout           assignee=<orchestrator>    parents=[T3]
+```
+
+对比完整流程：
+
+```
+T1 RFC/SPEC           assignee=yquantprincipal
+T2 Design             assignee=yquantprincipal   parents=[T1]
+T3 Implement          assignee=yquantdeveloper   parents=[T2]
+T4 Verify             assignee=yquanttester      parents=[T3]
+T5 Review             assignee=yquantreviewer    parents=[T4]
+T6 Closeout           assignee=<orchestrator>    parents=[T5]
+```
+
+关键差异：RFC/SPEC/Design 合并为 1 个 Kanban task，去掉了独立的 Design task 和 Review task，节省 2 个 Kanban task。
+
+### 12.7 Closeout 自审清单（替代 Reviewer）
+
+由于 Quick Flow 无独立 Reviewer，orchestrator 在 Closeout 阶段必须执行自审清单（详见 DESIGN-10-004 §3.6），至少覆盖以下方面：
+
+- SPEC 契约与实际实现是否一致。
+- 文件改动清单是否符合 Design 预期。
+- 验收标准（RFC §9）是否全部通过。
+- 风险应对（RFC §7）是否已验证或降级可接受。
+- 代码风格和项目约定是否遵守。
+- 测试覆盖是否满足 Design §5 要求。
+- 是否有遗漏的边缘情况或异常降级路径。
+- 三方依赖是否有新增/升级且已记录。
+- 文档引用关系是否正确（RFC → SPEC → Design → 实现）。
+- Git diff 范围是否在产品边界内且不包含无关改动。
+- worker 日志有无异常（fallback、crash、timeout）。
+
+### 12.8 风险与降级
+
+| 风险 | 概率 | 影响 | 应对 | 降级 |
+|---|---|---|---|---|
+| Closeout 自审不充分，遗漏 Review 级别问题 | 中 | 中 | 自审清单 ≥10 项 + orchestrator 必须执行 | 发现遗漏后补开 Review task |
+| Quick Flow 误用于高风险场景 | 低 | 高 | Intake 阶段触发条件硬性检查（§12.3-§12.4） | orchestrator 可在任意阶段升级为完整流程 |
+| 三层文档质量因合并 task 而下降 | 中 | 中 | SPEC-10-004 Quick Flow 契约明确三层独立 + 结构完整 | T2 Implement 发现文档不足时退回 T1 |
+
+## 13. 参考资料
 
 - `skills/infra/ai-coding-pipeline/SKILL.md`
 - `skills/infra/ai-coding-pipeline/references/real-run-journal-2026-06-25.md`
