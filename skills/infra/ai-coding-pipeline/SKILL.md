@@ -300,7 +300,7 @@ T1/T2/T3 任意阶段，orchestrator 若发现：
 | T4 Closeout 自审清单某项标注 ❌ 但仍 continue | 自审被敷衍 | 不允许 closeout，补完再 T4 |
 | T2/T3 完成后状态变 `blocked` 而非 `done` | P-5 worker 误 block | 直接 unblock（见 P-5 修复路径） |
 
-P-1~P-12 pitfalls **在 Quick Flow 中全部继续适用**（DESIGN-10-004 §3.7 兼容性矩阵，含 V1.2 新增的 P-12 orchestrator 串行调度风险），无例外。
+P-1~P-13 pitfalls **在 Quick Flow 中全部继续适用**（DESIGN-10-004 §3.7 兼容性矩阵，含 V1.2 新增的 P-12 orchestrator 串行调度风险 + 2026-07-01 新增的 P-1c worker profile `external_dirs` 必须覆盖目标项目 skills 目录），无例外。
 
 ## Quick Flow 阶段门禁
 
@@ -319,7 +319,7 @@ T4 自审清单 **15 项**（含 V1.2 新增 #1 Intake 预创建 + #2 parent lin
 
 - RFC：`docs/rfc/10_infra/RFC-10-004-yquant-ai-coding-pipeline-skill-sync.md` §12（Quick Flow 扩展，背景/动机/触发条件/Kanban 链/Closeout 自审清单 **15 项**）
 - SPEC：`docs/spec/10_infra/SPEC-10-004-yquant-ai-coding-pipeline-skill-sync.md` §13（Quick Flow 可执行契约，**§13.1-§13.10**，含 Q-LINK 契约 §13.10）
-- Design：`docs/design/10_infra/DESIGN-10-004-yquant-ai-coding-pipeline-skill-sync.md`（§3.1 时序图、§3.2-§3.5 task body 模板、§3.6 orchestrator 改动点、§3.7 **P-1~P-12** 兼容矩阵、§3.8 降级/升级路径）
+- Design：`docs/design/10_infra/DESIGN-10-004-yquant-ai-coding-pipeline-skill-sync.md`（§3.1 时序图、§3.2-§3.5 task body 模板、§3.6 orchestrator 改动点、§3.7 **P-1~P-13** 兼容矩阵、§3.8 降级/升级路径）
 
 > **V1.2 衔接机制改造（2026-06-30）**：Quick Flow 的主进度推进已由 Kanban DB 状态机接管（Intake 一次性预创建 T1-T4 + dispatcher `recompute_ready` + `dispatch_once`）。本节"主动推进规则"现在主要用于：① Full Flow 在 Review 后由 orchestrator 创建 T6 Closeout；② Quick Flow 的 Closeout 自审清单触发（Q-A-008 / Q-LINK-001~006）；③ 异常状态下的应急调度（如 worker 卡死、parent link 断裂、需要紧急 Review）。日常 Quick Flow 的"前序 done → 后序 spawn"**不**依赖本节规则，而由 dispatcher 自动完成。
 
@@ -561,6 +561,86 @@ hermes -p <assignee> chat --skills <skill-a>,<skill-b> -q '只回复 OK'
 
 第一条成功、第二条失败时，优先检查 `skills=[...]` 中是否有 worker 不可见的 profile-local skill。
 
+### P-1c: worker profile `external_dirs` 必须覆盖目标项目 skills 目录（2026-07-01 实测）
+
+**症状**（yinglong 5 阶段 4 task 实跑）：worker 进程在 `plugin discovery` 完成后**静默死掉**，无 turn_context、无 tool call、Python 无异常堆栈；dispatcher 60s 后报 `pid not alive` → crash → 2 次后 `gave_up`。日志末尾最后一行是 `Plugin discovery complete: 38 found, 32 enabled`，看似正常但实际已经死。
+
+**表面现象干扰**：tail 看 worker log 会看到 MCP stdio server 报 `BrokenPipeError`（`mcp-stderr.log`），容易误判为 MCP 根因。但 **BrokenPipe 是父进程死后子进程写 stdout 失败的结果，不是 cause**。
+
+**真实根因**：worker profile 的 `config.yaml` 里 `skills.external_dirs` **只指向 orchestrator 项目**（如 `/home/pascal/workspace/yquant-investment/skills`），**目标项目的 skills 没被加入**。当 `kanban_create` 的 `workspace_path` 指向 yinglong 项目、且 `skills=[travel, ...]` 引用 yinglong 的 skill 时：
+
+1. worker 启动时按 `external_dirs` 加载 skills → yinglong 的 skill 找不到
+2. hermes_cli 抛 `Unknown skill(s): travel` 异常
+3. 异常发生在 MCP stdio 启动后的某个 thread 里，**被 hermes_cli 静默吞掉**
+4. 主进程被 watchdog SIGKILL
+5. dispatcher 等不到心跳 → crash
+
+**根因复盘**（yinglong 5h44m 类事故的反向版本）：
+
+| 表象 | 真实 |
+|------|------|
+| MCP server `BrokenPipeError` | **结果**，不是 cause（父进程死后子进程 stdout flush 失败） |
+| `pid not alive` 60s 后触发 | 真实，进程确实死 |
+| plugin discovery 后无任何日志 | 异常被 hermes_cli 静默吞掉 |
+| 任务 2 次连挂 100% 复现 | 根因 100% 在配置层，不是环境/网络 |
+
+**修复**（最低成本）：
+
+```bash
+# 给所有 4 个 worker profile 加入目标项目 skills 路径
+for p in yquantprincipal yquantdeveloper yquanttester yquantreviewer; do
+  cfg="/home/pascal/.hermes/profiles/$p/config.yaml"
+  cp "$cfg" "$cfg.bak-$(date +%Y%m%d-%H%M%S)"
+  python3 -c "
+import yaml
+y = yaml.safe_load(open('$cfg'))
+ext = y.setdefault('skills', {}).setdefault('external_dirs', [])
+target = '/home/pascal/workspace/yq-yinglong/skills'
+if target not in ext:
+    ext.append(target)
+yaml.dump(y, open('$cfg', 'w'), default_flow_style=False, sort_keys=False, allow_unicode=True)
+"
+done
+```
+
+**预防**（Intake 阶段必做，纳入标准化 checklist）：
+
+1. **目标项目 conventions 发现时同步固化 worker profile `external_dirs`**：新项目/新 worker profile 上线前，**必须**把目标项目 skills 目录加到 4 个 worker profile 的 `external_dirs`，不能依赖 `workspace_path` 自动发现。
+2. **P-1b 与 P-1c 的关键区别**：
+   - P-1b：`kanban_create(skills=...)` 引用了 orchestrator 自己可见但 worker 不可见的 profile-local skill → `Unknown skill` 立即报错退出
+   - P-1c：**`skills=[]` 引用的 skill 名确实存在于项目目录**，但**项目目录不在 worker profile 的 `external_dirs` 中** → 异常被静默吞掉，**更难诊断**
+3. **诊断命令**（P-1c 比 P-1b 难在"静默"）：
+
+```bash
+# Step 1: 检查 worker profile 能否看到目标 skill
+hermes -p yquantprincipal chat -q "只回复 OK" --skills <target-skill>
+# 输出 "Error: Unknown skill(s): <target-skill>" = P-1c 命中
+
+# Step 2: 看 worker profile 实际加载的 external_dirs
+grep -A 3 "external_dirs" ~/.hermes/profiles/<worker>/config.yaml
+
+# Step 3: 确认 worker 进程启动后是否有 turn_context（= 是否进入对话循环）
+grep "turn_context" ~/.hermes/profiles/<worker>/logs/agent.log | tail -3
+# 没有 turn_context 出现 = P-1c 静默失败典型症状
+```
+
+**长期改进方向**（未实施）：dispatcher 在 spawn worker 时**自动**根据 `workspace_path` 把目标项目 skills 路径注入 `HERMES_SKILLS_EXTERNAL_DIRS` 环境变量，避免每个项目都要手改 4 个 worker profile config。
+
+**预防 checklist（Intake 必跑）**：
+
+```bash
+# 流水线部署/复用前，对每个 worker profile 跑一次
+for p in yquantprincipal yquantdeveloper yquanttester yquantreviewer; do
+  for s in $(ls -1 $PIPELINE_WORKSPACE/skills/); do
+    if ! hermes -p $p chat -q "ok" --skills $s 2>&1 | grep -q "^Error"; then
+      echo "  $p: $s ✓"
+    else
+      echo "  $p: $s ✗ (P-1c 命中：worker 看不到项目 skill)"
+    fi
+  done
+done
+```
+
 ### P-2: dispatcher 透明跑 fallback 链，任务名义 assignee 与实际模型可能不一致
 
 **症状**：`kanban_create(assignee="yquantprincipal")` 派出的 task 实际由 zai/glm-5.2 甚至 MiniMax-M3 完成。task summary 看似完成，但内容质量反映的是 fallback 模型的能力上限，不是 yquantprincipal 的设计意图。
@@ -780,7 +860,7 @@ T4 Closeout          (orchestrator)      parents=[T3]
 - 任何 task done 通知到达但 children 24h 内未 promote → 主动 unblock + 记录事件
 - T3 Verify 发现 P-11 端到端数据不合理 → 升级到 Full Flow 重新跑
 
-**P-1~P-11 pitfalls 全部适用于 Quick Flow（历史 P-1~P-11；V1.2 起 P-1~P-12）**
+**P-1~P-13 pitfalls 全部适用于 Quick Flow**（2026-07-01 实测新增 P-1c worker profile `external_dirs` 必须覆盖目标项目 skills 目录）
 
 ## 参考资料
 
@@ -790,6 +870,7 @@ T4 Closeout          (orchestrator)      parents=[T3]
 - `references/hermes-kanban-orchestration.md`：Hermes Kanban profile worker 编排规则。
 - `references/quick-flow-journal-2026-06-29.md`：**Quick Flow 实施实跑日志**（含 T1-T4 task IDs、产物、关键教训）。
 - `references/quick-flow-handoff-mechanism.md`：**Quick Flow 衔接机制 class-level 参考**（三流程根因分类 + 故障源可达性矩阵 + 方案 A 落地 + Q-LINK 契约 + P-12 pitfall + yinglong 5h44m 卡死复盘）。orchestrator 判定走 Quick Flow 时必须先读。
+- **P-1c 复盘（2026-07-01 yinglong 5 阶段 4 task 实跑）**：worker profile `external_dirs` 不覆盖目标项目 skills 目录时，进程静默 SIGKILL、P-1b 风格的 `Unknown skill` 异常被 hermes_cli 静默吞掉。详见本 SKILL.md §P-1c 段。
 - `references/spec-from-rfc.md`：**SPEC 阶段专用编写手册**——从 RFC 派生 SPEC 时的决策→契约映射模式、12 节章节清单、7 类陷阱（含「不改动清单 P-2」「硬编码版本号 P-3」「向后兼容 P-4」「混淆 SPEC/Design 边界 P-7」）、验证清单与完成回报模板。
 - `skills/common/utils/print_agent_models.py`：查看所有 Agent 当前模型/fallback/compression 配置。
 - `references/real-run-journal-2026-06-25.md`：**实跑日志**——2026-06-25 RFC-03-006 流水线从中断点 Design → Implement 推进的真实时序、模型 fallback 观察、worker crash 复盘。Read this before deploying the pipeline for the first time.
